@@ -188,14 +188,15 @@ class MDM(nn.Module):
         return output
 
 
+    # Anthony: not using smpl model
     def _apply(self, fn):
         super()._apply(fn)
-        self.rot2xyz.smpl_model._apply(fn)
+        #self.rot2xyz.smpl_model._apply(fn)
 
-
+    # Anthony: not using smpl model
     def train(self, *args, **kwargs):
         super().train(*args, **kwargs)
-        self.rot2xyz.smpl_model.train(*args, **kwargs)
+        #self.rot2xyz.smpl_model.train(*args, **kwargs)
 
 
 class PositionalEncoding(nn.Module):

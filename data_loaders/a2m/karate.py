@@ -13,7 +13,7 @@ class KaratePoses(Dataset):
 #class KaratePoses():
     dataname = "karate"
 
-    def __init__(self, datapath="dataset/KaratePoses", split="train", **kargs):
+    def __init__(self, datapath="datasets/KaratePoses", split="train", **kargs):
         self.datapath = datapath
 
         # max num_frames in karate dataset is 356 (almost 15 seconds with 25 fps). 

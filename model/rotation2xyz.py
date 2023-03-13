@@ -14,7 +14,7 @@ class Rotation2xyz:
     def __init__(self, device, dataset='amass'):
         self.device = device
         self.dataset = dataset
-        self.smpl_model = SMPL().eval().to(device)
+        #self.smpl_model = SMPL().eval().to(device)
 
     def __call__(self, x, mask, pose_rep, translation, glob,
                  jointstype, vertstrans, betas=None, beta=0,

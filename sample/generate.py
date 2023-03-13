@@ -153,7 +153,7 @@ def main():
         # Modified for karate
         if args.dataset == 'karate': 
             j_type = 'karate'
-            datapath="dataset/KaratePoses"
+            datapath="datasets/KaratePoses"
             npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
             all_data = np.load(npydatafilepath, allow_pickle=True)
             joint_distances = [x for x in all_data["joint_distances"]]

@@ -1,0 +1,39 @@
+Tried to download the action2motion data via: 
+bash prepare/download_a2m_datasets.sh
+
+Result: 
+Access denied with the following error:
+        Too many users have viewed or downloaded this file recently. Please
+        try accessing the file again later. If the file you are trying to
+        access is particularly large or is shared with many people, it may
+        take up to 24 hours to be able to view or download the file. If you
+        still can't access a file after 24 hours, contact your domain
+        administrator. 
+        
+        
+This is only regarding the UESTC dataset. 
+The HUmanAct12 dataset was successfully downloaded so I will use that for now. 
+
+For now I downloaded the pretrained model humanact12. 
+The is also a version called humanact12_no_fc. Maybe this is usefull if I 
+want to continue the learning on the karate dataset. 
+The models internal layers might have learned some general properties about 
+motion that could be used as a starting point for training. 
+
+
+Note: 125 at 25 fps means max 5 seconds. Longer motions will be cut.
+
+python -m train.train_mdm --save_dir save/karateAttemp --dataset karate --cond_mask_prob 0 --lambda_rcxyz 1 --lambda_vel 1 --lambda_fc 1 --num_frames 125 --batch_size 32 --train_platform_type TensorboardPlatform --overwrite
+
+tensorboard --logdir save/karateAttempt100epochs/
+
+
+python -m sample.generate --model_path ./save/karateAttempt100epochs/model000013400.pt --action_file ./assets/example_action_names_karate.txt
+
+
+
+
+python -m train.train_mdm --save_dir save/my_name --dataset humanact12 --cond_mask_prob 0 --lambda_rcxyz 1 --lambda_vel 1 --lambda_fc 1 --batch_size 32
+
+
+len(data) = 343, num_steps = 600000, epochs = 600000/343 = 1750 

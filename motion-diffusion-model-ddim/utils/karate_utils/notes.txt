@@ -1,0 +1,38 @@
+The are the joint centers. There are only 12 so instead 
+the markers will be used. 
+'LHJC', 'RHJC', 'LKJC', 'RKJC', 'LAJC', 'RAJC', 
+'LSJC', 'RSJC', 'LEJC', 'REJC', 'LWJC', 'RWJC'
+
+TODO: for text, calculate average dispersion in mm
+between original posirtions and calculates ones, 
+to show that the assumption is justified. 
+
+
+Some debugging stuff: 
+'''
+    print(test_j_df)
+    a, d = geometry.calc_joint_angles_and_distances(test_j_df)
+    print(a, d)
+    chain_start_positions = test_j_df['LFHD'].to_numpy()
+    j_pos = geometry.calc_positions(chain_start_positions, 'LFHD', a, d)
+    print(j_pos)
+    print(j_pos[0])
+
+    mocap_visualization.from_array(j_pos)
+    '''
+
+    '''
+    test_point_1 = np.array([1, 5, 2])
+    test_point_2 = np.array([3, 4, 6])
+    a, d = geometry.points_to_angles_and_distance(test_point_1, test_point_2)
+    print(a, d)
+    calc_pos_2 = geometry.angles_and_distance_to_point(test_point_1, a, d)
+    print(test_point_1, calc_pos_2)
+    exit()
+'''
+
+#file_names = ['2017-01-31-B0367-S01-E01-T01.csv', '2017-01-31-B0367-S01-E02-T01.csv']
+    #file_names = ['2017-03-28-B0400-S04-E03-T01.csv', '2017-03-28-B0400-S04-E03-T02.csv']
+    file_names = ['2017-03-28-B0400-S05-E03-T01.csv', '2017-03-28-B0400-S05-E03-T02.csv', '2017-03-28-B0400-S05-E04-T01.csv', '2017-03-28-B0400-S05-E04-T02.csv', 
+        '2017-03-28-B0400-S05-E01-T01.csv', '2017-03-28-B0400-S05-E01-T02.csv', '2017-03-28-B0400-S05-E02-T01.csv', '2017-03-28-B0400-S05-E02-T02.csv']
+    #file_names = file_names[:20]

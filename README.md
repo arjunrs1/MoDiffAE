@@ -1,1 +1,1 @@
-# motion-diffusion-modifier
+# motion-diffusion-autoencoder

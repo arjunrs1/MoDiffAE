@@ -1,5 +1,8 @@
 # Save
-save/
+save/*
+dataset/*
+
+!README.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

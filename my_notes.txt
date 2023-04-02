@@ -38,4 +38,4 @@ python -m train.train_mdm --save_dir save/my_name --dataset humanact12 --cond_ma
 
 len(data) = 343, num_steps = 600000, epochs = 600000/343 = 1750 
 
-test
+test push

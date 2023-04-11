@@ -45,6 +45,8 @@ upper = mean + 3 * std
 lower = mean - 3 * std
 
 #print(np.max(durations))
+#print([dur for dur in durations if dur > upper])
+#print([dur for dur in durations if dur < 1])
 #print(upper, lower)
 
 ### For checking that the modified dataset contains no outliers anymore

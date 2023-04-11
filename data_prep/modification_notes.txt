@@ -1,0 +1,17 @@
+Things to look out for: 
+
+(TODO: for each technique write down what the proper form should be. For instance 2 punches and not 3. Arguments could be made to remove wrong punch. Also switching of feet etc.). 
+
+
+
+Maybe or spinnging kick: if there are obstacles the turn is not in the same direction throughout the motion. Consider removin the spinning kick recordings with conditions that are not air. (I think the others are less effected. ) Most of the participants manage to do this correctly even with obstacles. maybe roundhouse kick? 
+Keep the one with left dominant leg? very few i think. This may cause difficulties for the model. However this is not incorrect form..
+
+general question: should i remove recordings with incorrect form due to outliers or should they be kept, because wrong execution is typical for beginners? Wrong dominant fott placement, wrong turn direction after impact.. (is there a rule for the last one? could not find one, but i think in kyokuschin karate it is taught to rotate in one continuous direction)
+
+
+TODO: Remove starting stance (done in the outliers, but not in the rest).
+This refers to the T-pose. Because otherwise some start in t-pose and some in fighting stance. 
+I should be able to detect this automatically. I suspect these are only before the first execution in the original recordings.
+
+Specifially did not remove initial recovery after execution since this is a important part of skill level. 

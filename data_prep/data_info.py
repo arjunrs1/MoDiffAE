@@ -32,11 +32,11 @@ technique_to_class = {
 }
 
 technique_class_to_name = { 
-    0: 'Gyaku-Zuki',
-    1: 'Mae-Geri',
-    2: 'Mawashi-Geri gedan',
-    3: 'Mawashi-Geri jodan',
-    4: 'Ushiro-Mawashi-Geri'
+    0: 'Gyaku-Zuki', # reverse punch
+    1: 'Mae-Geri', # front kick
+    2: 'Mawashi-Geri gedan', # roundhouse kick at knee to hip height
+    3: 'Mawashi-Geri jodan', # roundhouse kick at shoulder to (top) head height
+    4: 'Ushiro-Mawashi-Geri' # spinning back kick
 }
 
 joint_to_index = {

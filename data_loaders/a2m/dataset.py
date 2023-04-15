@@ -112,10 +112,13 @@ class Dataset(torch.utils.data.Dataset):
                 raise ValueError("This representation is not possible.")
             else:
                 pose = self._load_rotvec(ind, frame_ix)
+                # print('hbbbb')
                 if not self.glob:
+                    print('hiiiiii')
                     pose = pose[:, 1:, :]
                 pose = to_torch(pose)
                 if self.align_pose_frontview:
+                    print('Align pose front view')
                     first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
                     all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
                     aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
@@ -123,6 +126,7 @@ class Dataset(torch.utils.data.Dataset):
                     pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
 
                     if self.translation:
+                        print('Translation')
                         ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
                                               torch.transpose(ret_tr, 0, 1))
                         ret_tr = torch.transpose(ret_tr, 0, 1)
@@ -134,7 +138,17 @@ class Dataset(torch.utils.data.Dataset):
                 elif pose_rep == "rotquat":
                     ret = geometry.axis_angle_to_quaternion(pose)
                 elif pose_rep == "rot6d":
+                    num = np.random.randn()
+                    #print(f'{num} origin {pose}')
+                    #print(pose)
                     ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(pose))
+                    rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
+                    ret_2 = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rec_pose))
+                    rec_pose_2 = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret_2))
+                    print(f'{num} origin {pose.shape} - \n {num} recon {rec_pose.shape} - \n {num} recon 2 {rec_pose_2.shape}')
+                    print(f'{num} origin {pose[0, 0, :]} - \n {num} recon {rec_pose[0, 0, :]} - \n {num} recon 2 {rec_pose_2[0, 0, :]}') # rec_pose and rec_pose_2 are the same. pose is not...
+                    #print(rec_pose)
+
         if pose_rep != "xyz" and self.translation:
             padded_tr = torch.zeros((ret.shape[0], ret.shape[2]), dtype=ret.dtype)
             padded_tr[:, :3] = ret_tr
@@ -215,7 +229,6 @@ class Dataset(torch.utils.data.Dataset):
             output['action_text'] = self.action_to_action_name(self.get_action(data_index))
 
         return output
-
 
     def get_mean_length_label(self, label):
         if self.num_frames != -1:

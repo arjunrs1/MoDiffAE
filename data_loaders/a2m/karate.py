@@ -5,7 +5,7 @@ from .dataset import Dataset
 
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-import seaborn as sns
+# import seaborn as sns
 import matplotlib.lines as lines
 
 

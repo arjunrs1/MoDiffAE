@@ -12,13 +12,6 @@ from tqdm import tqdm
 import mocap_visualization
 import geometry
 
-# TODO: I think that the current angle representation is not ideal.
-# The angles are all in the same coordinate system. This causes body orientation
-# to strongly influence the values (e.g person oriented to the right vs. to the left).
-# They may do the same movemeent but the angles are completely different. 
-# Instead use kardan angles with cordinate systems relative to that of a previous joint.
-# The initial orientation/coordinate system is given by the first joint orientation.
-# Currently, I dont store and learn the first orientation but assume it is (0,0,0).
 
 # TODO I think the lfhd joint is not optimal as the chain start.
 # It leads to many cummulative small errors until the feet. 
@@ -62,6 +55,7 @@ def extract_meta_info(csv_file):
 
 
 def extract_attacker_data(csv_file, number_of_frames, condition, participant_code, file_name):
+    print(file_name)
     xyz_labels = list(filter(None, csv_file[7].split(',')))
     # Deleting \n. 
     del xyz_labels[-1]
@@ -79,14 +73,19 @@ def extract_attacker_data(csv_file, number_of_frames, condition, participant_cod
     data = csv_file[7:]
     # Deleting the unit row.  
     del data[1]
-    df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
+    #df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
+    df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1], on_bad_lines='warn')
     df.columns = cols
 
     # Creating an index.
-    df['index'] = np.arange(number_of_frames + 1)
+    #df['index'] = np.arange(number_of_frames + 1)
+    if number_of_frames != df.shape[0] - 1:
+        print(f'Warning: Number of frames {number_of_frames} in header does not match actual frame number {df.shape[0] - 1}')
+    df['index'] = np.arange(df.shape[0])
     df = df.set_index('index')
     # Deleting the last row because it only has NaN values.
-    df = df.drop(number_of_frames)
+    #df = df.drop(number_of_frames)
+    df = df.drop(df.shape[0] - 1)
 
     ds_labels = ['Time']
     if has_codes:
@@ -157,7 +156,7 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         e_df = e_df.drop('Time', axis=1, level=0)
 
         joint_positions = e_df[data_info.joint_to_index.keys()]
-        joint_directions, joint_distances = geometry.calc_joint_directions_and_distances(
+        joint_axis_angles, joint_distances = geometry.calc_axis_angles_and_distances(
             joint_positions_df=joint_positions
         )
         joint_positions = joint_positions.to_numpy()
@@ -170,7 +169,7 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         sample_list.append((
             joint_positions,
             model_angles,
-            joint_directions,
+            joint_axis_angles,
             joint_distances,
             attacker_code,
             technique_cls,
@@ -205,13 +204,13 @@ def add_LTHI_column(df, avg_LTHI_LKNE_dist):
 
     LTHI_pos = np.zeros(shape=LKNE_pos.shape)
     for t in range(LKNE_pos.shape[0]):
-        LASI_LKNE_direction, _ = geometry.points_to_direction_and_distance(
+        LASI_LKNE_axis_angle, _ = geometry.points_to_axis_angle_and_distance(
             start_point=LKNE_pos[t],
             end_point=LASI_pos[t]
         )
-        LTHI_pos[t] = geometry.direction_and_distance_to_point(
+        LTHI_pos[t] = geometry.axis_angle_and_distance_to_point(
             start_point=LKNE_pos[t],
-            direction=LASI_LKNE_direction,
+            axis_angle=LASI_LKNE_axis_angle,
             distance=avg_LTHI_LKNE_dist
         )
 
@@ -237,7 +236,7 @@ def center_initial_position_events(event_dfs):
     return centered_event_dfs
 
 def main(desired_frequency, data_dir, output_dir, replace):
-    npy_name = f'karate_motion_{desired_frequency}_fps_test.npy'
+    npy_name = f'karate_motion_{desired_frequency}_fps_axis_angles_t10_test.npy'
     file_path = os.path.join(output_dir, npy_name)
 
     print(desired_frequency)
@@ -253,7 +252,7 @@ def main(desired_frequency, data_dir, output_dir, replace):
 
     file_names = [dir for dir in os.listdir(data_dir) if not dir.startswith('.')]
     # TODO: remove
-    file_names = file_names[:2]
+    file_names = file_names[:10]
 
     number_of_files = len(file_names)
 
@@ -312,9 +311,16 @@ def main(desired_frequency, data_dir, output_dir, replace):
                 complete_e_df = add_LTHI_column(e_df.copy(), avg_LTHI_LKNE_dist)
                 completed_dfs.append(complete_e_df)
             event_dfs = center_initial_position_events(completed_dfs)
+            #add_to_sample_list(
+            #    sample_list,
+            #    completed_dfs,
+            #    a_code,
+            #    tech_cls,
+            #    cond
+            #)
             add_to_sample_list(
                 sample_list,
-                completed_dfs,
+                event_dfs,
                 a_code,
                 tech_cls,
                 cond
@@ -324,7 +330,7 @@ def main(desired_frequency, data_dir, output_dir, replace):
     samples = np.array(sample_list , dtype=[
             ('joint_positions', 'O'),
             ('model_angles', 'O'),
-            ('joint_directions', 'O'),
+            ('joint_axis_angles', 'O'),
             ('joint_distances', 'f4', j_dist_shape),
             ('attacker_code', 'U10'),
             ('technique_cls', 'i4'),
@@ -343,20 +349,24 @@ def main(desired_frequency, data_dir, output_dir, replace):
     #np.save(file_path, samples)
     #print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
 
-    print('Showing exemplary motion...')
-    mocap_visualization.from_array(samples['joint_positions'][-1])
+    #'''
+    for i in range(samples['joint_positions'].shape[0]):
+        print('Showing exemplary motion...')
+        mocap_visualization.from_array(samples['joint_positions'][i])
 
-    directions = samples['joint_directions'][-1]
-    start = samples['joint_positions'][-1][:, :3]
-    distances = samples['joint_distances'][-1]
-    recon_pos = geometry.calc_positions(
-                chain_start_positions=start,
-                start_label="LFHD",
-                directions=directions,
-                distances=distances
-    )
-    print('Showing the same motion but reconstructed (should be the same)...')
-    mocap_visualization.from_array(recon_pos)
+        axis_angles = samples['joint_axis_angles'][i]
+        start_index = data_info.joint_to_index['T10']
+        start = samples['joint_positions'][i][:, start_index*3:start_index*3+3]
+        distances = samples['joint_distances'][i]
+        recon_pos = geometry.calc_positions(
+                    chain_start_positions=start,
+                    start_label='T10', #"LFHD",
+                    axis_angles=axis_angles,
+                    distances=distances
+        )
+        print('Showing the same motion but reconstructed (should be the same)...')
+        mocap_visualization.from_array(recon_pos)
+    #'''
 
 def get_args():
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')

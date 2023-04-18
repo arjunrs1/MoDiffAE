@@ -97,7 +97,9 @@ class Dataset(torch.utils.data.Dataset):
                 ##joints3D = joints3D - joints3D[0, 0, :]
                 ret = to_torch(joints3D)
                 if self.translation:
-                    ret_tr = ret[:, 0, :]
+                    #ret_tr = ret[:, 0, :]
+                    # t10 has index 5
+                    ret_tr = ret[:, 5, :]
                     #print("ret_tr shape up:" + str(ret_tr.shape))
             else:
                 if pose_rep == "xyz":
@@ -138,15 +140,15 @@ class Dataset(torch.utils.data.Dataset):
                 elif pose_rep == "rotquat":
                     ret = geometry.axis_angle_to_quaternion(pose)
                 elif pose_rep == "rot6d":
-                    num = np.random.randn()
+                    #num = np.random.randn()
                     #print(f'{num} origin {pose}')
                     #print(pose)
                     ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(pose))
-                    rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
-                    ret_2 = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rec_pose))
-                    rec_pose_2 = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret_2))
-                    print(f'{num} origin {pose.shape} - \n {num} recon {rec_pose.shape} - \n {num} recon 2 {rec_pose_2.shape}')
-                    print(f'{num} origin {pose[0, 0, :]} - \n {num} recon {rec_pose[0, 0, :]} - \n {num} recon 2 {rec_pose_2[0, 0, :]}') # rec_pose and rec_pose_2 are the same. pose is not...
+                    #rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
+                    #ret_2 = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rec_pose))
+                    #rec_pose_2 = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret_2))
+                    #print(f'{num} origin {pose.shape} - \n {num} recon {rec_pose.shape} - \n {num} recon 2 {rec_pose_2.shape}')
+                    #print(f'{num} origin {pose[0, 0, :]} - \n {num} recon {rec_pose[0, 0, :]} - \n {num} recon 2 {rec_pose_2[0, 0, :]}') # rec_pose and rec_pose_2 are the same. pose is not...
                     #print(rec_pose)
 
         if pose_rep != "xyz" and self.translation:

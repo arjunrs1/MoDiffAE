@@ -118,7 +118,7 @@ try:
             positions_df = pd.DataFrame(rec, 
                 columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(), time=False))
             centered_positions_df = data_prep.center_initial_position(positions_df)
-            new_joint_angles, new_joint_distances = geometry.calc_joint_angles_and_distances(
+            new_joint_axis_angles, new_joint_distances = geometry.calc_axis_angles_and_distances(
                 joint_positions_df=centered_positions_df
             )
 
@@ -209,7 +209,7 @@ try:
                 rec_data = copy.deepcopy(data[idx])
                 rec_data['joint_positions'] = rec
                 rec_data['model_angles'] = rec_data['model_angles'][start: end]
-                rec_data['joint_angles'] = new_joint_angles
+                rec_data['joint_angles'] = new_joint_axis_angles
                 rec_data['joint_distances'] = new_joint_distances
                 new_data[idx] = rec_data
                 done = True

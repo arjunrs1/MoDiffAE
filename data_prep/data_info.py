@@ -32,11 +32,11 @@ technique_to_class = {
 }
 
 technique_class_to_name = { 
-    0: 'Gyaku-Zuki', # reverse punch
-    1: 'Mae-Geri', # front kick
-    2: 'Mawashi-Geri gedan', # roundhouse kick at knee to hip height
-    3: 'Mawashi-Geri jodan', # roundhouse kick at shoulder to (top) head height
-    4: 'Ushiro-Mawashi-Geri' # spinning back kick
+    0: 'Gyaku-Zuki',   # reverse punch
+    1: 'Mae-Geri',   # front kick
+    2: 'Mawashi-Geri gedan',   # roundhouse kick at knee to hip height
+    3: 'Mawashi-Geri jodan',   # roundhouse kick at shoulder to (top) head height
+    4: 'Ushiro-Mawashi-Geri'   # spinning back kick
 }
 
 joint_to_index = {
@@ -48,9 +48,66 @@ joint_to_index = {
     'RTIB': 35, 'RANK': 36, 'RHEE': 37, 'RTOE': 38
 }
 
-# Assumption: Distance between two connected joints 
-# does not change (or very little). 
+# Assumption: Distance between two connected joints
+# does not change (or very little).
+# The order can be chosen as desired, as long as the right
+# component has already been on the left side previously.
 reconstruction_skeleton = [
+    # Hip
+    ['T10', 'LPSI'],
+    ['LPSI', 'RPSI'],
+    ['LPSI', 'LASI'],
+    ['RPSI', 'RASI'],
+
+    # Left lower body
+    ['LASI', 'LTHI'],
+    ['LTHI', 'LKNE'],
+    ['LKNE', 'LTIB'],
+    ['LTIB', 'LANK'],
+    ['LANK', 'LHEE'],
+    ['LHEE', 'LTOE'],
+
+    # Right lower body
+    ['RASI', 'RTHI'],
+    ['RTHI', 'RKNE'],
+    ['RKNE', 'RTIB'],
+    ['RTIB', 'RANK'],
+    ['RANK', 'RHEE'],
+    ['RHEE', 'RTOE'],
+
+    # Center upper body
+    ['T10', 'RBAK'],
+    ['RBAK', 'C7'],
+    ['C7', 'LBHD'],
+    ['C7', 'CLAV'],
+    ['CLAV', 'STRN'],
+
+    # Head
+    ["LBHD", "RBHD"],
+    ["LBHD", "LFHD"],
+    ["RBHD", 'RFHD'],
+
+    # Left upper body
+    ['C7', 'LSHO'],
+    ['LSHO', 'LUPA'],
+    ['LUPA', 'LELB'],
+    ['LELB', 'LFRM'],
+    ['LFRM', 'LWRA'],
+    ['LWRA', 'LWRB'],
+    ['LWRA', 'LFIN'],
+
+    # Right upper body
+    ['C7', 'RSHO'],
+    ['RSHO', 'RUPA'],
+    ['RUPA', 'RELB'],
+    ['RELB', 'RFRM'],
+    ['RFRM', 'RWRA'],
+    ['RWRA', 'RWRB'],
+    ['RWRA', 'RFIN']
+]
+
+
+old_reconstruction_skeleton = [
     # Head
     ['LFHD', 'RFHD'],
     ["LFHD", "LBHD"],

@@ -29,14 +29,14 @@ class Rotation2xyz:
         else:
             x_rotations = x
 
-        print(x.shape)
-        print(x_rotations.shape)
+        #print(x.shape)
+        #print(x_rotations.shape)
         x_rotations = x_rotations.permute(0, 3, 1, 2)
         nsamples, time, njoints, feats = x_rotations.shape
-        print(x_rotations.shape)
-        print(x_rotations[mask].shape)
+        #print(x_rotations.shape)
+        #print(x_rotations[mask].shape)
 
-        exit()
+        #exit()
 
         # Compute rotations (convert only masked sequences output)
         if pose_rep == "rot_vec":
@@ -53,13 +53,13 @@ class Rotation2xyz:
         rotations = geometry.matrix_to_axis_angle(rotations)
         rotations = torch.reshape(rotations, (nsamples, time, njoints, 3))
 
-        num = np.random.randn()
-        print(f'{num} origin {rotations}')
-        ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rotations))
-        rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
-        print(f'{num} recon {rec_pose}')
+        #num = np.random.randn()
+        #print(f'{num} origin {rotations}')
+        #ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rotations))
+        #rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
+        #print(f'{num} recon {rec_pose}')
 
-        exit()
+        #exit()
 
         joints_list = []
         for i in range(nsamples):
@@ -73,8 +73,8 @@ class Rotation2xyz:
             i_distance = distance[i]
             i_joints = karate_geometry.calc_positions(
                 chain_start_positions=i_start_positions,
-                start_label="LFHD",
-                joint_angles=i_rotations,
+                start_label='T10',   # "LFHD",
+                axis_angles=i_rotations,
                 distances=i_distance
             )
             # It is important that the ordering is correct here.

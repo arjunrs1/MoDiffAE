@@ -12,6 +12,8 @@ from utils import dist_util
 from utils.fixseed import fixseed
 
 import utils.rotation_conversions as geometry
+import utils.karate_utils.data_info as data_info
+import utils.karate_utils.geometry as karate_geometry
 
 import vg
 
@@ -37,12 +39,14 @@ class KaratePoses(Dataset):
 
         self.data_name = "karate"
 
-        npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
+        #npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
+        npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_axis_angles_t10.npy")
         data = np.load(npydatafilepath, allow_pickle=True)
 
         self._data = data
 
-        self._pose = [x for x in data["joint_angles"]]
+        #self._pose = [x for x in data["joint_angles"]]
+        self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]
 
         self._joints = [x for x in data["joint_positions"]]
@@ -92,6 +96,8 @@ def load_dataset(args, max_frames, n_frames):
 
 if __name__ == "__main__":
 
+    '''
+
     p_wrong = torch.tensor([3.0405, 1.6361, 1.6478], dtype=torch.float64)
     p_wrong_6d = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(p_wrong))
     p_wrong_rec = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(p_wrong_6d))
@@ -110,11 +116,13 @@ if __name__ == "__main__":
     #print(p_test)
     #print(p_test_rec)
 
-    p_test2 = torch.tensor([0.6883753, 0.72296702, 0.05880593], dtype=torch.float64)
+
+    # [0.6883753, 0.72296702, 0.05880593]
+    p_test2 = torch.tensor([0.00436974, -0.0064846, 0.00286649], dtype=torch.float64)
     p_test2_6d = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(p_test2))
     p_test2_rec = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(p_test2_6d))
-    #print(p_test2)
-    #print(p_test2_rec)
+    print(p_test2)
+    print(p_test2_rec)
 
     #exit()
 
@@ -414,10 +422,12 @@ if __name__ == "__main__":
 
     exit()
 
+    '''
+
     kp = KaratePoses()
     kp.num_frames = 125
     # print(kp._pose[1].shape)
-    t = kp._load_rotvec(0, 0)
+    #t = kp._load_rotvec(0, 0)
     # print(kp._load_joints3D(0, 0))
     # print(t)
 
@@ -431,6 +441,28 @@ if __name__ == "__main__":
     # print(loaded)
     # print(loaded['inp'].shape)
     # print()
+
+    #''' # this works
+    samples = kp._data
+    for i in range(samples['joint_positions'].shape[0]):
+        print('Showing exemplary motion...')
+        from_array(samples['joint_positions'][i])
+
+        axis_angles = samples['joint_axis_angles'][i]
+        start_index = data_info.joint_to_index['T10']
+        start = samples['joint_positions'][i][:, start_index * 3:start_index * 3 + 3]
+        distances = samples['joint_distances'][i]
+        recon_pos = karate_geometry.calc_positions(
+            chain_start_positions=start,
+            start_label='T10',  # "LFHD",
+            axis_angles=axis_angles,
+            distances=distances
+        )
+        print('Showing the same motion but reconstructed (should be the same)...')
+        from_array(recon_pos)
+    #'''
+
+    exit()
 
     d = kp._data['joint_positions'][0]
     print(d.shape)
@@ -505,13 +537,15 @@ if __name__ == "__main__":
     # Numpy reshape uses C like indexing by default.
     m = np.reshape(m, (t, j * ax))
 
-    print(m.shape)
-    print(m)
+    #print(m.shape)
+    #print(m)
 
     # for rep_i in range(args.num_repetitions):
     # save_file = sample_file_template.format(sample_i)
     # animation_save_path = os.path.join(out_path, str(sample_i), save_file)
     from_array(arr=m, sampling_frequency=fps)  # , file_name=animation_save_path)
+
+    print('hi')
 
 
 

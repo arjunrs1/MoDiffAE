@@ -19,7 +19,8 @@ def get_dataset_class(name):
         from data_loaders.humanml.data.dataset import KIT
         return KIT
     elif name == 'karate': 
-        from .a2m.karate import KaratePoses
+        #from .a2m.karate import KaratePoses
+        from .a2m.karate_test import KaratePoses
         return KaratePoses
     else:
         raise ValueError(f'Unsupported dataset name [{name}]')

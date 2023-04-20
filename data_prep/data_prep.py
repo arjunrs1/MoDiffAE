@@ -351,8 +351,9 @@ def main(desired_frequency, data_dir, output_dir, replace):
 
     #'''
     for i in range(samples['joint_positions'].shape[0]):
+        print(i)
         print('Showing exemplary motion...')
-        mocap_visualization.from_array(samples['joint_positions'][i])
+        #mocap_visualization.from_array(samples['joint_positions'][i])
 
         axis_angles = samples['joint_axis_angles'][i]
         start_index = data_info.joint_to_index['T10']
@@ -365,7 +366,7 @@ def main(desired_frequency, data_dir, output_dir, replace):
                     distances=distances
         )
         print('Showing the same motion but reconstructed (should be the same)...')
-        mocap_visualization.from_array(recon_pos)
+        #mocap_visualization.from_array(recon_pos)
     #'''
 
 def get_args():

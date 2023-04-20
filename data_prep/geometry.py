@@ -56,20 +56,20 @@ def axis_angle_and_distance_to_point(start_point, axis_angle, distance):
 
     axis_angle = torch.tensor(axis_angle)
 
-    test_6d = matrix_to_rotation_6d(axis_angle_to_matrix(axis_angle))
-    axis_angle = matrix_to_axis_angle(rotation_6d_to_matrix(test_6d))
+    #test_6d = matrix_to_rotation_6d(axis_angle_to_matrix(axis_angle))
+    #axis_angle = matrix_to_axis_angle(rotation_6d_to_matrix(test_6d))
 
     # rot_matrix = base_geometry.axis_angle_to_matrix(axis_angle)
     rot_matrix = axis_angle_to_matrix(axis_angle)
 
     #### just to see if transformation to 6d and back brakes something
-    vec_6d = matrix_to_rotation_6d(rot_matrix)
+    #vec_6d = matrix_to_rotation_6d(rot_matrix)
 
 
 
-    rot_matrix = rotation_6d_to_matrix(vec_6d)
+    #rot_matrix = rotation_6d_to_matrix(vec_6d)
 
-    print('worked')
+    #print('worked')
 
 
     ####

@@ -63,6 +63,7 @@ class Rotation2xyz:
 
         joints_list = []
         for i in range(nsamples):
+            print(i)
             i_start_positions = x_translations[i].permute(1, 0).cpu().detach().numpy()
             #i_rotations = torch.reshape(rotations[i], (time, njoints*3))
             i_rotations = rotations[i]

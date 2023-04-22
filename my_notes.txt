@@ -39,3 +39,16 @@ python -m train.train_mdm --save_dir save/my_name --dataset humanact12 --cond_ma
 len(data) = 343, num_steps = 600000, epochs = 600000/343 = 1750 
 
 test push
+
+
+
+
+
+
+
+# Data representation version: 
+1) direction vector of movement between two joints, distance statically stored. This vector is converted to 6d rotation.
+Problem: Reasons to assume instability, due to the vector being scalable but having the same direction (normalized during reconstruction). One part of the loss would be sentive to scale while other parts will not. This reasoning might be false if this does not apply to 6d vectors. I think they do not have continuity issues. 
+2) Axis angle between the two joints, distance statically stored. Magnitude of vector is the angle and vector the rotation axis.  
+Problem: Second point can not be uniquely caluclated since the sine rule has cases where there are two solutions. Also angel from dot product is not signed. Therefore potentially 4 solutions. 
+3) Shifted coordinate system so that first point is at (0,0,0). Still axis angles and stored distance. Signed angle. No need for sign rule. One solution. 

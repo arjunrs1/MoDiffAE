@@ -25,18 +25,14 @@ class Rotation2xyz:
 
         if translation:
             x_translations = x[:, -1, :3]
+            x_translations = x_translations.permute(0, 2, 1)
             x_rotations = x[:, :-1]
         else:
             x_rotations = x
 
-        #print(x.shape)
-        #print(x_rotations.shape)
+        # I suspect the last dimension in transformers must be the time
         x_rotations = x_rotations.permute(0, 3, 1, 2)
         nsamples, time, njoints, feats = x_rotations.shape
-        #print(x_rotations.shape)
-        #print(x_rotations[mask].shape)
-
-        #exit()
 
         # Compute rotations (convert only masked sequences output)
         if pose_rep == "rot_vec":
@@ -53,40 +49,50 @@ class Rotation2xyz:
         rotations = geometry.matrix_to_axis_angle(rotations)
         rotations = torch.reshape(rotations, (nsamples, time, njoints, 3))
 
-        #num = np.random.randn()
-        #print(f'{num} origin {rotations}')
-        #ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rotations))
-        #rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
-        #print(f'{num} recon {rec_pose}')
+        # Replace this code. Two problems: 1) autograd backpropagation does not work when I
+        # convert into numpy arrays. 2) Loops are very slop, do in parallel with tensors.
 
-        #exit()
+        joints = karate_geometry.calc_positions(
+            chain_start_positions=x_translations,
+            start_label='T10',
+            axis_angles=rotations,
+            distances=distance
+        )
 
+        ####
+        '''
         joints_list = []
         for i in range(nsamples):
             print(i)
             i_start_positions = x_translations[i].permute(1, 0).cpu().detach().numpy()
-            #i_rotations = torch.reshape(rotations[i], (time, njoints*3))
+            # i_rotations = torch.reshape(rotations[i], (time, njoints*3))
             i_rotations = rotations[i]
             i_rotations = i_rotations.cpu().detach().numpy()
             # It is important that the ordering is correct here.
             # Numpy reshape uses C like indexing by default.
-            i_rotations = np.reshape(i_rotations, (time, njoints*3))
+            i_rotations = np.reshape(i_rotations, (time, njoints * 3))
             i_distance = distance[i]
             i_joints = karate_geometry.calc_positions(
                 chain_start_positions=i_start_positions,
-                start_label='T10',   # "LFHD",
+                start_label='T10',  # "LFHD",
                 axis_angles=i_rotations,
                 distances=i_distance
             )
             # It is important that the ordering is correct here.
             # Numpy reshape uses C like indexing by default.
-            i_joints = np.reshape(i_joints, (time, njoints+1, 3))
+            i_joints = np.reshape(i_joints, (time, njoints + 1, 3))
             joints_list.append(i_joints)
 
         joints = torch.tensor(joints_list, device=x.device, dtype=x.dtype)
-        joints = torch.reshape(joints, (nsamples*time, njoints+1, 3))
+        joints = torch.reshape(joints, (nsamples * time, njoints + 1, 3))
+        '''
+        ####
+
+        joints = torch.reshape(joints, (nsamples * time, njoints + 1, 3))
+
 
         x_xyz = torch.empty(nsamples, time, joints.shape[1], 3, device=x.device, dtype=x.dtype)
+        # TODO: why if this is 0 is the final position held for the remaining time?
         x_xyz[~mask] = 0
         x_xyz[mask] = joints
 

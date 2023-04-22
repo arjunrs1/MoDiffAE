@@ -210,22 +210,24 @@ if __name__ == "__main__":
 
     lengths = model_kwargs['y']['lengths'].cpu().numpy()
 
-    length = lengths[0]
-    m = og_xyz[0].transpose(2, 0, 1)[:length]
+    for i in range(10):
 
-    t, j, ax = m.shape
+        length = lengths[i]
+        m = og_xyz[i].transpose(2, 0, 1)[:length]
 
-    # It is important that the ordering is correct here.
-    # Numpy reshape uses C like indexing by default.
-    m = np.reshape(m, (t, j * ax))
+        t, j, ax = m.shape
 
-    #print(m.shape)
-    #print(m)
+        # It is important that the ordering is correct here.
+        # Numpy reshape uses C like indexing by default.
+        m = np.reshape(m, (t, j * ax))
 
-    # for rep_i in range(args.num_repetitions):
-    # save_file = sample_file_template.format(sample_i)
-    # animation_save_path = os.path.join(out_path, str(sample_i), save_file)
-    from_array(arr=m, sampling_frequency=fps)  # , file_name=animation_save_path)
+        #print(m.shape)
+        #print(m)
+
+        # for rep_i in range(args.num_repetitions):
+        # save_file = sample_file_template.format(sample_i)
+        # animation_save_path = os.path.join(out_path, str(sample_i), save_file)
+        from_array(arr=m, sampling_frequency=fps)  # , file_name=animation_save_path)
 
     print('hi')
 

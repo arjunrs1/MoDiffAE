@@ -321,8 +321,7 @@ def load_dataset(args, max_frames, n_frames):
     data = get_dataset_loader(name=args.dataset,
                               batch_size=args.batch_size,
                               num_frames=max_frames,
-                              split='test',
-                              hml_mode='text_only')
+                              split='test')
     data.fixed_length = n_frames
     return data
 

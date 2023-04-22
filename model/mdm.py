@@ -6,7 +6,6 @@ import clip
 from model.rotation2xyz import Rotation2xyz
 
 
-
 class MDM(nn.Module):
     def __init__(self, modeltype, njoints, nfeats, num_actions, translation, pose_rep, glob, glob_rot,
                  latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
@@ -94,7 +93,7 @@ class MDM(nn.Module):
                                             self.nfeats)
 
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
-        self.rot2xyz = Rotation2xyz(device='cpu')  # , dataset=self.dataset)
+        self.rot2xyz = Rotation2xyz()   # device='cpu')  # , dataset=self.dataset)
 
     def parameters_wo_clip(self):
         return [p for name, p in self.named_parameters() if not name.startswith('clip_model.')]

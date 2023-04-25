@@ -3,13 +3,8 @@
 
 import numpy as np
 import os
-import mocap_visualization
-import copy
-import data_prep
-import geometry
-import pandas as pd
-import data_info
-import json
+from visualize.vicon_visualization import from_array
+import utils.karate.data_info as data_info
 
 # Cutting: 
 # - Movement at beginning or end that is unrelated to the technique
@@ -23,10 +18,12 @@ import json
 #datapath='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_prep/'
 
 # local path 
-datapath='/home/anthony/Documents/ma_data/'
+#datapath='/home/anthony/Documents/ma_data/'
+data_dir = os.path.join(os.getcwd(), 'datasets', 'KaratePoses')
 
-npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_modified_outliers.npy")
-data = np.load(npydatafilepath, allow_pickle=True)
+#npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_modified_outliers.npy")
+data_file_path = os.path.join(data_dir, "karate_motion_25_fps.npy")
+data = np.load(data_file_path, allow_pickle=True)
 
 # Notes: 
 # - Initial idea: Result: all defenrders are wrong oriented
@@ -53,8 +50,9 @@ data = np.load(npydatafilepath, allow_pickle=True)
 # Nevertheless, check all recording after modification.
 
 
-use_memory = True
-memory_file_path = os.path.join(datapath, 'check_idx.npy')
+use_memory = False
+memory_file_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate')
+memory_file_path = os.path.join(memory_file_dir, 'check_idx.npy')
 
 if not os.path.exists(memory_file_path):
     np.save(memory_file_path, np.array([0]))
@@ -67,21 +65,19 @@ else:
 
 # TODO: add indices of problematic recordings
 # found by this manual search.
-# Also recordings with wrong technique and 
+# Also, recordings with wrong technique and
 # then ask felix if these should be cut. 
 # Argument: maybe cut only at the point where they 
-# tought the start position would be (even if wrong foot placemenet)
+# thought the start position would be (even if wrong foot placement)
 # Only remove things unrelated to technique (?)
 found_outliers = []
 
 
-
-#for idx, (i, d) in enumerate(orientation_outliers):
 for idx in range(start_point, data.shape[0]):
 
-
     print(f'Index: {idx}')
-    np.save(memory_file_path, np.array([idx]))
+    if use_memory:
+        np.save(memory_file_path, np.array([idx]))
     
     d = data['joint_positions'][idx]
     technique_cls = data['technique_cls'][idx]
@@ -89,22 +85,9 @@ for idx in range(start_point, data.shape[0]):
     condition = data['condition'][idx]
     grade = data['grade'][idx]
 
-    # 'attacker'
-    # 'air' 
-    # 'shield'
-    # 'defender'
-    #if technique == 'Ushiro-Mawashi-Geri' and condition == 'defender':
-    print(technique)
-    print(condition)
-    print(grade)
-    #mocap_visualization.from_array(d)
+    print(f'Technique: {technique}')
+    print(f'Condition: {condition}')
+    print(f'Grade: {grade}')
 
-    #d_new = d
-    #d_new[:, 1::3] *= -1
-
-    mocap_visualization.from_array(d)
+    from_array(d)
     print('------')
-
-
-
-    

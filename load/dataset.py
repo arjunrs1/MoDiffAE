@@ -55,6 +55,7 @@ class Dataset(torch.utils.data.Dataset):
         distances = None
         if getattr(self, "data_name", None) is not None and self.data_name == "karate": 
             distances = self._joint_distances[data_index]
+            distances = torch.as_tensor(distances)
         return pose, label, distances
 
     def get_label(self, ind):

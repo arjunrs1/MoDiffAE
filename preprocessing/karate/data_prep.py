@@ -7,6 +7,8 @@ import csv
 import pandas as pd
 from io import StringIO
 import numpy as np
+import torch
+
 #import data_info
 from utils.karate import data_info
 from tqdm import tqdm
@@ -49,6 +51,10 @@ def extract_meta_info(csv_file):
     # Deleting an empty row. 
     del meta_info[4]
     return meta_info
+
+def validate_csv_rows():
+    pass
+
 
 
 def extract_attacker_data(csv_file, number_of_frames, condition, participant_code, file_name):
@@ -102,7 +108,10 @@ def extract_attacker_data(csv_file, number_of_frames, condition, participant_cod
         if 'B0400-S05-E01' in file_name or 'B0400-S05-E02' in file_name:
             missing_lthi = True
             ds_labels = [l for l in ds_labels if 'LTHI' not in l]
-            df = df[ds_labels]
+            try:
+                df = df[ds_labels]
+            except Exception:
+                raise Exception('Unknown column label error.')
         else:
             raise Exception('Unknown column label error.')
 
@@ -153,15 +162,25 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         e_df = e_df.drop('Time', axis=1, level=0)
 
         joint_positions = e_df[data_info.joint_to_index.keys()]
+        joint_positions = joint_positions.to_numpy().reshape(-1, 39, 3)
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        joint_positions_tensor = torch.as_tensor(joint_positions, device=device)
         joint_axis_angles, joint_distances = geometry.calc_axis_angles_and_distances(
-            joint_positions_df=joint_positions
+            points=joint_positions_tensor
         )
-        joint_positions = joint_positions.to_numpy()
+
         joint_positions.astype(object)
 
         model_angles = e_df[model_angle_labels]
-        model_angles = model_angles.to_numpy()
+        model_angles = model_angles.to_numpy().reshape(-1, 26, 3)
         model_angles.astype(object)
+
+        joint_axis_angles = joint_axis_angles.cpu().detach().numpy()
+        joint_axis_angles.astype(object)
+
+        joint_distances = joint_distances.cpu().detach().numpy()
+        joint_distances.astype(object)
 
         sample_list.append((
             joint_positions,
@@ -178,6 +197,7 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
             experience,
             grade
         ))
+
 
 def compute_avg_LTHI_LKNEE_dist(joint_positions):
     LTHI_idx = data_info.joint_to_index['LTHI'] * 3
@@ -247,7 +267,7 @@ def main(desired_frequency, data_dir, output_dir, replace):
             message += 'replaced by new data, run this script with the --replace argument. Exiting...'
             raise Exception(message)
 
-    file_names = [dir for dir in os.listdir(data_dir) if not dir.startswith('.')]
+    file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.')]
     # TODO: remove
     file_names = file_names[:10]
 
@@ -346,40 +366,59 @@ def main(desired_frequency, data_dir, output_dir, replace):
     #np.save(file_path, samples)
     #print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
 
+    print(samples['joint_positions'].shape)
+    print(samples['joint_positions'][0].shape)
+    #print(samples['joint_positions'][:][:, 3:6])
+
+
     #'''
     for i in range(samples['joint_positions'].shape[0]):
         print(i)
         print('Showing exemplary motion...')
         vicon_visualization.from_array(samples['joint_positions'][i])
 
-        axis_angles = samples['joint_axis_angles'][i]
+        #exit()
+
+        axis_angles = np.expand_dims(samples['joint_axis_angles'][i], axis=0)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        axis_angles = torch.as_tensor(axis_angles, device=device)
+
         start_index = data_info.joint_to_index['T10']
-        start = samples['joint_positions'][i][:, start_index*3:start_index*3+3]
-        distances = samples['joint_distances'][i]
+        #start = samples['joint_positions'][i][:, start_index*3:start_index*3+3]
+        start = np.expand_dims(samples['joint_positions'][i][:, start_index, :], axis=0)
+        start = torch.as_tensor(start, device=device)
+
+        distances = np.expand_dims(samples['joint_distances'][i], axis=0)
+        distances = torch.as_tensor(distances, device=device)
+
         recon_pos = geometry.calc_positions(
                     chain_start_positions=start,
-                    start_label='T10', #"LFHD",
+                    start_label='T10',
                     axis_angles=axis_angles,
                     distances=distances
         )
+        recon_pos = recon_pos.cpu().detach().numpy().squeeze()
+
         print('Showing the same motion but reconstructed (should be the same)...')
         vicon_visualization.from_array(recon_pos)
     #'''
 
+
 def get_args():
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')
     parser.add_argument('--data_dir', '-d', dest='data_dir', type=str,
-        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_csv/',
-        help='The directory that stores the karate csv files.')
+                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_csv/',
+                        help='The directory that stores the karate csv files.')
     parser.add_argument('--target_dir', '-t', dest='target_dir', type=str,
-        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_prep/',
-        help='The directory in which the processed data will be stored in.')
+                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_prep/',
+                        help='The directory in which the processed data will be stored in.')
     parser.add_argument('--desired_frequency', '-f', dest='desired_frequency', type=int, default=25,
                         help='The frequency (in Hz) of the output data. \
-                            Musst be a factor of the original frequency.')
+                            Must be a factor of the original frequency.')
     parser.add_argument('--replace', '-r', dest='replace', action='store_true', default=False,
-        help='Set if the existing data in the output directory should be replaced.')
+                        help='Set if the existing data in the output directory should be replaced.')
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = get_args()

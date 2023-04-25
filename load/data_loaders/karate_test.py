@@ -1,4 +1,6 @@
 import pickle as pkl
+import time
+
 import numpy as np
 import os
 from load.dataset import Dataset
@@ -180,6 +182,14 @@ if __name__ == "__main__":
     # model_kwargs contains the condition as well as distances
     # for visualization of karate motion.
     data_batch, model_kwargs = next(iterator)
+
+    device = torch.device("cpu")
+    if torch.cuda.is_available() and dist_util.dev() != 'cpu':
+        device = torch.device(dist_util.dev())
+    print(f'device: {device}')
+    data_batch = data_batch.to(device)
+    model_kwargs['y'] = {key: val.to(device) if torch.is_tensor(val) else val for key, val in model_kwargs['y'].items()}
+
     '''
     else:
         collate_args = [{'inp': torch.zeros(n_frames), 'tokens': None, 'lengths': n_frames}] * args.num_samples
@@ -203,8 +213,18 @@ if __name__ == "__main__":
 
     print('starting conversion')
     distance = model_kwargs['y']['distance']
+
+    #print(len(distance))
+    #exit()
+
+    start = time.time()
     og_xyz = model.rot2xyz(x=data_batch, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, translation=True,
                            distance=distance)
+    end = time.time()
+    print(f'time for reconstruction: {end - start}')
+    # for a batch of 64 samples this takes around 0.0135 seconds on a rtx 3080
+    # and 0.3354 seconds on the cpu
+
     print('ended conversion')
 
     og_xyz = og_xyz.cpu().numpy()

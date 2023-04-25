@@ -83,10 +83,11 @@ print(f'Total number of outliers: {len(outliers)}')
 
 use_report = True
 
-try: 
-    report = {}
+try:
     if use_report:
-        report = json.load(open(os.path.join(datapath, "outlier_report.json"))) 
+        report = json.load(open(os.path.join(datapath, "outlier_report.json")))
+    else:
+        report = {}
 
     new_data = copy.deepcopy(data)
     delete_idxs = []

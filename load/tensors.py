@@ -56,7 +56,7 @@ def collate(batch):
     # Added for karate
     if 'dist' in notnone_batches[0]:
         dist = [b['dist'] for b in notnone_batches]
-        dist = torch.as_tensor(dist)
+        dist = collate_tensors(dist)
         cond['y'].update({'distance': dist})
 
     return motion, cond

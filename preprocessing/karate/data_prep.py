@@ -8,13 +8,11 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 import torch
+import json
 
-#import data_info
 from utils.karate import data_info
 from tqdm import tqdm
-#import mocap_visualization
 from visualize import vicon_visualization
-#import geometry
 from utils.karate import geometry
 
 
@@ -22,11 +20,11 @@ def create_multi_index_cols(labels, time=True):
     column_combinations = []
     if time:
         column_combinations.append(('Time', ''))
-    for l in labels:
-        if l != 'Time':
-            column_combinations.append((l, 'x'))
-            column_combinations.append((l, 'y'))
-            column_combinations.append((l, 'z'))
+    for la in labels:
+        if la != 'Time':
+            column_combinations.append((la, 'x'))
+            column_combinations.append((la, 'y'))
+            column_combinations.append((la, 'z'))
     cols = pd.MultiIndex.from_tuples(column_combinations)
     return cols
 
@@ -35,8 +33,8 @@ def determine_attacker_code(condition, participant_code, xyz_labels):
     # The only case in which the attacker code is not in the file name.
     if condition == 'defender':
         # Extracting attacker code from one of teh labels.
-        attacker_code = [l.split(':')[0] for l in xyz_labels if
-            'LFHD' in l and participant_code not in l][0]
+        attacker_code = [la.split(':')[0] for la in xyz_labels if
+                         'LFHD' in la and participant_code not in la][0]
     # The attacker code is in the file name.
     else:
         attacker_code = participant_code
@@ -52,14 +50,46 @@ def extract_meta_info(csv_file):
     del meta_info[4]
     return meta_info
 
-def validate_csv_rows():
-    pass
+
+def interpolate_bad_lines(data, expected_n_cols):
+    start = 2
+    problematic_row_idxs = []
+    invalid = False
+
+    for i in range(start, len(data)):
+        # Removing \n
+        row = data[i][:-1].split(',')
+
+        if len(row) != expected_n_cols:
+            invalid = True
+            print('Found column with invalid length')
+            problematic_row_idxs.append(i)
+
+            if i == start:
+                raise Exception('No previous row available for interpolation')
+            elif i == len(data) - 1:
+                raise Exception('No next row available for interpolation')
+
+            prev_row = data[i - 1].split(',')
+            next_row = data[i + 1].split(',')
+            if len(prev_row) != expected_n_cols or len(next_row) != expected_n_cols:
+                raise Exception('Multiple consecutive invalid rows')
+            prev_row = np.array([float(r) for r in prev_row])
+            next_row = np.array([float(r) for r in next_row])
+
+            interpolated_row = np.mean(np.array([prev_row, next_row]), axis=0)
+            new_row = [f'{v}' for v in interpolated_row.tolist()]
+
+            new_row = ','.join(new_row) + '\n'
+            data[i] = new_row
+
+    return invalid, problematic_row_idxs
 
 
-
-def extract_attacker_data(csv_file, number_of_frames, condition, participant_code, file_name):
-    print(file_name)
+def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_name):
+    issues = {'n_rows_mismatch': (False, []), 'n_frames_mismatch': False, 'missing_lthi': False}
     xyz_labels = list(filter(None, csv_file[7].split(',')))
+
     # Deleting \n. 
     del xyz_labels[-1]
     # Deleting time label.
@@ -76,19 +106,24 @@ def extract_attacker_data(csv_file, number_of_frames, condition, participant_cod
     data = csv_file[7:]
     # Deleting the unit row.  
     del data[1]
-    #df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
-    df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1], on_bad_lines='warn')
+    # Deleting last row if empty.
+    if data[-1] == '\n':
+        del data[-1]
+
+    invalid, problematic_row_idxs = interpolate_bad_lines(data, expected_n_cols=len(xyz_labels) * 3 + 1)
+    if invalid:
+        print(file_name)
+        issues['n_rows_mismatch'] = (True, problematic_row_idxs)
+
+    df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
     df.columns = cols
 
-    # Creating an index.
-    #df['index'] = np.arange(number_of_frames + 1)
-    if number_of_frames != df.shape[0] - 1:
-        print(f'Warning: Number of frames {number_of_frames} in header does not match actual frame number {df.shape[0] - 1}')
+    if n_frames != df.shape[0]:
+        issues['n_frames_mismatch'] = True
+        print(f'Warning: Number of frames {n_frames} in header does not match actual frame number {df.shape[0]}')
+        print(file_name)
     df['index'] = np.arange(df.shape[0])
     df = df.set_index('index')
-    # Deleting the last row because it only has NaN values.
-    #df = df.drop(number_of_frames)
-    df = df.drop(df.shape[0] - 1)
 
     ds_labels = ['Time']
     if has_codes:
@@ -97,17 +132,19 @@ def extract_attacker_data(csv_file, number_of_frames, condition, participant_cod
         joint_labels = data_info.joint_to_index.keys()
     ds_labels.extend(joint_labels)
 
-    model_angle_labels = [l for l in xyz_labels if 'Angle' in l and (not has_codes or attacker_code in l)]
+    model_angle_labels = [la for la in xyz_labels if 'Angle' in la and (not has_codes or attacker_code in la)]
     ds_labels.extend(model_angle_labels)
 
-    missing_lthi = False
     try:
         df = df[ds_labels]
     except Exception:
         # Known Problem. Some recordings are missing the LTHI marker.
         if 'B0400-S05-E01' in file_name or 'B0400-S05-E02' in file_name:
-            missing_lthi = True
-            ds_labels = [l for l in ds_labels if 'LTHI' not in l]
+            issues['missing_lthi'] = True
+            print(file_name)
+            print('Missing left thigh columns')
+
+            ds_labels = [la for la in ds_labels if 'LTHI' not in la]
             try:
                 df = df[ds_labels]
             except Exception:
@@ -116,19 +153,19 @@ def extract_attacker_data(csv_file, number_of_frames, condition, participant_cod
             raise Exception('Unknown column label error.')
 
     if has_codes:
-        new_ds_labels = [l.split(':')[1] if l != 'Time' else l for l in ds_labels]
+        new_ds_labels = [la.split(':')[1] if la != 'Time' else la for la in ds_labels]
         df.columns = create_multi_index_cols(new_ds_labels)
 
-    return df, attacker_code, missing_lthi
+    return df, attacker_code, issues
 
 
 def resample_df(df, data_frequency, desired_frequency):
     if desired_frequency > data_frequency:
         raise Exception('Desired frequency (%s) is higher than available (%s).'
-            %(desired_frequency, data_frequency))
+                        % (desired_frequency, data_frequency))
     if data_frequency % desired_frequency != 0:
         raise Exception('Desired frequency (%s) is not a factor of the data frequency (%s).'
-            %(desired_frequency, data_frequency))
+                        % (desired_frequency, data_frequency))
 
     step_size = int(data_frequency / desired_frequency)
     indices = list(range(0, len(df.index), step_size))
@@ -152,11 +189,9 @@ def split_events(df, events):
     return events_dfs
 
 
-def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, condition):
+def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, condition, issues, report, file_name):
     age, gender, weight, height, experience, grade = \
         data_info.get_participant_info(attacker_code)
-
-    model_angle_labels = list(dict.fromkeys([c[0] for c in event_dfs[0].columns if 'Angle' in c[0]]))
 
     for e_df in event_dfs:
         e_df = e_df.drop('Time', axis=1, level=0)
@@ -172,19 +207,19 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
 
         joint_positions.astype(object)
 
-        model_angles = e_df[model_angle_labels]
-        model_angles = model_angles.to_numpy().reshape(-1, 26, 3)
-        model_angles.astype(object)
-
         joint_axis_angles = joint_axis_angles.cpu().detach().numpy()
         joint_axis_angles.astype(object)
 
         joint_distances = joint_distances.cpu().detach().numpy()
         joint_distances.astype(object)
 
+        if issues['n_rows_mismatch'][0] or issues['n_frames_mismatch'] or issues['missing_lthi']:
+            cur_idx = len(sample_list)
+            issues['file_name'] = file_name
+            report[str(cur_idx)] = issues
+
         sample_list.append((
             joint_positions,
-            model_angles,
             joint_axis_angles,
             joint_distances,
             attacker_code,
@@ -199,42 +234,55 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         ))
 
 
-def compute_avg_LTHI_LKNEE_dist(joint_positions):
-    LTHI_idx = data_info.joint_to_index['LTHI'] * 3
-    LKNE_idx = data_info.joint_to_index['LKNE'] * 3
+def compute_avg_lthi_lkne_dist(joint_positions):
+    lthi_idx = data_info.joint_to_index['LTHI']
+    lkne_idx = data_info.joint_to_index['LKNE']
 
     positions = np.array(joint_positions[0])
     for p in joint_positions[1:]:
         positions = np.append(positions, p, axis=0)
 
-    LTHI_pos = positions[:, LTHI_idx:LTHI_idx+3]
-    LKNE_pos = positions[:, LKNE_idx:LKNE_idx+3]
+    lthi_pos = positions[:, lthi_idx, :]
+    lkne_pos = positions[:, lkne_idx, :]
 
-    diff = LTHI_pos - LKNE_pos
-    distances = np.linalg.norm(diff, axis=1)
+    diff = lthi_pos - lkne_pos
+    distances = np.linalg.norm(diff, axis=-1)
     avg_distance = np.average(distances)
     return avg_distance
 
-def add_LTHI_column(df, avg_LTHI_LKNE_dist):
-    LASI_pos = df.loc[:, 'LASI'].to_numpy()
-    LKNE_pos = df.loc[:, 'LKNE'].to_numpy()
 
-    LTHI_pos = np.zeros(shape=LKNE_pos.shape)
-    for t in range(LKNE_pos.shape[0]):
-        LASI_LKNE_axis_angle, _ = geometry.points_to_axis_angle_and_distance(
-            start_point=LKNE_pos[t],
-            end_point=LASI_pos[t]
-        )
-        LTHI_pos[t] = geometry.axis_angle_and_distance_to_point(
-            start_point=LKNE_pos[t],
-            axis_angle=LASI_LKNE_axis_angle,
-            distance=avg_LTHI_LKNE_dist
-        )
+def add_lthi_column(df, avg_lthi_lkne_dist):
+    lasi_pos = df.loc[:, 'LASI'].to_numpy()
+    lkne_pos = df.loc[:, 'LKNE'].to_numpy()
 
-    df.loc[:, ('LTHI', 'x')] = LTHI_pos[:, 0]
-    df.loc[:, ('LTHI', 'y')] = LTHI_pos[:, 1]
-    df.loc[:, ('LTHI', 'z')] = LTHI_pos[:, 2]
+    lasi_pos = np.expand_dims(lasi_pos, axis=0)
+    lasi_pos = np.expand_dims(lasi_pos, axis=2)
+    lkne_pos = np.expand_dims(lkne_pos, axis=0)
+    lkne_pos = np.expand_dims(lkne_pos, axis=2)
+    avg_lthi_lkne_dist = np.expand_dims(np.array([avg_lthi_lkne_dist]), axis=0)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    lasi_pos_tensor = torch.as_tensor(lasi_pos, device=device)
+    lkne_pos_tensor = torch.as_tensor(lkne_pos, device=device)
+    avg_lthi_lkne_dist = torch.as_tensor(avg_lthi_lkne_dist, device=device)
+
+    lasi_lkne_axis_angles, _ = geometry.points_to_axis_angles_and_distances(
+        start_points=lkne_pos_tensor,
+        end_points=lasi_pos_tensor
+    )
+
+    lthi_pos = geometry.axis_angles_and_distances_to_points(
+        start_points=lkne_pos_tensor,
+        axis_angles=lasi_lkne_axis_angles,
+        distances=avg_lthi_lkne_dist
+    )
+    lthi_pos = lthi_pos.cpu().detach().numpy().squeeze()
+
+    df.loc[:, ('LTHI', 'x')] = lthi_pos[:, 0]
+    df.loc[:, ('LTHI', 'y')] = lthi_pos[:, 1]
+    df.loc[:, ('LTHI', 'z')] = lthi_pos[:, 2]
     return df
+
 
 def center_initial_position(e_df):
     e_df = e_df.copy()
@@ -245,6 +293,7 @@ def center_initial_position(e_df):
         e_df.loc[:, (j, 'y')] = e_df.loc[:, (j, 'y')] - offset[1]
     return e_df
 
+
 def center_initial_position_events(event_dfs):
     centered_event_dfs = []
     for e_df in event_dfs:
@@ -252,14 +301,14 @@ def center_initial_position_events(event_dfs):
         centered_event_dfs.append(centered_df)
     return centered_event_dfs
 
-def main(desired_frequency, data_dir, output_dir, replace):
-    npy_name = f'karate_motion_{desired_frequency}_fps_axis_angles_t10_test.npy'
-    file_path = os.path.join(output_dir, npy_name)
 
-    print(desired_frequency)
+def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
+    report = {}
+    npy_name = f'karate_motion_{desired_frequency}_fps.npy'
+    file_path = os.path.join(target_dir, npy_name)
 
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    if not os.path.exists(target_dir):
+        os.mkdir(target_dir)
 
     if os.path.isfile(file_path):
         if not replace:
@@ -267,14 +316,14 @@ def main(desired_frequency, data_dir, output_dir, replace):
             message += 'replaced by new data, run this script with the --replace argument. Exiting...'
             raise Exception(message)
 
+    # Sorting here is very important. Otherwise, the order might not be the same over different operating systems
+    # and storage locations due to the way files are read. This would make indices in the
+    # modification incorrect if the data was created on a different machine than the modification is performed.
     file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.')]
-    # TODO: remove
-    file_names = file_names[:10]
-
     number_of_files = len(file_names)
 
     sample_list = []
-    missing_LTHI_sample_list = []
+    missing_lthi_sample_list = []
 
     for _, file_name in zip(tqdm(range(number_of_files), desc='Processing motion data'), file_names):
         full_path = os.path.join(data_dir, file_name)
@@ -292,7 +341,7 @@ def main(desired_frequency, data_dir, output_dir, replace):
         participant_code = file_info[3]
         technique_cls = data_info.technique_to_class[file_info[4]]
 
-        df, attacker_code, missing_LTHI = extract_attacker_data(
+        df, attacker_code, issues = extract_attacker_data(
             csv_file,
             number_of_frames,
             condition,
@@ -303,9 +352,9 @@ def main(desired_frequency, data_dir, output_dir, replace):
         df = resample_df(df, data_frequency, desired_frequency)
         event_dfs = split_events(df, events)
 
-        if missing_LTHI:
-            missing_LTHI_sample_list.append(
-                (event_dfs, attacker_code, technique_cls, condition)
+        if issues['missing_lthi']:
+            missing_lthi_sample_list.append(
+                (event_dfs, attacker_code, technique_cls, condition, issues, file_name)
             )
         else:
             event_dfs = center_initial_position_events(event_dfs)
@@ -314,39 +363,38 @@ def main(desired_frequency, data_dir, output_dir, replace):
                 event_dfs,
                 attacker_code,
                 technique_cls,
-                condition
+                condition,
+                issues,
+                report,
+                file_name
             )
 
-    if len(missing_LTHI_sample_list) > 0:
-        joint_positions_400_S05_E03 = [s[0] for s in sample_list if \
-            s[4] == 'B0400' and s[5] == 4 and s[6] == 'attacker']
-        avg_LTHI_LKNE_dist = compute_avg_LTHI_LKNEE_dist(joint_positions_400_S05_E03)
-        for _, (e_dfs, a_code, tech_cls, cond) in zip(tqdm(range(len(missing_LTHI_sample_list)),
-                desc='Completing samples with missing LTHI marker'), missing_LTHI_sample_list):
+    if len(missing_lthi_sample_list) > 0:
+        joint_positions_400_s05_e03 = [s[0] for s in sample_list if
+                                       s[3] == 'B0400' and s[4] == 4 and s[5] == 'attacker']
+        avg_lthi_lkne_dist = compute_avg_lthi_lkne_dist(joint_positions_400_s05_e03)
+
+        for _, (e_dfs, a_code, tech_cls, cond, issues, file_name) in zip(tqdm(range(len(missing_lthi_sample_list)),
+                    desc='Completing samples with missing LTHI marker'), missing_lthi_sample_list):
             completed_dfs = []
             for e_df in e_dfs:
-                complete_e_df = add_LTHI_column(e_df.copy(), avg_LTHI_LKNE_dist)
+                complete_e_df = add_lthi_column(e_df.copy(), avg_lthi_lkne_dist)
                 completed_dfs.append(complete_e_df)
             event_dfs = center_initial_position_events(completed_dfs)
-            #add_to_sample_list(
-            #    sample_list,
-            #    completed_dfs,
-            #    a_code,
-            #    tech_cls,
-            #    cond
-            #)
             add_to_sample_list(
                 sample_list,
                 event_dfs,
                 a_code,
                 tech_cls,
-                cond
+                cond,
+                issues,
+                report,
+                file_name
             )
 
     j_dist_shape = (len(data_info.reconstruction_skeleton),)
-    samples = np.array(sample_list , dtype=[
+    samples = np.array(sample_list, dtype=[
             ('joint_positions', 'O'),
-            ('model_angles', 'O'),
             ('joint_axis_angles', 'O'),
             ('joint_distances', 'f4', j_dist_shape),
             ('attacker_code', 'U10'),
@@ -361,47 +409,47 @@ def main(desired_frequency, data_dir, output_dir, replace):
         ]
     )
 
+    print(f'Saving processed data at {file_path} ...')
+    np.save(file_path, samples)
+    print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
 
-    #print(f'Saving processed data at {file_path} ...')
-    #np.save(file_path, samples)
-    #print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
+    print(f'Report:')
+    for key, value in report.items():
+        print(f'{key}: {value}')
+    preprocessing_path = os.path.join(os.getcwd(), 'preprocessing', 'karate', 'reports')
+    report_path = os.path.join(preprocessing_path, "preparation_report.json")
+    with open(report_path, 'w') as outfile:
+        json.dump(report, outfile)
+    print(f'Saved report at {report_path}.')
 
-    print(samples['joint_positions'].shape)
-    print(samples['joint_positions'][0].shape)
-    #print(samples['joint_positions'][:][:, 3:6])
+    if view_problematic:
+        # Inspecting the samples which had problems
+        for i in report.keys():
+            i = int(i)
+            print(f'Showing motion at index {i}...')
+            vicon_visualization.from_array(samples['joint_positions'][i])
 
+            axis_angles = np.expand_dims(samples['joint_axis_angles'][i], axis=0)
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            axis_angles = torch.as_tensor(axis_angles, device=device)
 
-    #'''
-    for i in range(samples['joint_positions'].shape[0]):
-        print(i)
-        print('Showing exemplary motion...')
-        vicon_visualization.from_array(samples['joint_positions'][i])
+            start_index = data_info.joint_to_index['T10']
+            start = np.expand_dims(samples['joint_positions'][i][:, start_index, :], axis=0)
+            start = torch.as_tensor(start, device=device)
 
-        #exit()
+            distances = np.expand_dims(samples['joint_distances'][i], axis=0)
+            distances = torch.as_tensor(distances, device=device)
 
-        axis_angles = np.expand_dims(samples['joint_axis_angles'][i], axis=0)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        axis_angles = torch.as_tensor(axis_angles, device=device)
+            recon_pos = geometry.calc_positions(
+                        chain_start_positions=start,
+                        start_label='T10',
+                        axis_angles=axis_angles,
+                        distances=distances
+            )
+            recon_pos = recon_pos.cpu().detach().numpy().squeeze()
 
-        start_index = data_info.joint_to_index['T10']
-        #start = samples['joint_positions'][i][:, start_index*3:start_index*3+3]
-        start = np.expand_dims(samples['joint_positions'][i][:, start_index, :], axis=0)
-        start = torch.as_tensor(start, device=device)
-
-        distances = np.expand_dims(samples['joint_distances'][i], axis=0)
-        distances = torch.as_tensor(distances, device=device)
-
-        recon_pos = geometry.calc_positions(
-                    chain_start_positions=start,
-                    start_label='T10',
-                    axis_angles=axis_angles,
-                    distances=distances
-        )
-        recon_pos = recon_pos.cpu().detach().numpy().squeeze()
-
-        print('Showing the same motion but reconstructed (should be the same)...')
-        vicon_visualization.from_array(recon_pos)
-    #'''
+            print('Showing the same motion but reconstructed (should be the same)...')
+            vicon_visualization.from_array(recon_pos)
 
 
 def get_args():
@@ -410,13 +458,15 @@ def get_args():
                         default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_csv/',
                         help='The directory that stores the karate csv files.')
     parser.add_argument('--target_dir', '-t', dest='target_dir', type=str,
-                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_prep/',
+                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/preprocessed/',
                         help='The directory in which the processed data will be stored in.')
     parser.add_argument('--desired_frequency', '-f', dest='desired_frequency', type=int, default=25,
                         help='The frequency (in Hz) of the output data. \
                             Must be a factor of the original frequency.')
     parser.add_argument('--replace', '-r', dest='replace', action='store_true', default=False,
                         help='Set if the existing data in the output directory should be replaced.')
+    parser.add_argument('--view_problematic', '-v', dest='view_problematic', action='store_true', default=False,
+                        help='Set to check whether the problematic samples were modified correctly.')
     return parser.parse_args()
 
 
@@ -427,5 +477,6 @@ if __name__ == "__main__":
         args.desired_frequency,
         args.data_dir,
         args.target_dir,
-        args.replace
+        args.replace,
+        args.view_problematic
     )

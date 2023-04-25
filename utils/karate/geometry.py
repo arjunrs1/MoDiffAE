@@ -52,8 +52,6 @@ def calc_axis_angles_and_distances(points):
         distances[i] = dist
         axis_angles[:, i, :] = angles
 
-    print(axis_angles.device, distances.device)
-
     return axis_angles, distances
 
 
@@ -84,7 +82,7 @@ def rodrigues_rotation(axes, angles, vectors):
     return rotated_vectors.squeeze(-1)
 
 
-def axis_angle_and_distance_to_point(start_points, axis_angles, distances):
+def axis_angles_and_distances_to_points(start_points, axis_angles, distances):
     # Centering coordinate system at old start point and defining new start point
     # Note that this automatically copies the device type
     new_starts = torch.zeros_like(start_points) - start_points
@@ -99,9 +97,7 @@ def axis_angle_and_distance_to_point(start_points, axis_angles, distances):
     axes = torch.div(axis_angles, angles)
 
     rec_end_points = rodrigues_rotation(axes, angles, new_starts)
-
     distances = distances.unsqueeze(dim=-1).unsqueeze(dim=-1)
-
     rec_end_points *= distances
     rec_end_points += start_points
 
@@ -128,11 +124,9 @@ def calc_positions(chain_start_positions, start_label, axis_angles, distances):
 
         ax_angles = axis_angles[:, :, i, :]
         j_distances = distances[:, i]
-        end_points = axis_angle_and_distance_to_point(start_points, ax_angles, j_distances)
+        end_points = axis_angles_and_distances_to_points(start_points, ax_angles, j_distances)
         end_label = skeleton[i][1]
         end_idx = data_info.joint_to_index[end_label]
         joint_positions[:, :, end_idx, :] = end_points
-
-    print(joint_positions.device)
 
     return joint_positions

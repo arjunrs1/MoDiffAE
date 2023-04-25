@@ -3,12 +3,15 @@
 
 import numpy as np
 import os
-import mocap_visualization
+#import mocap_visualization
+from visualize.vicon_visualization import from_array
 import copy
 import data_prep
-import geometry
+#import geometry
+import utils.karate.geometry as geometry
 import pandas as pd
-import data_info
+#import data_info
+import utils.karate.data_info as data_info
 import json
 
 # Cutting: 
@@ -141,7 +144,7 @@ try:
                 else:
                     print(f'Length: {rec.shape[0] / framerate} (Outlier border: {upper})')
                     print(f'Outlier reason: {reason}')
-                    mocap_visualization.from_array(rec)
+                    from_array(rec)
                     action = input('Choose an action (remove, mirror, trim) or type done for no further actions: ')
 
             if action == 'remove':
@@ -234,6 +237,6 @@ finally:
     for key, value in report.items():
         print(f'{key}: {value}')
     report_path = os.path.join(datapath, "outlier_report.json")
-    print(f'Saved report at {report_path}.')
     with open(report_path, 'w') as outfile: 
         json.dump(report, outfile)
+    print(f'Saved report at {report_path}.')

@@ -1,9 +1,8 @@
 # Save
 save/*
-datasets/*
-
-#/save
-#/datasets
+#datasets/*
+*.npy
+*/raw_csvs.csv
 
 !*/README.md
 

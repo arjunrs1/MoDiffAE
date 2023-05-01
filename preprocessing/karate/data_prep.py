@@ -218,6 +218,12 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
             issues['file_name'] = file_name
             report[str(cur_idx)] = issues
 
+        if np.isnan(joint_positions).any() or \
+                np.isnan(joint_axis_angles).any() or \
+                np.isnan(joint_distances).any():
+            print('Encountered nan value. Exiting...')
+            exit()
+
         sample_list.append((
             joint_positions,
             joint_axis_angles,
@@ -304,7 +310,7 @@ def center_initial_position_events(event_dfs):
 
 def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report = {}
-    npy_name = f'karate_motion_{desired_frequency}_fps.npy'
+    npy_name = 'karate_motion_unmodified.npy'
     file_path = os.path.join(target_dir, npy_name)
 
     if not os.path.exists(target_dir):

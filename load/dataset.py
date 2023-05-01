@@ -92,9 +92,9 @@ class Dataset(torch.utils.data.Dataset):
     def _load(self, ind, frame_ix):
         pose_rep = self.pose_rep
         if pose_rep == "xyz" or self.translation:
-            if getattr(self, "_load_joints3D", None) is not None:
+            if getattr(self, "_load_joints", None) is not None:
                 # Locate the root joint of initial pose at origin
-                joints3D = self._load_joints3D(ind, frame_ix)
+                joints3D = self._load_joints(ind, frame_ix)
                 # Anthony: I think I do not want this. 
                 ##joints3D = joints3D - joints3D[0, 0, :]
                 ret = to_torch(joints3D)
@@ -112,10 +112,10 @@ class Dataset(torch.utils.data.Dataset):
                 ret_tr = to_torch(ret_tr - ret_tr[0])
 
         if pose_rep != "xyz":
-            if getattr(self, "_load_rotvec", None) is None:
+            if getattr(self, "_load_rot_vec", None) is None:
                 raise ValueError("This representation is not possible.")
             else:
-                pose = self._load_rotvec(ind, frame_ix)
+                pose = self._load_rot_vec(ind, frame_ix)
                 # print('hbbbb')
                 if not self.glob:
                     print('hiiiiii')
@@ -234,6 +234,7 @@ class Dataset(torch.utils.data.Dataset):
 
         return output
 
+    # Anthony: this is unused
     def get_mean_length_label(self, label):
         if self.num_frames != -1:
             return self.num_frames

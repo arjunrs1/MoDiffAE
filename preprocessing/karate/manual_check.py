@@ -5,52 +5,14 @@ import numpy as np
 import os
 from visualize.vicon_visualization import from_array
 import utils.karate.data_info as data_info
+import json
 
-# Cutting: 
-# - Movement at beginning or end that is unrelated to the technique
-# - Too long paused at the end or beginning (especially for outliers)
-# Removing: 
-# - faulires, e.g. falling
-# Reason why cutting can not be optimized well: Sometimes participants walk around 
-# or bend down etc. So it is not always a pause / no movement.  
 
-# pcloud path 
-#datapath='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_prep/'
-
-# local path 
-#datapath='/home/anthony/Documents/ma_data/'
 data_dir = os.path.join(os.getcwd(), 'datasets', 'KaratePoses')
-
-#npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_modified_outliers.npy")
-data_file_path = os.path.join(data_dir, "karate_motion_25_fps.npy")
+data_file_path = os.path.join(data_dir, "karate_motion_unmodified.npy")
 data = np.load(data_file_path, allow_pickle=True)
 
-# Notes: 
-# - Initial idea: Result: all defenrders are wrong oriented
-# assuming they followed a strict protocol
-# Result: condition == defender does not always mean 
-# that the orientation is wrong. 
-#  Not a good criterium. (1086)
-# - instead try: avg y values are on te wrong side (above 0)
-# Result: better but still some falts. Espesialy with kicks, often 
-# the mean is in the positive y area due to leaning the torso in the oposite direction 
-# of the kick. (799 detections)
-# - next idea: max is further away from center than min. Inspired by typical 
-# forward motion in karate movements.
-# Still not perfect but better (165 detections, the kick lean problem not there)
-# - simply check if the front head is on the correct side of the back head 
-# at the beginning (92 outliers). 
-# After manuyll going through thm to confirm them, 
-# the only few falts that were wrongly detected are ones where
-# paticipants started in the wrong orientation and then turned 
-# around. It should also be mentioned that this could also happen the other way around (people starting right and then turn
-# the wrong way). This motivated the final idea:
-# Next idea: avg. 85 outliers. No false detections. (and one false recording where nothing happens..)
-
-# Nevertheless, check all recording after modification.
-
-
-use_memory = False
+use_memory = True
 memory_file_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate')
 memory_file_path = os.path.join(memory_file_dir, 'check_idx.npy')
 
@@ -62,19 +24,18 @@ if use_memory:
 else: 
     start_point = 0
 
+report_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate', 'reports')
+report_file_path = os.path.join(report_dir, "outlier_report.json")
+if os.path.isfile(report_file_path):
+    report = json.load(open(report_file_path))
+else:
+    print('Warning: Report file not found.')
+    report = {}
 
-# TODO: add indices of problematic recordings
-# found by this manual search.
-# Also, recordings with wrong technique and
-# then ask felix if these should be cut. 
-# Argument: maybe cut only at the point where they 
-# thought the start position would be (even if wrong foot placement)
-# Only remove things unrelated to technique (?)
-found_outliers = []
+check_indices = [idx for idx in list(range(start_point, data.shape[0])) if idx not in report.keys()]
 
 
-for idx in range(start_point, data.shape[0]):
-
+for idx in check_indices:
     print(f'Index: {idx}')
     if use_memory:
         np.save(memory_file_path, np.array([idx]))
@@ -91,3 +52,8 @@ for idx in range(start_point, data.shape[0]):
 
     from_array(d)
     print('------')
+
+# Manually add indices of problematic recordings
+# found by this search. Later add these to the outlier modification
+# and repeat it on the modified dataset.
+found_outliers = []

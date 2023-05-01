@@ -5,17 +5,19 @@ import os
 import pandas as pd
 from io import StringIO
 
+
 cwd = os.getcwd()
-#participant_data = open(os.path.join(cwd, 'participants.csv'), 'r').readlines()
 participant_data = open(os.path.join(cwd, 'datasets/KaratePoses/participants.csv'), 'r').readlines()
 # Deleting the unit row.
 del participant_data[1]
 participants_df = pd.read_csv(StringIO(','.join(participant_data)), sep=',', header=0)
 participants_df.set_index('Code', drop=True, inplace=True)
 
+
 def get_participant_info(participant_code):
     info = participants_df.loc[participant_code].to_numpy().tolist()
     return info
+
 
 condition_to_name = {
     'E01': 'air',
@@ -61,7 +63,7 @@ reconstruction_skeleton = [
     ['RPSI', 'RASI'],
 
     # Left lower body
-    ['LASI', 'LTHI'],
+    ['LPSI', 'LTHI'],
     ['LTHI', 'LKNE'],
     ['LKNE', 'LTIB'],
     ['LTIB', 'LANK'],
@@ -69,7 +71,7 @@ reconstruction_skeleton = [
     ['LHEE', 'LTOE'],
 
     # Right lower body
-    ['RASI', 'RTHI'],
+    ['RPSI', 'RTHI'],
     ['RTHI', 'RKNE'],
     ['RKNE', 'RTIB'],
     ['RTIB', 'RANK'],

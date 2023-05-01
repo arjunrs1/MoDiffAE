@@ -1,37 +1,18 @@
-import pickle as pkl
 import numpy as np
 import os
 from load.dataset import Dataset
 
-import matplotlib.pyplot as plt
-import scipy.stats as stats
-# import seaborn as sns
-import matplotlib.lines as lines
-
+import torch
 
 class KaratePoses(Dataset):
-    dataname = "karate"
-
-    def __init__(self, datapath="datasets/KaratePoses", split="train", **kargs):
-        self.datapath = datapath
-
-        # max num_frames in karate dataset is 356 (almost 15 seconds with 25 fps).
-        # But this seems too long. Check the recordings with long lengths.
-        # num_frames=-2, min_len=2, max_len=356,
-        # num_frames=125
-        super().__init__(**kargs)
+    def __init__(self, data_path="datasets/KaratePoses", split="train", **kwargs):
+        # TODO: adjust max number of frames parameter after preprocessing (currently 125) -> set to 100 meaning 4 sec
+        super().__init__(**kwargs)
 
         self.data_name = "karate"
+        data_file_path = os.path.join(data_path, "karate_motion_unmodified.npy")
+        data = np.load(data_file_path, allow_pickle=True)
 
-        #npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
-        npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_axis_angles_t10.npy")
-        data = np.load(npydatafilepath, allow_pickle=True)
-
-        print('loaded t10 dataset')
-
-        self._data = data
-
-        #self._pose = [x for x in data["joint_angles"]]
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]
 
@@ -53,10 +34,10 @@ class KaratePoses(Dataset):
 
         self._action_classes = karate_action_enumerator
 
-    def _load_joints3D(self, ind, frame_ix):
+    def _load_joints(self, ind, frame_ix):
         return self._joints[ind][frame_ix].reshape(-1, 39, 3)
 
-    def _load_rotvec(self, ind, frame_ix):
+    def _load_rot_vec(self, ind, frame_ix):
         pose = self._pose[ind][frame_ix].reshape(-1, 38, 3)
         return pose
 
@@ -68,24 +49,3 @@ karate_action_enumerator = {
     3: 'Mawashi-Geri jodan',
     4: 'Ushiro-Mawashi-Geri'
 }
-
-'''
-if __name__ == "__main__":
-    kp = KaratePoses()
-    kp.num_frames = 125
-    print(kp._pose[1].shape)
-    t = kp._load_rotvec(0, 0)
-    print(kp._load_joints3D(0, 0))
-    print(t)
-
-    print('max: ' + str(max(kp._num_frames_in_video)))
-    print('max: ' + str(np.mean(kp._num_frames_in_video)))
-    print(kp._num_frames_in_video)
-
-    print(kp._num_frames_in_video[0])
-
-    loaded = kp[20]
-    print(loaded)
-    print(loaded['inp'].shape)
-    print()
-'''

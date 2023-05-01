@@ -201,6 +201,8 @@ class GaussianDiffusion:
         # assuming a.shape == b.shape == bs, J, Jdim, seqlen
         # assuming mask.shape == bs, 1, 1, seqlen
         loss = self.l2_loss(a, b)
+        #loss = self.l2_loss(a[], b)
+
         loss = sum_flat(loss * mask.float())  # gives \sigma_euclidean over unmasked elements
         n_entries = a.shape[1] * a.shape[2]
         non_zero_elements = sum_flat(mask) * n_entries
@@ -241,7 +243,7 @@ class GaussianDiffusion:
         :return: A noisy version of x_start.
         """
 
-        # It seems like the noise is never set
+        # It seems like the noise is never set,
         # so it is always gaussian. I do not understand if 
         # for ddim this is also set to 0 during training. 
         # I believe even diffae uses noise. 
@@ -1422,7 +1424,8 @@ class GaussianDiffusion:
                 terms["rcxyz_mse"] = self.masked_l2(target_xyz, model_output_xyz, mask)  # mean_flat((target_xyz - model_output_xyz) ** 2)
 
             if self.lambda_vel_rcxyz > 0.:
-                if self.data_rep == 'rot6d' and dataset.dataname in ['humanact12', 'uestc']:
+                if self.data_rep == 'rot6d' and dataset.data_name in ['humanact12', 'uestc']:
+
                     target_xyz = get_xyz(target) if target_xyz is None else target_xyz
                     model_output_xyz = get_xyz(model_output) if model_output_xyz is None else model_output_xyz
                     target_xyz_vel = (target_xyz[:, :, :, 1:] - target_xyz[:, :, :, :-1])
@@ -1431,7 +1434,7 @@ class GaussianDiffusion:
 
             if self.lambda_fc > 0.:
                 torch.autograd.set_detect_anomaly(True)
-                if self.data_rep == 'rot6d' and dataset.dataname in ['humanact12', 'uestc']:
+                if self.data_rep == 'rot6d' and dataset.data_name in ['humanact12', 'uestc']:
                     target_xyz = get_xyz(target) if target_xyz is None else target_xyz
                     model_output_xyz = get_xyz(model_output) if model_output_xyz is None else model_output_xyz
                     # 'L_Ankle',  # 7, 'R_Ankle',  # 8 , 'L_Foot',  # 10, 'R_Foot',  # 11

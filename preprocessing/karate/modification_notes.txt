@@ -9,9 +9,73 @@ Keep the one with left dominant leg? very few i think. This may cause difficulti
 
 general question: should i remove recordings with incorrect form due to outliers or should they be kept, because wrong execution is typical for beginners? Wrong dominant fott placement, wrong turn direction after impact.. (is there a rule for the last one? could not find one, but i think in kyokuschin karate it is taught to rotate in one continuous direction)
 
+-> felix said no. do not remove motions that have slightly incorrect techniques. Of course more difficult, but interesting to see if model learns this. As it also has to be able to map from incoprrect technique to correct one for modifiaction (ideally).
+Only remove things unrelated to the technique. E.g. they did not know it already startetd, waited for long, stunbled around, walked towards the starting position, t-pose. 
 
-TODO: Remove starting stance (done in the outliers, but not in the rest).
+
+TODO: Remove starting stance t-pose (done in the outliers, but not in the rest).
 This refers to the T-pose. Because otherwise some start in t-pose and some in fighting stance. 
 I should be able to detect this automatically. I suspect these are only before the first execution in the original recordings.
 
 Specifially did not remove initial recovery after execution since this is a important part of skill level. 
+
+TODO: 
+write script to analyse how good the assumenption of connected joints is. 
+print(rec.shape)
+differences = np.asarray(np.invert(np.isclose(rec, test_recon, rtol=0.01, atol=30))).nonzero()
+print(differences[0].shape)
+print(differences[0])
+print(differences[1].shape)
+print(list(set(differences[1])))
+#[print(data_info.)]
+print(differences[2].shape)
+#print(np.asarray(np.isclose(rec, test_recon, rtol=0.01, atol=0)).nonzero())
+
+#exit()
+if not np.isclose(rec, test_recon, rtol=0, atol=80).all():
+print('not close')
+else:
+print('close')
+from_array(test_recon)
+from_array(rec)
+exit()
+
+
+Note: rpsi -> rthi and lpsi -> lthi has a lower error than rasi -> rthi and lasi -> rthi
+
+
+----
+
+# Cutting: 
+# - Movement at beginning or end that is unrelated to the technique
+# - Too long paused at the end or beginning (especially for outliers)
+# Removing: 
+# - faulires, e.g. falling
+# Reason why cutting can not be optimized well: Sometimes participants walk around 
+# or bend down etc. So it is not always a pause / no movement.  
+# Mirroring along y axis:
+# - wrong orientied movements
+
+# Notes: 
+# - Initial idea: Result: all defenrders are wrong oriented
+# assuming they followed a strict protocol
+# Result: condition == defender does not always mean 
+# that the orientation is wrong. 
+#  Not a good criterium. (1086)
+# - instead try: avg y values are on te wrong side (above 0)
+# Result: better but still some falts. Espesialy with kicks, often 
+# the mean is in the positive y area due to leaning the torso in the oposite direction 
+# of the kick. (799 detections)
+# - next idea: max is further away from center than min. Inspired by typical 
+# forward motion in karate movements.
+# Still not perfect but better (165 detections, the kick lean problem not there)
+# - simply check if the front head is on the correct side of the back head 
+# at the beginning (92 outliers). 
+# After manuyll going through thm to confirm them, 
+# the only few falts that were wrongly detected are ones where
+# paticipants started in the wrong orientation and then turned 
+# around. It should also be mentioned that this could also happen the other way around (people starting right and then turn
+# the wrong way). This motivated the final idea:
+# Next idea: avg. 85 outliers. No false detections. (and one false recording where nothing happens..)
+
+# Nevertheless, check all recording after modification.

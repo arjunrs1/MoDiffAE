@@ -8,7 +8,8 @@ import re
 
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
-from data_loaders.get_data import get_dataset_loader
+#from data_loaders.get_data import get_dataset_loader
+from load.get_data import get_dataset_loader
 from eval.a2m.tools import save_metrics
 from utils.parser_util import evaluation_parser
 from utils.fixseed import fixseed

@@ -4,13 +4,31 @@
 import utils.karate.data_info as data_info
 import torch
 
-# This geometry is implemented so that is works both on the gpu and the cpu.
+# The geometry is implemented so that is works both on the gpu and the cpu.
+
+
+def add_eps_to_zero(x):
+    # This is used as safety measure to prevent division by 0. Although very unlikely,
+    # it can theoretically happen that a vector has only zeros, making its norm (the divisor) also 0.
+    # If divided by 0, the tensor becomes nan, causing the backpropagation to fail.
+    eps = torch.finfo(x.dtype).eps
+    zero_mask = x == 0
+    # Checking if fill is necessary to save computation time
+    if zero_mask.any():
+        x = x.masked_fill(zero_mask, eps)
+    return x
+
+
+def save_div(dividend, divisor):
+    divisor = add_eps_to_zero(divisor)
+    res = torch.div(dividend, divisor)
+    return res
 
 
 def calc_signed_axis_angle(start, end):
     v_cross = torch.cross(start, end, dim=-1)
     v_dot = torch.sum(start * end, dim=-1, keepdim=True)
-    axis = torch.div(v_cross, torch.linalg.norm(v_cross, dim=-1).unsqueeze(dim=-1))
+    axis = save_div(v_cross, torch.linalg.norm(v_cross, dim=-1).unsqueeze(dim=-1))
     # The determinant of the 3x3 matrix consisting of three vectors is defined as dot((cross(start, end), axis).
     # https://www.math.umd.edu/~petersd/241/crossprod.pdf
     det = torch.sum(v_cross * axis, dim=-1, keepdim=True)
@@ -24,8 +42,8 @@ def points_to_axis_angles_and_distances(start_points, end_points):
     new_starts = torch.zeros_like(start_points) - start_points
     new_ends = end_points - start_points
 
-    new_starts = torch.div(new_starts, torch.linalg.norm(new_starts, dim=-1).unsqueeze(dim=-1))
-    new_ends = torch.div(new_ends, torch.linalg.norm(new_ends, dim=-1).unsqueeze(dim=-1))
+    new_starts = save_div(new_starts, torch.linalg.norm(new_starts, dim=-1).unsqueeze(dim=-1))
+    new_ends = save_div(new_ends, torch.linalg.norm(new_ends, dim=-1).unsqueeze(dim=-1))
 
     axis_angle = calc_signed_axis_angle(new_starts, new_ends)
     return axis_angle, dist
@@ -90,11 +108,11 @@ def axis_angles_and_distances_to_points(start_points, axis_angles, distances):
     # Normalizing
     norms = torch.linalg.norm(new_starts, dim=-1)
     norms = norms.unsqueeze(dim=-1)
-    new_starts = torch.div(new_starts, norms)
+    new_starts = save_div(new_starts, norms)
 
     angles = torch.linalg.norm(axis_angles, dim=-1)
     angles = angles.unsqueeze(dim=-1)
-    axes = torch.div(axis_angles, angles)
+    axes = save_div(axis_angles, angles)
 
     rec_end_points = rodrigues_rotation(axes, angles, new_starts)
     distances = distances.unsqueeze(dim=-1).unsqueeze(dim=-1)

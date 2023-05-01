@@ -52,10 +52,29 @@ class KaratePoses(Dataset):
         self._data = data
 
         #self._pose = [x for x in data["joint_angles"]]
+        #self._pose = [np.nan_to_num(x) for x in data["joint_axis_angles"]]
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]
 
+        print('tetsing')
+        #for x in data["joint_axis_angles"]:
+        #    if np.isnan(x).any():
+        #        print('axis angles have nan values')
+                #exit()
+
+        #exit()
+
         self._joints = [x for x in data["joint_positions"]]
+        #for x in data["joint_positions"]:
+        #    test = x.reshape(-1, 3)
+        #    print(test.shape)
+        #    for i in range(test.shape[0]):
+        #        if np.isclose(test[i], np.array([0., 0., 0.])).all():
+        #            print('encountered 000')
+        #            print(test[i])
+        #            exit()
+            #exit()
+        #exit()
 
         self._actions = [x for x in data["technique_cls"]]
 
@@ -141,6 +160,8 @@ if __name__ == "__main__":
 
     #exit()
 
+    print('hi')
+
     d = kp._data['joint_positions'][0]
     print(d.shape)
     from_array(d)
@@ -181,7 +202,17 @@ if __name__ == "__main__":
     iterator = iter(data)
     # model_kwargs contains the condition as well as distances
     # for visualization of karate motion.
-    data_batch, model_kwargs = next(iterator)
+    #data_batch, model_kwargs = next(iterator)
+
+    print('what is this')
+    print(torch.div(10, 0))
+    exit()
+
+    while True:
+        data_batch, model_kwargs = next(iterator)
+        print(torch.any(torch.isnan(data_batch)))
+
+    exit()
 
     device = torch.device("cpu")
     if torch.cuda.is_available() and dist_util.dev() != 'cpu':
@@ -252,5 +283,14 @@ if __name__ == "__main__":
 
     print('hi')
 
+    # x = torch.tensor([1, 1, 3]).float()
+    # x[x == 2] = float('nan')
+
+    # print(x)
+
+    # x = geometry.add_eps_to_zero(x)
+    # print(x)
+
+    # exit()
 
 

@@ -5,7 +5,7 @@ from load.dataset import Dataset
 import torch
 
 class KaratePoses(Dataset):
-    def __init__(self, data_path="datasets/KaratePoses", split="train", **kwargs):
+    def __init__(self, data_path="datasets/karate", split="train", **kwargs):
         # TODO: adjust max number of frames parameter after preprocessing (currently 125) -> set to 100 meaning 4 sec
         super().__init__(**kwargs)
 

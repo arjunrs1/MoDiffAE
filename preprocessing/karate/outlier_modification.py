@@ -80,7 +80,7 @@ def add_no_movement_outliers():
 def add_manual_outliers():
     # This list contains all the indices found during the manual search
     manual_indices = []
-    manual_outliers = [(i, durations[i], '') for i in manual_indices]
+    manual_outliers = [(i, durations[i], 'manually found') for i in manual_indices]
     print(f'Number of additional outliers found with manual search: {len(manual_outliers)}')
     add_to_outliers(outliers, manual_outliers)
 
@@ -269,7 +269,7 @@ def modify_data():
 
 
 def get_args():
-    data_dir = os.path.join(os.getcwd(), 'datasets', 'KaratePoses')
+    data_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
     report_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate', 'reports')
 
     parser = argparse.ArgumentParser(description='Modification of the karate motion data.')

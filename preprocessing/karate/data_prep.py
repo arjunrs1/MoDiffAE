@@ -325,7 +325,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     # Sorting here is very important. Otherwise, the order might not be the same over different operating systems
     # and storage locations due to the way files are read. This would make indices in the
     # modification incorrect if the data was created on a different machine than the modification is performed.
-    file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.')]
+    file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.') and not p.endswith('.md')]
     number_of_files = len(file_names)
 
     sample_list = []
@@ -459,12 +459,12 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
 
 
 def get_args():
+    dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
+
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')
-    parser.add_argument('--data_dir', '-d', dest='data_dir', type=str,
-                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/karate_csv/',
+    parser.add_argument('--data_dir', '-d', dest='data_dir', type=str, default=os.path.join(dataset_dir, 'raw_csvs'),
                         help='The directory that stores the karate csv files.')
-    parser.add_argument('--target_dir', '-t', dest='target_dir', type=str,
-                        default='/home/anthony/pCloudDrive/storage/data/master_thesis/preprocessed/',
+    parser.add_argument('--target_dir', '-t', dest='target_dir', type=str, default=dataset_dir,
                         help='The directory in which the processed data will be stored in.')
     parser.add_argument('--desired_frequency', '-f', dest='desired_frequency', type=int, default=25,
                         help='The frequency (in Hz) of the output data. \

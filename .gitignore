@@ -2,7 +2,8 @@
 save/*
 #datasets/*
 *.npy
-*/raw_csvs.csv
+
+datasets/karate/raw_csvs/*.csv
 
 !*/README.md
 

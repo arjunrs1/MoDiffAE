@@ -15,6 +15,8 @@ from model.cfg_sampler import ClassifierFreeSampleModel
 from utils import dist_util
 from utils.fixseed import fixseed
 
+from torchsummary import summary
+
 #import utils.rotation_conversions as geometry
 #import utils.karate_utils.data_info as data_info
 #import utils.karate_utils.geometry as karate_geometry
@@ -44,7 +46,7 @@ class KaratePoses(Dataset):
         self.data_name = "karate"
 
         #npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
-        npydatafilepath = os.path.join(datapath, "karate_motion_25_fps_axis_angles_t10.npy")
+        npydatafilepath = os.path.join(datapath, "karate_motion_modified.npy")
         data = np.load(npydatafilepath, allow_pickle=True)
 
         print('loaded t10 dataset')
@@ -188,6 +190,10 @@ if __name__ == "__main__":
 
     print("Creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(args, data)
+
+    summary(model, [(1, 39, 6, 125), [1]])
+
+    exit()
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

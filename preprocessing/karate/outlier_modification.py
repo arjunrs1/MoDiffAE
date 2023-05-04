@@ -34,15 +34,17 @@ def add_duration_outliers():
         std = np.std(dur)
         cls_name = data_info.technique_class_to_name[cl]
         if cls_name == 'Ushiro-Mawashi-Geri':
+            # Longest and most difficult technique gets stricter criterion
+            # (Since one goal is to reduce the maximum duration).
             z = 1.5
         else:
             z = 3
         upper = mean + z * std
         lower = mean - z * std
-        duration_outliers = [(i, v, f'duration ({cls_name}, upper border: {upper})')
+        duration_outliers = [(i, v, f'duration ({cls_name}, borders: ({lower:.2f}, {upper:.2f}))')
                              for i, v in cls_durations if v >= upper or v <= lower]
         print(f'Number of duration outliers for the {data_info.technique_class_to_name[cl]}: '
-              f'{len(duration_outliers)} (upper border: {upper})')
+              f'{len(duration_outliers)} (borders: ({lower:.2f}, {upper:.2f}))')
         outliers.extend(duration_outliers)
 
 
@@ -73,16 +75,8 @@ def add_no_movement_outliers():
                             for i, d in enumerate(data) if
                             np.mean(np.var(d['joint_positions'], axis=0)) < mean_variances_lower]
     print(f'Number of no movement outliers: {len(no_movement_outliers)} '
-          f'(lower variance border: {mean_variances_lower})')
+          f'(lower variance border: {mean_variances_lower:.2f})')
     add_to_outliers(outliers, no_movement_outliers)
-
-
-def add_manual_outliers():
-    # This list contains all the indices found during the manual search
-    manual_indices = []
-    manual_outliers = [(i, durations[i], 'manually found') for i in manual_indices]
-    print(f'Number of additional outliers found with manual search: {len(manual_outliers)}')
-    add_to_outliers(outliers, manual_outliers)
 
 
 def add_t_pose_outliers():
@@ -108,8 +102,16 @@ def add_t_pose_outliers():
                        np.min(y_v) < y_variances_lower and np.min(z_v) < z_variances_lower
                        and np.isclose(np.argmin(y_v), np.argmin(z_v), atol=frequency)]
     print(f'Number of t-pose outliers: {len(t_pose_outliers)} '
-          f'(lower x and y arm variance borders: ({y_variances_lower}, {z_variances_lower}))')
+          f'(lower x and y arm variance borders: ({y_variances_lower:.2f}, {z_variances_lower:.2f}))')
     add_to_outliers(outliers, t_pose_outliers)
+
+
+def add_manual_outliers():
+    # This list contains all the indices found during the manual search
+    manual_indices = []
+    manual_outliers = [(i, durations[i], 'manually found') for i in manual_indices]
+    print(f'Number of additional outliers found with manual search: {len(manual_outliers)}')
+    add_to_outliers(outliers, manual_outliers)
 
 
 def modify_data():
@@ -211,9 +213,15 @@ def modify_data():
                         if len(actions) == 0:
                             report_step_done = True
                     else:
-                        new_start_s = float(input('New start (in seconds): '))
+                        new_start_s, new_end_s = None, None
+                        while new_start_s is None or new_end_s is None:
+                            try:
+                                new_start_s = float(input('New start (in seconds): '))
+                                new_end_s = float(input('New end (in seconds): '))
+                            except ValueError:
+                                print('Invalid input. Please type in new frame borders.')
+                                pass
                         new_start = int(new_start_s * frequency)
-                        new_end_s = float(input('New end (in seconds): '))
                         new_end = int(new_end_s * frequency)
                         new_end = min(new_end, int(length * frequency))
                         print(f'New frame borders: {new_start} and {new_end}')

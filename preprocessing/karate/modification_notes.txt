@@ -1,3 +1,11 @@
+Reasons for trimming: 
+- find good limit for duration (transofromer specification), the shorter the easier to learn
+- uniformity of data: so that the movement actually start at the beginning 
+- removing aspects unrelated to the technique trim
+- automatic is not good: unsure when the important part is, simply removing one side could remove important aspects while leaving stillstand. 
+- also autoamtic still stand dteection not reliable, because often they are not standing stioll but walking around/ stumbling around, looking around, or other movements unrelated to technique 
+
+
 Things to look out for: 
 
 (TODO: for each technique write down what the proper form should be. For instance 2 punches and not 3. Arguments could be made to remove wrong punch. Also switching of feet etc.). 
@@ -39,7 +47,6 @@ print('close')
 from_array(test_recon)
 from_array(rec)
 exit()
-
 
 Note: rpsi -> rthi and lpsi -> lthi has a lower error than rasi -> rthi and lasi -> rthi
 

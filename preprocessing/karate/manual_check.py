@@ -8,7 +8,7 @@ import utils.karate.data_info as data_info
 import json
 
 
-data_dir = os.path.join(os.getcwd(), 'datasets', 'KaratePoses')
+data_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
 data_file_path = os.path.join(data_dir, "karate_motion_unmodified.npy")
 data = np.load(data_file_path, allow_pickle=True)
 
@@ -32,7 +32,7 @@ else:
     print('Warning: Report file not found.')
     report = {}
 
-check_indices = [idx for idx in list(range(start_point, data.shape[0])) if idx not in report.keys()]
+check_indices = [idx for idx in list(range(start_point, data.shape[0])) if str(idx) not in report.keys()]
 
 
 for idx in check_indices:

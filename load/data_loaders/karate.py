@@ -10,7 +10,7 @@ class KaratePoses(Dataset):
         super().__init__(**kwargs)
 
         self.data_name = "karate"
-        data_file_path = os.path.join(data_path, "karate_motion_unmodified.npy")
+        data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
         data = np.load(data_file_path, allow_pickle=True)
 
         self._pose = [x for x in data["joint_axis_angles"]]

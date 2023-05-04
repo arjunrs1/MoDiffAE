@@ -2,7 +2,6 @@ import torch
 
 
 def lengths_to_mask(lengths, max_len):
-    # max_len = max(lengths)
     mask = torch.arange(max_len, device=lengths.device).expand(len(lengths), max_len) < lengths.unsqueeze(1)
     return mask
     
@@ -21,41 +20,35 @@ def collate_tensors(batch):
 
 
 def collate(batch):
-    notnone_batches = [b for b in batch if b is not None]
-    databatch = [b['inp'] for b in notnone_batches]
-    if 'lengths' in notnone_batches[0]:
-        lenbatch = [b['lengths'] for b in notnone_batches]
+    not_none_batches = [b for b in batch if b is not None]
+    data_batch = [b['inp'] for b in not_none_batches]
+    if 'lengths' in not_none_batches[0]:
+        len_batch = [b['lengths'] for b in not_none_batches]
     else:
-        lenbatch = [len(b['inp'][0][0]) for b in notnone_batches]
+        len_batch = [len(b['inp'][0][0]) for b in not_none_batches]
 
+    data_batch_tensor = collate_tensors(data_batch)
+    len_batch_tensor = torch.as_tensor(len_batch)
+    # un-squeeze for broadcasting
+    mask_batch_tensor = lengths_to_mask(
+        len_batch_tensor, data_batch_tensor.shape[-1]).unsqueeze(1).unsqueeze(1)
 
-    databatchTensor = collate_tensors(databatch)
-    lenbatchTensor = torch.as_tensor(lenbatch)
-    maskbatchTensor = lengths_to_mask(lenbatchTensor, databatchTensor.shape[-1]).unsqueeze(1).unsqueeze(1) # unqueeze for broadcasting
+    motion = data_batch_tensor
+    cond = {'y': {'mask': mask_batch_tensor, 'lengths': len_batch_tensor}}
 
-    motion = databatchTensor
-    cond = {'y': {'mask': maskbatchTensor, 'lengths': lenbatchTensor}}
-
-    if 'text' in notnone_batches[0]:
-        textbatch = [b['text'] for b in notnone_batches]
-        cond['y'].update({'text': textbatch})
-
-    if 'tokens' in notnone_batches[0]:
-        textbatch = [b['tokens'] for b in notnone_batches]
-        cond['y'].update({'tokens': textbatch})
-
-    if 'action' in notnone_batches[0]:
-        actionbatch = [b['action'] for b in notnone_batches]
-        cond['y'].update({'action': torch.as_tensor(actionbatch).unsqueeze(1)})
+    # TODO: once there is the sematic encoder this has to be removed
+    if 'action' in not_none_batches[0]:
+        action_batch = [b['action'] for b in not_none_batches]
+        cond['y'].update({'action': torch.as_tensor(action_batch).unsqueeze(1)})
 
     # collate action textual names
-    if 'action_text' in notnone_batches[0]:
-        action_text = [b['action_text']for b in notnone_batches]
+    if 'action_text' in not_none_batches[0]:
+        action_text = [b['action_text'] for b in not_none_batches]
         cond['y'].update({'action_text': action_text})
 
-    # Added for karate
-    if 'dist' in notnone_batches[0]:
-        dist = [b['dist'] for b in notnone_batches]
+    # For reconstructing the original skeleton
+    if 'dist' in not_none_batches[0]:
+        dist = [b['dist'] for b in not_none_batches]
         dist = collate_tensors(dist)
         cond['y'].update({'distance': dist})
 

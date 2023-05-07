@@ -6,6 +6,7 @@ save/*
 datasets/karate/raw_csvs/*.csv
 
 !*/README.md
+!preprocessing/karate/check_idx.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -7,8 +7,8 @@ from model.rotation2xyz import Rotation2xyz
 
 
 class MDM(nn.Module):
-    def __init__(self, modeltype, njoints, nfeats, num_actions, translation, pose_rep, glob, glob_rot,
-                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
+    def __init__(self, modeltype, njoints, nfeats, num_actions, num_frames, translation, pose_rep, glob, glob_rot,
+                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1, semantic_dim=256,
                  ablation=None, activation="gelu", legacy=False, data_rep='rot6d', dataset='amass', clip_dim=512,
                  arch='trans_enc', emb_trans_dec=False, clip_version=None, **kargs):
         super().__init__()
@@ -27,6 +27,8 @@ class MDM(nn.Module):
         self.translation = translation
 
         self.latent_dim = latent_dim
+        self.semantic_dim = semantic_dim
+        self.num_frames = num_frames
 
         self.ff_size = ff_size
         self.num_layers = num_layers
@@ -89,6 +91,19 @@ class MDM(nn.Module):
                 self.embed_action = EmbedAction(self.num_actions, self.latent_dim)
                 print('EMBED ACTION')
 
+            self.semantic_encoder = SemanticEncoder(
+                data_rep=self.data_rep,
+                input_feats=self.input_feats,
+                num_frames=self.num_frames,
+                latent_dim=self.latent_dim,
+                num_heads=self.num_heads,
+                ff_size=self.ff_size,
+                dropout=self.dropout,
+                activation=self.activation,
+                num_layers=self.num_layers#,
+                #semantic_dim=self.semantic_dim
+            )
+
         self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
                                             self.nfeats)
 
@@ -146,13 +161,38 @@ class MDM(nn.Module):
         bs, njoints, nfeats, nframes = x.shape
         emb = self.embed_timestep(timesteps)  # [1, bs, d]
 
+        # trying out semantic encoder
+        #semantic_code = self.semantic_encoder(x)
+        #print(semantic_code.shape)
+        #exit()
+        #print(emb)
+        #print(emb.shape)
+
         force_mask = y.get('uncond', False)
-        if 'text' in self.cond_mode:
-            enc_text = self.encode_text(y['text'])
-            emb += self.embed_text(self.mask_cond(enc_text, force_mask=force_mask))
-        if 'action' in self.cond_mode:
-            action_emb = self.embed_action(y['action'])
-            emb += self.mask_cond(action_emb, force_mask=force_mask)
+        #if 'text' in self.cond_mode:
+        #    enc_text = self.encode_text(y['text'])
+        #    emb += self.embed_text(self.mask_cond(enc_text, force_mask=force_mask))
+        #if 'action' in self.cond_mode:
+        #    action_emb = self.embed_action(y['action'])
+        #    emb += self.mask_cond(action_emb, force_mask=force_mask)
+
+        #print(y['original_sequence'])
+        #print(y['original_sequence'].shape)
+
+        #print(x.shape)
+        #print(x)
+        #print(timesteps)
+        #exit()
+
+        #semantic_emb = self.semantic_encoder(x)
+        semantic_emb = self.semantic_encoder(y['original_motion'])
+        emb += self.mask_cond(semantic_emb, force_mask=force_mask)
+
+        #print('using semantic embedding')
+
+        #print(emb)
+        #print(emb.shape)
+        #exit()
 
         if self.arch == 'gru':
             x_reshaped = x.reshape(bs, njoints*nfeats, 1, nframes)
@@ -300,4 +340,57 @@ class EmbedAction(nn.Module):
     def forward(self, input):
         idx = input[:, 0].to(torch.long)  # an index array must be long
         output = self.action_embedding[idx]
+        return output
+
+
+class SemanticEncoder(nn.Module):
+    def __init__(self, data_rep, input_feats, num_frames, latent_dim=256, ff_size=1024, num_layers=8,
+                 num_heads=4, dropout=0.1, activation="gelu"):   # , semantic_dim=256):
+        super().__init__()
+
+        self.latent_dim = latent_dim
+        self.num_heads = num_heads
+        self.ff_size = ff_size
+        self.dropout = dropout
+        self.activation = activation
+        self.num_layers = num_layers
+        #self.semantic_dim = semantic_dim
+        self.num_frames = num_frames
+
+        self.data_rep = data_rep
+        self.input_feats = input_feats
+        #self.gru_emb_dim = gru_emb_dim
+
+        self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
+
+        self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
+
+        seq_trans_encoder_layer = nn.TransformerEncoderLayer(d_model=self.latent_dim,
+                                                             nhead=self.num_heads,
+                                                             dim_feedforward=self.ff_size,
+                                                             dropout=self.dropout,
+                                                             activation=self.activation)
+
+        self.seqTransEncoder = nn.TransformerEncoder(seq_trans_encoder_layer,
+                                                     num_layers=self.num_layers)
+
+        #self.linear_latent = nn.Linear(
+        #    in_features=self.latent_dim,
+        #    out_features=self.semantic_dim
+        #)
+
+        self.linear_time = nn.Linear(
+            in_features=self.num_frames,
+            out_features=1
+        )
+
+    def forward(self, x):
+        x = self.input_process(x)
+        x_seq = self.sequence_pos_encoder(x)  # [seqlen, bs, d]
+        encoder_output = self.seqTransEncoder(x_seq)   # [seqlen, bs, d]
+        #print(encoder_output.shape)
+        #output = self.linear_latent(encoder_output)   # [seqlen, bs, semdim]
+        output = encoder_output.transpose(2, 0)   # # [semdim, bs, seqlen]
+        #print(output.shape)
+        output = self.linear_time(output).squeeze().transpose(1, 0)   # [bs, semdim]
         return output

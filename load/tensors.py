@@ -52,4 +52,7 @@ def collate(batch):
         dist = collate_tensors(dist)
         cond['y'].update({'distance': dist})
 
+    #if 'original_sequence' in not_none_batches[0]:
+    cond['y'].update({'original_motion': data_batch_tensor})
+
     return motion, cond

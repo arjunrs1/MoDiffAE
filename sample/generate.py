@@ -11,15 +11,15 @@ from utils.parser_util import generate_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
-from data_loaders.get_data import get_dataset_loader
-from data_loaders.humanml.scripts.motion_process import recover_from_ric
-import data_loaders.humanml.utils.paramUtil as paramUtil
-from data_loaders.humanml.utils.plot_script import plot_3d_motion
+from load.get_data import get_dataset_loader
+#from data_loaders.humanml.scripts.motion_process import recover_from_ric
+#import data_loaders.humanml.utils.paramUtil as paramUtil
+#from data_loaders.humanml.utils.plot_script import plot_3d_motion
 import shutil
-from data_loaders.tensors import collate
+from load.tensors import collate, collate_tensors
 
 # Karate visualization
-from utils.karate_utils.mocap_visualization import from_array
+from visualize.vicon_visualization import from_array
 import random
 
 def main():
@@ -32,7 +32,7 @@ def main():
     niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
     # Added karate
     if args.dataset == 'karate': 
-        max_frames = 125 # 250 # (125 at 25 fps means max 5 seconds)
+        max_frames = 100   #125 # 250 # (125 at 25 fps means max 5 seconds)
     else:
         max_frames = 196 if args.dataset in ['kit', 'humanml'] else 60
     # Added karate 
@@ -124,7 +124,7 @@ def main():
 
         #sample_fn = diffusion.p_sample_loop
         # Anthony: changed to use ddim sampling 
-        # TODO: test
+
         sample_fn = diffusion.ddim_sample_loop
 
         sample = sample_fn(
@@ -141,11 +141,11 @@ def main():
         )
 
         # Recover XYZ *positions* from HumanML3D vector representation
-        if model.data_rep == 'hml_vec':
-            n_joints = 22 if sample.shape[1] == 263 else 21
-            sample = data.dataset.t2m_dataset.inv_transform(sample.cpu().permute(0, 2, 3, 1)).float()
-            sample = recover_from_ric(sample, n_joints)
-            sample = sample.view(-1, *sample.shape[2:]).permute(0, 2, 3, 1)
+        #if model.data_rep == 'hml_vec':
+        #    n_joints = 22 if sample.shape[1] == 263 else 21
+        #    sample = data.dataset.t2m_dataset.inv_transform(sample.cpu().permute(0, 2, 3, 1)).float()
+        #    sample = recover_from_ric(sample, n_joints)
+        #    sample = sample.view(-1, *sample.shape[2:]).permute(0, 2, 3, 1)
 
         rot2xyz_pose_rep = 'xyz' if model.data_rep in ['xyz', 'hml_vec'] else model.data_rep
         rot2xyz_mask = None if rot2xyz_pose_rep == 'xyz' else model_kwargs['y']['mask'].reshape(args.batch_size, n_frames).bool()
@@ -153,14 +153,19 @@ def main():
         # Modified for karate
         if args.dataset == 'karate': 
             j_type = 'karate'
-            datapath="datasets/KaratePoses"
-            npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
+            datapath="datasets/karate"
+            npydatafilepath = os.path.join(datapath, "karate_motion_modified.npy")
             all_data = np.load(npydatafilepath, allow_pickle=True)
-            joint_distances = [x for x in all_data["joint_distances"]]
+            joint_distances = [torch.Tensor(x) for x in all_data["joint_distances"]]
             distance = random.choices(joint_distances, k=args.batch_size)
+            distance = collate_tensors(distance)
+            distance = distance.to(dist_util.dev())
         else:
             j_type = 'smpl'
             distance = None
+
+        print(sample.device)
+        print(distance.device)
         
         sample = model.rot2xyz(x=sample, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
                             jointstype=j_type, vertstrans=True, betas=None, beta=0, glob_rot=None,
@@ -220,7 +225,9 @@ def main():
                 #print(sample_print_template.format(caption, sample_i, rep_i, save_file))
                 animation_save_path = os.path.join(out_path, save_file)
                 from_array(arr=motion, sampling_frequency=fps, file_name=animation_save_path)
-    else: 
+    else:
+        pass
+        '''
         skeleton = paramUtil.kit_kinematic_chain if args.dataset == 'kit' else paramUtil.t2m_kinematic_chain
 
         sample_files = []
@@ -245,6 +252,7 @@ def main():
             sample_files = save_multiple_samples(args, out_path,
                                                 row_print_template, all_print_template, row_file_template, all_file_template,
                                                 caption, num_samples_in_out_file, rep_files, sample_files, sample_i)
+        '''
 
     abs_path = os.path.abspath(out_path)
     print(f'[Done] Results are at [{abs_path}]')
@@ -298,8 +306,8 @@ def load_dataset(args, max_frames, n_frames):
     data = get_dataset_loader(name=args.dataset,
                               batch_size=args.batch_size,
                               num_frames=max_frames,
-                              split='test',
-                              hml_mode='text_only')
+                              split='test') #,
+                              #hml_mode='text_only')
     data.fixed_length = n_frames
     return data
 

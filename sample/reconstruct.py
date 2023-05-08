@@ -11,15 +11,15 @@ from utils.parser_util import generate_args
 from utils.model_util import create_model_and_diffusion, load_model_wo_clip
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
-from data_loaders.get_data import get_dataset_loader
-from data_loaders.humanml.scripts.motion_process import recover_from_ric
-import data_loaders.humanml.utils.paramUtil as paramUtil
-from data_loaders.humanml.utils.plot_script import plot_3d_motion
+from load.get_data import get_dataset_loader
+#from data_loaders.humanml.scripts.motion_process import recover_from_ric
+#import data_loaders.humanml.utils.paramUtil as paramUtil
+#from data_loaders.humanml.utils.plot_script import plot_3d_motion
 import shutil
-from data_loaders.tensors import collate
+#from data_loaders.tensors import collate
 
 # Karate visualization
-from utils.karate_utils.mocap_visualization import from_array
+from visualize.vicon_visualization import from_array
 import random
 
 def main():
@@ -32,7 +32,7 @@ def main():
     niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
     # Added karate
     if args.dataset == 'karate': 
-        max_frames = 125  # 250 # (125 at 25 fps means max 5 seconds)
+        max_frames = 100   #125  # 250 # (125 at 25 fps means max 5 seconds)
     else:
         max_frames = 196 if args.dataset in ['kit', 'humanml'] else 60
     # Added karate 
@@ -79,8 +79,6 @@ def main():
     # (specify through the --seed flag)
     args.batch_size = args.num_samples  # Sampling a single batch from the testset, with exactly args.num_samples
 
-    # TODO
-    # - create and store videos of original motion in the according folders
 
     if os.path.exists(out_path):
         shutil.rmtree(out_path)
@@ -173,8 +171,9 @@ def main():
     all_text = []
 
     data_batch = data_batch.to(dist_util.dev())
+    distance = distance.to(dist_util.dev())
 
-    #for rep_i in range(args.num_repetitions):
+    # for rep_i in range(args.num_repetitions):
     #    print(f'### Sampling [repetitions #{rep_i}]')
 
     # add CFG scale to batch
@@ -248,9 +247,14 @@ def main():
         
         
         #distance = model_kwargs['y']['distance']
-        print(sample.shape)
-        print(len(distance))
-        print(len(distance[0]))
+        #print(sample.shape)
+        #print(len(distance))
+        #print(len(distance[0]))
+
+        #print(sample.device)
+        #print(distance.device)
+        #exit()
+
         sample = model.rot2xyz(x=sample, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
                             jointstype='karate', vertstrans=True, betas=None, beta=0, glob_rot=None,
                             get_rotations_back=False, distance=distance)

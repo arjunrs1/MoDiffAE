@@ -128,7 +128,7 @@ class TrainLoop:
 
     def run_loop(self):
 
-        #self.num_epochs = 100
+        self.num_epochs = 100
         print(f"Number of epochs: {self.num_epochs}")
         
         for epoch in range(self.num_epochs):
@@ -212,7 +212,7 @@ class TrainLoop:
         print(f'Evaluation time: {round(end_eval-start_eval)/60}min')
 
 
-    def run_step(self, batch, cond):
+    def  run_step(self, batch, cond):
         self.forward_backward(batch, cond)
         self.mp_trainer.optimize(self.opt)
         self._anneal_lr()

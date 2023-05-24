@@ -32,8 +32,18 @@ else:
     print('Warning: Report file not found.')
     report = {}
 
-check_indices = [idx for idx in list(range(start_point, data.shape[0])) if str(idx) not in report.keys()]
+removed_duplicates_file_path = os.path.join(report_dir, "removed_duplicates.json")
+if os.path.isfile(removed_duplicates_file_path):
+    removed_duplicates = json.load(open(removed_duplicates_file_path))
+else:
+    print('Warning: No list of removed duplicates found.')
+    removed_duplicates = []
 
+check_indices = [idx for idx in list(range(start_point, data.shape[0]))
+                 if str(idx) not in report.keys() and idx not in removed_duplicates]
+
+
+print(f'{len(check_indices)} samples remaining')
 
 for idx in check_indices:
     print(f'Index: {idx}')

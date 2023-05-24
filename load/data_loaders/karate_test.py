@@ -1,82 +1,27 @@
-import pickle as pkl
-import time
-
 import numpy as np
 import os
 from load.dataset import Dataset
-#from .dataset import Dataset
-from visualize.vicon_visualization import from_array
-#from data_loaders.get_data import get_dataset_loader
-from load.get_data import get_dataset_loader
-from utils.parser_util import generate_args
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
-import torch
-from model.cfg_sampler import ClassifierFreeSampleModel
-from utils import dist_util
+
+from load.data_loaders.karate import KaratePoses
+from utils.parser_util import classify_args
 from utils.fixseed import fixseed
+from load.get_data import get_dataset_loader
 
-from torchsummary import summary
-
-#import utils.rotation_conversions as geometry
-#import utils.karate_utils.data_info as data_info
-#import utils.karate_utils.geometry as karate_geometry
-
-import vg
-
-from scipy.spatial.transform import Rotation as R
-
-# import matplotlib.pyplot as plt
-# import scipy.stats as stats
-# import seaborn as sns
-# import matplotlib.lines as lines
-
-
+import torch
+'''
 class KaratePoses(Dataset):
-    dataname = "karate"
-
-    def __init__(self, datapath="datasets/karate", split="train", **kargs):
-        self.datapath = datapath
-
-        # max num_frames in karate dataset is 356 (almost 15 seconds with 25 fps). 
-        # But this seems too long. Check the recordings with long lengths.
-        # num_frames=-2, min_len=2, max_len=356,
-        # num_frames=125
-        super().__init__(**kargs)
+    def __init__(self, data_path="datasets/karate", split="train", **kwargs):
+        # TODO: adjust max number of frames parameter after preprocessing (currently 125) -> set to 100 meaning 4 sec
+        super().__init__(**kwargs)
 
         self.data_name = "karate"
+        data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
+        data = np.load(data_file_path, allow_pickle=True)
 
-        #npydatafilepath = os.path.join(datapath, "karate_motion_25_fps.npy")
-        npydatafilepath = os.path.join(datapath, "karate_motion_modified.npy")
-        data = np.load(npydatafilepath, allow_pickle=True)
-
-        print('loaded t10 dataset')
-
-        self._data = data
-
-        #self._pose = [x for x in data["joint_angles"]]
-        #self._pose = [np.nan_to_num(x) for x in data["joint_axis_angles"]]
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]
 
-        print('tetsing')
-        #for x in data["joint_axis_angles"]:
-        #    if np.isnan(x).any():
-        #        print('axis angles have nan values')
-                #exit()
-
-        #exit()
-
         self._joints = [x for x in data["joint_positions"]]
-        #for x in data["joint_positions"]:
-        #    test = x.reshape(-1, 3)
-        #    print(test.shape)
-        #    for i in range(test.shape[0]):
-        #        if np.isclose(test[i], np.array([0., 0., 0.])).all():
-        #            print('encountered 000')
-        #            print(test[i])
-        #            exit()
-            #exit()
-        #exit()
 
         self._actions = [x for x in data["technique_cls"]]
 
@@ -94,10 +39,13 @@ class KaratePoses(Dataset):
 
         self._action_classes = karate_action_enumerator
 
-    def _load_joints3D(self, ind, frame_ix):
+        print(data[0])
+        exit()
+
+    def _load_joints(self, ind, frame_ix):
         return self._joints[ind][frame_ix].reshape(-1, 39, 3)
 
-    def _load_rotvec(self, ind, frame_ix):
+    def _load_rot_vec(self, ind, frame_ix):
         pose = self._pose[ind][frame_ix].reshape(-1, 38, 3)
         return pose
 
@@ -109,6 +57,8 @@ karate_action_enumerator = {
     3: 'Mawashi-Geri jodan',
     4: 'Ushiro-Mawashi-Geri'
 }
+
+'''
 
 
 def load_dataset(args, max_frames, n_frames):
@@ -123,7 +73,7 @@ def load_dataset(args, max_frames, n_frames):
 if __name__ == "__main__":
 
     kp = KaratePoses()
-    kp.num_frames = 125
+    kp.num_frames = 100
     # print(kp._pose[1].shape)
     #t = kp._load_rotvec(0, 0)
     # print(kp._load_joints3D(0, 0))
@@ -160,38 +110,56 @@ if __name__ == "__main__":
         from_array(recon_pos)
     '''
 
+    pos = kp[0]
+    #print(pos)
+
     #exit()
 
-    print('hi')
+    #print('hi')
 
-    d = kp._data['joint_positions'][0]
-    print(d.shape)
-    from_array(d)
+    #d = kp._data['joint_positions'][0]
+    #print(d.shape)
+
+
+
+
+    #from_array(d)
 
     # d_post = kp[0]
     # print(d_post['inp'].shape)
 
     ################
-    args = generate_args()
+    args = classify_args()
     #args.dataset = 'karate_test'
-    print(args.dataset)
+    #print(args.dataset)
 
     #exit()
 
 
     fixseed(args.seed)
-    max_frames = 125
+    max_frames = 100
     fps = 25
-    n_frames = min(max_frames, int(args.motion_length * fps))
+    n_frames = max_frames   # min(max_frames, int(args.motion_length * fps))
 
     print('Loading dataset...')
     data = load_dataset(args, max_frames, n_frames)
-    total_num_samples = args.num_samples * args.num_repetitions
 
-    print("Creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, data)
+    print(len(data.dataset))
 
-    summary(model, [(1, 39, 6, 125), [1]])
+    iterator = iter(data)
+
+    data_batch, model_kwargs = next(iterator)
+
+    #total_num_samples = args.num_samples * args.num_repetitions
+
+    print(data_batch[0].shape, model_kwargs['y']['labels'][0])
+
+    # TODO: get original_motion encode it with the semantic encoder and then train classifier with the extracted labels
+
+    #print("Creating model and diffusion...")
+    #model, diffusion = create_model_and_diffusion(args, data)
+
+    #summary(model, [(1, 39, 6, 125), [1]])
 
     exit()
 

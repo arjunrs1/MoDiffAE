@@ -2,16 +2,17 @@ import numpy as np
 import os
 from load.dataset import Dataset
 
-import torch
 
 class KaratePoses(Dataset):
-    def __init__(self, data_path="datasets/karate", split="train", **kwargs):
-        # TODO: adjust max number of frames parameter after preprocessing (currently 125) -> set to 100 meaning 4 sec
+    def __init__(self, test_participant, data_path="datasets/karate", split="train", **kwargs):
         super().__init__(**kwargs)
 
         self.data_name = "karate"
-        data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
+        data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
         data = np.load(data_file_path, allow_pickle=True)
+
+        print(len(data))
+        exit()
 
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]
@@ -21,6 +22,11 @@ class KaratePoses(Dataset):
         self._actions = [x for x in data["technique_cls"]]
 
         self._joint_distances = [x for x in data["joint_distances"]]
+
+        num_of_grades = len(karate_grade_enumerator.keys())
+        grade_to_label = lambda grade: (1 / (num_of_grades - 1)) * karate_grade_enumerator[grade]
+        #self._grades = [grade_to_label(x) for x in data['grade']]
+        self._grades = [np.array([1.0, 0.0]) if grade_to_label(x) > 0.5 else np.array([0.0, 1.0]) for x in data['grade']]
 
         total_num_actions = 5
         self.num_actions = total_num_actions
@@ -41,6 +47,36 @@ class KaratePoses(Dataset):
         pose = self._pose[ind][frame_ix].reshape(-1, 38, 3)
         return pose
 
+    def _load_labels(self, ind):
+        # TODO: maybe add more labels later (np.append on axis 1)
+
+        #labels = np.array([self._grades[ind]])
+
+        labels = np.array([self._actions[ind]])
+        # TODO: check if this works
+        one_hot_labels = np.eye(len(karate_action_enumerator))[labels]
+
+        #print(ind)
+        #print(one_hot_labels)
+        #exit()
+        return one_hot_labels
+
+
+karate_grade_enumerator = {
+    '9 kyu': 0,
+    '8 kyu': 1,
+    '7 kyu': 2,
+    '6 kyu': 3,
+    '5 kyu': 4,
+    '4 kyu': 5,
+    '3 kyu': 6,
+    '2 kyu': 7,
+    '1 kyu': 8,
+    '1 dan': 9,
+    '2 dan': 10,
+    '3 dan': 11,
+    '4 dan': 12
+}
 
 karate_action_enumerator = {
     0: 'Gyaku-Zuki',

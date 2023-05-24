@@ -14,14 +14,14 @@ def get_collate_fn():
     return all_collate
 
 
-def get_dataset(name, num_frames, split='train'):
+def get_dataset(name, num_frames, test_participant, split='train'):
     data = get_dataset_class(name)
-    dataset = data(split=split, num_frames=num_frames)
+    dataset = data(test_participant=test_participant, split=split, num_frames=num_frames)
     return dataset
 
 
-def get_dataset_loader(name, batch_size, num_frames, split='train'):
-    dataset = get_dataset(name, num_frames, split)
+def get_dataset_loader(name, batch_size, num_frames, test_participant, split='train'):
+    dataset = get_dataset(name, num_frames, test_participant, split)
     collate = get_collate_fn()
 
     loader = DataLoader(

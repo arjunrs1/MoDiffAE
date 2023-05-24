@@ -8,7 +8,7 @@ from model.rotation2xyz import Rotation2xyz
 
 class MDM(nn.Module):
     def __init__(self, modeltype, njoints, nfeats, num_actions, num_frames, translation, pose_rep, glob, glob_rot,
-                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1, semantic_dim=256,
+                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1, #semantic_dim=512,
                  ablation=None, activation="gelu", legacy=False, data_rep='rot6d', dataset='amass', clip_dim=512,
                  arch='trans_enc', emb_trans_dec=False, clip_version=None, **kargs):
         super().__init__()
@@ -27,7 +27,7 @@ class MDM(nn.Module):
         self.translation = translation
 
         self.latent_dim = latent_dim
-        self.semantic_dim = semantic_dim
+        #self.semantic_dim = semantic_dim
         self.num_frames = num_frames
 
         self.ff_size = ff_size
@@ -63,6 +63,22 @@ class MDM(nn.Module):
 
             self.seqTransEncoder = nn.TransformerEncoder(seqTransEncoderLayer,
                                                          num_layers=self.num_layers)
+
+            # Testing out
+            seq_trans_encoder_layer_semantic = nn.TransformerEncoderLayer(d_model=self.latent_dim,
+                                                                 nhead=self.num_heads,
+                                                                 dim_feedforward=self.ff_size,
+                                                                 dropout=self.dropout,
+                                                                 activation=self.activation)
+
+            self.seqTransEncoder_semantic = nn.TransformerEncoder(seq_trans_encoder_layer_semantic,
+                                                         num_layers=self.num_layers)
+
+            self.linear_time = nn.Linear(
+                in_features=self.num_frames,
+                out_features=1
+            )
+
         elif self.arch == 'trans_dec':
             print("TRANS_DEC init")
             seqTransDecoderLayer = nn.TransformerDecoderLayer(d_model=self.latent_dim,
@@ -91,18 +107,18 @@ class MDM(nn.Module):
                 self.embed_action = EmbedAction(self.num_actions, self.latent_dim)
                 print('EMBED ACTION')
 
-            self.semantic_encoder = SemanticEncoder(
-                data_rep=self.data_rep,
-                input_feats=self.input_feats,
-                num_frames=self.num_frames,
-                latent_dim=self.latent_dim,
-                num_heads=self.num_heads,
-                ff_size=self.ff_size,
-                dropout=self.dropout,
-                activation=self.activation,
-                num_layers=self.num_layers#,
-                #semantic_dim=self.semantic_dim
-            )
+            #self.semantic_encoder = SemanticEncoder(
+            #    data_rep=self.data_rep,
+            #    input_feats=self.input_feats,
+            #    num_frames=self.num_frames,
+            #    latent_dim=self.latent_dim,
+            #    num_heads=self.num_heads,
+            #    ff_size=self.ff_size,
+            #    dropout=self.dropout,
+            #    activation=self.activation,
+            #    num_layers=self.num_layers#,
+            #    #semantic_dim=self.semantic_dim
+            #)
 
         self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
                                             self.nfeats)
@@ -153,6 +169,24 @@ class MDM(nn.Module):
             texts = clip.tokenize(raw_text, truncate=True).to(device) # [bs, context_length] # if n_tokens > 77 -> will truncate
         return self.clip_model.encode_text(texts).float()
 
+    def encode_semantic(self, og_motion):
+        # Anthony: using weight sharing for this layer (all the pose embeddings should share weights)
+
+        og_motion = self.input_process(og_motion)
+        og_motion = self.sequence_pos_encoder(og_motion)
+
+        #print(og_motion[0])
+
+        # semantic_emb = self.semantic_encoder(y['original_motion'])
+        semantic_emb = self.seqTransEncoder_semantic(og_motion)
+
+        #print(semantic_emb[0])
+        #exit()
+
+        semantic_emb = semantic_emb.transpose(2, 0)
+        semantic_emb = self.linear_time(semantic_emb).squeeze().transpose(1, 0)
+        return semantic_emb
+
     def forward(self, x, timesteps, y=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
@@ -185,7 +219,25 @@ class MDM(nn.Module):
         #exit()
 
         #semantic_emb = self.semantic_encoder(x)
-        semantic_emb = self.semantic_encoder(y['original_motion'])
+
+        #print(y['original_motion'])
+        og_motion = y['original_motion']
+
+        '''
+        og_motion = self.input_process(og_motion)
+        og_motion = self.sequence_pos_encoder(og_motion)
+
+        #semantic_emb = self.semantic_encoder(y['original_motion'])
+        semantic_emb = self.seqTransEncoder_semantic(og_motion)
+        semantic_emb = semantic_emb.transpose(2, 0)
+        semantic_emb = self.linear_time(semantic_emb).squeeze().transpose(1, 0)
+        '''
+        semantic_emb = self.encode_semantic(og_motion)
+
+        #print(semantic_emb)
+        #print('hi')
+        #exit()
+
         emb += self.mask_cond(semantic_emb, force_mask=force_mask)
 
         #print('using semantic embedding')
@@ -207,7 +259,11 @@ class MDM(nn.Module):
             # adding the timestep embed
             xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+
+            #print(xseq.shape)
             output = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+            #print(output.shape)
+            #exit()
 
         elif self.arch == 'trans_dec':
             if self.emb_trans_dec:
@@ -343,6 +399,9 @@ class EmbedAction(nn.Module):
         return output
 
 
+# This is just to test if the semantic encoder works if trained
+# directly for classification. This should show if there is a problem with the system / lr
+# or the data itself.
 class SemanticEncoder(nn.Module):
     def __init__(self, data_rep, input_feats, num_frames, latent_dim=256, ff_size=1024, num_layers=8,
                  num_heads=4, dropout=0.1, activation="gelu"):   # , semantic_dim=256):
@@ -384,13 +443,40 @@ class SemanticEncoder(nn.Module):
             out_features=1
         )
 
+        self.linear_sem = torch.nn.Linear(
+            in_features=512,
+            out_features=5
+        )
+
     def forward(self, x):
+
         x = self.input_process(x)
+
+        #print(x)
+
         x_seq = self.sequence_pos_encoder(x)  # [seqlen, bs, d]
+
+        print(x_seq)
+        # TODO: problem: for some reason the this outputs the same values for all inputs in a batch
         encoder_output = self.seqTransEncoder(x_seq)   # [seqlen, bs, d]
+
+        print(encoder_output)
+        #exit()
+
         #print(encoder_output.shape)
         #output = self.linear_latent(encoder_output)   # [seqlen, bs, semdim]
         output = encoder_output.transpose(2, 0)   # # [semdim, bs, seqlen]
+
+        #print(output)
+
         #print(output.shape)
         output = self.linear_time(output).squeeze().transpose(1, 0)   # [bs, semdim]
+
+        output = self.linear_sem(output)
+
+        # print(x)
+        sm = nn.Softmax(dim=-1)
+        output = sm(output)
+
         return output
+

@@ -114,6 +114,21 @@ def add_manual_outliers():
     add_to_outliers(outliers, manual_outliers)
 
 
+def find_duplicate_sample_indices():
+    indices = []
+    joint_positions = [d['joint_positions'] for d in data]
+    for i in range(len(data)):
+        j_p = joint_positions[i]
+        equals = [e for e in joint_positions if j_p.shape == e.shape and np.all((j_p == e))]
+        if len(equals) == 2 and data[i]['condition'] == 'defender':
+            indices.append(i)
+        elif len(equals) == 2 and data[i]['condition'] != 'attacker':
+            raise Exception('Unexpected duplicate.')
+        elif len(equals) > 2:
+            raise Exception('More than two duplicates.')
+    return indices
+
+
 def modify_data():
     new_data = copy.deepcopy(data)
     delete_idxs = []
@@ -262,10 +277,19 @@ def modify_data():
     except KeyboardInterrupt:
         print(f'\nAugmentation was interrupted at index {i} of the outliers.')
     finally:
+        removed_duplicates_file_path = os.path.join(args.report_dir, "removed_duplicates.json")
+        with open(removed_duplicates_file_path, 'w') as outfile:
+            json.dump(duplicate_sample_indices, outfile)
+        print(f'Saved a list of the removed duplicates at {removed_duplicates_file_path}.')
+
+        delete_idxs.extend(duplicate_sample_indices)
+        delete_idxs = list(set(delete_idxs))
+
         new_data = [x for (i, x) in enumerate(new_data) if i not in delete_idxs]
         new_data_file_path = os.path.join(args.target_dir, "karate_motion_modified.npy")
         np.save(new_data_file_path, new_data)
         print(f'Saved new data at {new_data_file_path}.')
+        print(f'It contains {len(new_data)} recordings.')
 
         print(f'Report:')
         for key, value in report.items():
@@ -311,6 +335,8 @@ if __name__ == '__main__':
 
     data_file_path = os.path.join(args.data_dir, 'karate_motion_unmodified.npy')
     data = np.load(data_file_path, allow_pickle=True)
+
+    duplicate_sample_indices = find_duplicate_sample_indices()
 
     positions = [x for x in data["joint_positions"]]
     num_frames_in_video = [p.shape[0] for p in positions]

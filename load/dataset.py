@@ -22,13 +22,13 @@ class Dataset(torch.utils.data.Dataset):
         self.min_len = min_len
         self.num_seq_max = num_seq_max
 
-        self.align_pose_frontview = kwargs.get('align_pose_frontview', False)
-        self.use_action_cat_as_text_labels = kwargs.get('use_action_cat_as_text_labels', False)
-        self.only_60_classes = kwargs.get('only_60_classes', False)
-        self.leave_out_15_classes = kwargs.get('leave_out_15_classes', False)
-        self.use_only_15_classes = kwargs.get('use_only_15_classes', False)
+        #self.align_pose_frontview = kwargs.get('align_pose_frontview', False)
+        #self.use_action_cat_as_text_labels = kwargs.get('use_action_cat_as_text_labels', False)
+        #self.only_60_classes = kwargs.get('only_60_classes', False)
+        #self.leave_out_15_classes = kwargs.get('leave_out_15_classes', False)
+        #self.use_only_15_classes = kwargs.get('use_only_15_classes', False)
 
-        if self.split not in ["train", "val", "test"]:
+        if self.split not in ["train", "validation", "test"]:
             raise ValueError(f"{self.split} is not a valid split")
 
         super().__init__()
@@ -50,13 +50,17 @@ class Dataset(torch.utils.data.Dataset):
 
     def get_pose_data(self, data_index, frame_ix):
         pose = self._load(data_index, frame_ix)
-        label = self.get_label(data_index)
+        action = self.get_label(data_index)
         # Added for karate
         distances = None
         if getattr(self, "data_name", None) is not None and self.data_name == "karate": 
             distances = self._joint_distances[data_index]
             distances = torch.as_tensor(distances)
-        return pose, label, distances
+
+        labels = None
+        if getattr(self, "_load_labels", None) is not None:
+            labels = self._load_labels(data_index)
+        return pose, action, distances, labels
 
     def get_label(self, ind):
         action = self.get_action(ind)
@@ -156,8 +160,7 @@ class Dataset(torch.utils.data.Dataset):
         if pose_rep != "xyz" and self.translation:
             padded_tr = torch.zeros((ret.shape[0], ret.shape[2]), dtype=ret.dtype)
             padded_tr[:, :3] = ret_tr
-            #print("shape of padded_tr: " + str(padded_tr.shape))
-            #print("shape of ret_tr: " + str(ret_tr.shape))
+            # Putting the position at the end so that the indices of the joints stay the same.
             ret = torch.cat((ret, padded_tr[:, None]), 1)
         ret = ret.permute(1, 2, 0).contiguous()
 
@@ -224,10 +227,10 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 raise ValueError("Sampling not recognized.")
 
-        inp, action, distances = self.get_pose_data(data_index, frame_ix)
+        inp, action, distances, labels = self.get_pose_data(data_index, frame_ix)
 
-
-        output = {'inp': inp, 'action': action, 'dist': distances}
+        #output = {'inp': inp, 'action': action, 'dist': distances, 'labels': labels}
+        output = {'inp': inp, 'dist': distances, 'labels': labels}
 
         if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
             output['action_text'] = self.action_to_action_name(self.get_action(data_index))

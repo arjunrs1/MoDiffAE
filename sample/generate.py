@@ -74,7 +74,7 @@ def main():
     assert args.num_samples <= args.batch_size, \
         f'Please either increase batch_size({args.batch_size}) or reduce num_samples({args.num_samples})'
     # So why do we need this check? In order to protect GPU from a memory overload in the following line.
-    # If your GPU can handle batch size larger then default, you can specify it through --batch_size flag.
+    # If your GPU can handle batch size larger than default, you can specify it through --batch_size flag.
     # If it doesn't, and you still want to sample more prompts, run this script with different seeds
     # (specify through the --seed flag)
     args.batch_size = args.num_samples  # Sampling a single batch from the testset, with exactly args.num_samples
@@ -91,6 +91,7 @@ def main():
     load_model_wo_clip(model, state_dict)
 
     if args.guidance_param != 1:
+        print('Using classifier-free guidance')
         model = ClassifierFreeSampleModel(model)   # wrapping model with the classifier-free sampler
     model.to(dist_util.dev())
     model.eval()  # disable random masking
@@ -306,6 +307,7 @@ def load_dataset(args, max_frames, n_frames):
     data = get_dataset_loader(name=args.dataset,
                               batch_size=args.batch_size,
                               num_frames=max_frames,
+                              test_participant='b0372',
                               split='test') #,
                               #hml_mode='text_only')
     data.fixed_length = n_frames

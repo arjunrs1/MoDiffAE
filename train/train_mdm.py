@@ -34,12 +34,18 @@ def main():
     dist_util.setup_dist(args.device)
 
     print("creating data loader...")
-    data = get_dataset_loader(name=args.dataset, batch_size=args.batch_size, num_frames=args.num_frames)
+    data = get_dataset_loader(
+        name=args.dataset,
+        batch_size=args.batch_size,
+        num_frames=args.num_frames,
+        test_participant='b0372',
+        split='train'
+    )
 
     print("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(args, data)
     model.to(dist_util.dev())
-    # Anthony: not using smpol model
+    # Anthony: not using smpl model
     #model.rot2xyz.smpl_model.eval()
 
     print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters_wo_clip()) / 1000000.0))

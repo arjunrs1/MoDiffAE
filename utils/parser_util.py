@@ -61,6 +61,8 @@ def add_base_options(parser):
     group.add_argument("--device", default=0, type=int, help="Device id to use.")
     group.add_argument("--seed", default=10, type=int, help="For fixing random seed.")
     group.add_argument("--batch_size", default=64, type=int, help="Batch size during training.")
+    group.add_argument("--num_frames", default=100, type=int,
+                       help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
 
 
 def add_diffusion_options(parser):
@@ -98,7 +100,7 @@ def add_model_options(parser):
 
 def add_data_options(parser):
     group = parser.add_argument_group('dataset')
-    group.add_argument("--dataset", default='humanml', choices=['humanml', 'kit', 'humanact12', 'uestc', 'karate'], type=str,
+    group.add_argument("--dataset", default='karate', choices=['karate'], type=str,
                        help="Dataset name (choose from list).")
     group.add_argument("--data_dir", default="", type=str,
                        help="If empty, will use defaults according to the specified dataset.")
@@ -132,8 +134,8 @@ def add_training_options(parser):
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=600_000, type=int,
                        help="Training will stop after the specified number of steps.")
-    group.add_argument("--num_frames", default=60, type=int,
-                       help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
+    # group.add_argument("--num_frames", default=60, type=int,
+    #                    help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 
@@ -208,6 +210,17 @@ def train_args():
     add_model_options(parser)
     add_diffusion_options(parser)
     add_training_options(parser)
+    return parser.parse_args()
+
+
+def classify_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_data_options(parser)
+    add_model_options(parser)
+    add_diffusion_options(parser)
+    add_sampling_options(parser)
+    #add_training_options(parser)
     return parser.parse_args()
 
 

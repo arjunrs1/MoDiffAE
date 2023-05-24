@@ -48,7 +48,7 @@ def main():
     # Anthony: not using smpl model
     #model.rot2xyz.smpl_model.eval()
 
-    print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters_wo_clip()) / 1000000.0))
+    print('Total params: %.2fM' % (sum(p.numel() for p in model.decoder.parameters_wo_clip()) / 1000000.0))
     print("Training...")
     TrainLoop(args, train_platform, model, diffusion, data).run_loop()
     train_platform.close()

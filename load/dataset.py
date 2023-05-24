@@ -125,19 +125,19 @@ class Dataset(torch.utils.data.Dataset):
                     print('hiiiiii')
                     pose = pose[:, 1:, :]
                 pose = to_torch(pose)
-                if self.align_pose_frontview:
-                    print('Align pose front view')
-                    first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
-                    all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
-                    aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
-                                                             all_root_poses_matrix)
-                    pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
+                #if self.align_pose_frontview:
+                #    print('Align pose front view')
+                #    first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
+                #    all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
+                #    aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
+                #                                             all_root_poses_matrix)
+                #    pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
 
-                    if self.translation:
-                        print('Translation')
-                        ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
-                                              torch.transpose(ret_tr, 0, 1))
-                        ret_tr = torch.transpose(ret_tr, 0, 1)
+                #    if self.translation:
+                #        print('Translation')
+                #        ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
+                #                              torch.transpose(ret_tr, 0, 1))
+                #        ret_tr = torch.transpose(ret_tr, 0, 1)
 
                 if pose_rep == "rotvec":
                     ret = pose

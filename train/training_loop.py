@@ -56,19 +56,53 @@ class TrainLoop:
 
         self.sync_cuda = torch.cuda.is_available()
 
+        #print(self.use_fp16)
+        #exit()
+
         self._load_and_sync_parameters()
-        self.mp_trainer = MixedPrecisionTrainer(
-            model=self.model,
-            use_fp16=self.use_fp16,
-            fp16_scale_growth=self.fp16_scale_growth,
-        )
+        #self.mp_trainer = MixedPrecisionTrainer(
+        #    model=self.model,
+        #    use_fp16=self.use_fp16,
+        #    fp16_scale_growth=self.fp16_scale_growth,
+        #)
 
         self.save_dir = args.save_dir
         self.overwrite = args.overwrite
 
+        #self.opt = AdamW(
+        #    self.mp_trainer.master_params, lr=self.lr, weight_decay=self.weight_decay
+        #)
+        #self.opt = AdamW(
+        #    self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+        #)
+
+        print(self.lr)
+
+        '''self.opt = AdamW(
+            [
+                {'params': self.model.input_process.parameters()},
+                {'params': self.model.sequence_pos_encoder.parameters()},
+                {'params': self.model.seqTransEncoder.parameters()},
+                {'params': self.model.semantic_encoder.parameters(), 'lr': 1e-5},
+                {'params': self.model.embed_timestep.parameters()},
+                {'params': self.model.output_process.parameters()}
+            ],
+            lr=self.lr,
+            weight_decay=self.weight_decay
+        )'''
+
         self.opt = AdamW(
-            self.mp_trainer.master_params, lr=self.lr, weight_decay=self.weight_decay
+            [
+                {'params': self.model.semantic_encoder.parameters(), 'lr': 1e-5},
+                {'params': self.model.decoder.parameters()}
+            ],
+            lr=self.lr,
+            weight_decay=self.weight_decay
         )
+
+        #print(self.opt.optimizer_specs)
+        #exit()
+
         if self.resume_step:
             self._load_optimizer_state()
             # Model was resumed, either due to a restart or a checkpoint
@@ -81,24 +115,24 @@ class TrainLoop:
         self.schedule_sampler_type = 'uniform'
         self.schedule_sampler = create_named_schedule_sampler(self.schedule_sampler_type, diffusion)
         self.eval_wrapper, self.eval_data, self.eval_gt_data = None, None, None
-        if args.dataset in ['kit', 'humanml'] and args.eval_during_training:
-            mm_num_samples = 0  # mm is super slow hence we won't run it during training
-            mm_num_repeats = 0  # mm is super slow hence we won't run it during training
-            gen_loader = get_dataset_loader(name=args.dataset, batch_size=args.eval_batch_size, num_frames=None,
-                                            split=args.eval_split,
-                                            hml_mode='eval')
+        #if args.dataset in ['kit', 'humanml'] and args.eval_during_training:
+        #    mm_num_samples = 0  # mm is super slow hence we won't run it during training
+        #    mm_num_repeats = 0  # mm is super slow hence we won't run it during training
+        #    gen_loader = get_dataset_loader(name=args.dataset, batch_size=args.eval_batch_size, num_frames=None,
+        #                                    split=args.eval_split,
+        #                                    hml_mode='eval')
 
-            self.eval_gt_data = get_dataset_loader(name=args.dataset, batch_size=args.eval_batch_size, num_frames=None,
-                                                   split=args.eval_split,
-                                                   hml_mode='gt')
-            self.eval_wrapper = EvaluatorMDMWrapper(args.dataset, dist_util.dev())
-            self.eval_data = {
-                'test': lambda: eval_humanml.get_mdm_loader(
-                    model, diffusion, args.eval_batch_size,
-                    gen_loader, mm_num_samples, mm_num_repeats, gen_loader.dataset.opt.max_motion_length,
-                    args.eval_num_samples, scale=1.,
-                )
-            }
+        #    self.eval_gt_data = get_dataset_loader(name=args.dataset, batch_size=args.eval_batch_size, num_frames=None,
+        #                                           split=args.eval_split,
+        #                                           hml_mode='gt')
+        #    self.eval_wrapper = EvaluatorMDMWrapper(args.dataset, dist_util.dev())
+        #    self.eval_data = {
+        #        'test': lambda: eval_humanml.get_mdm_loader(
+        #            model, diffusion, args.eval_batch_size,
+        #            gen_loader, mm_num_samples, mm_num_repeats, gen_loader.dataset.opt.max_motion_length,
+        #            args.eval_num_samples, scale=1.,
+        #        )
+        #    }
         self.use_ddp = False
         self.ddp_model = self.model
 
@@ -214,12 +248,16 @@ class TrainLoop:
 
     def  run_step(self, batch, cond):
         self.forward_backward(batch, cond)
-        self.mp_trainer.optimize(self.opt)
+        # Anthony: note that by this I removed the logging for
+        # gradient and param normalization
+        #self.mp_trainer.optimize(self.opt)
+        self.opt.step()
         self._anneal_lr()
         self.log_step()
 
     def forward_backward(self, batch, cond):
-        self.mp_trainer.zero_grad()
+        #self.mp_trainer.zero_grad()
+        self.opt.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
             # Eliminates the microbatch feature
             assert i == 0
@@ -253,7 +291,8 @@ class TrainLoop:
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )
-            self.mp_trainer.backward(loss)
+            #self.mp_trainer.backward(loss)
+            loss.backward()
 
     def _anneal_lr(self):
         if not self.lr_anneal_steps:
@@ -273,15 +312,17 @@ class TrainLoop:
 
 
     def save(self):
-        def save_checkpoint(params):
-            state_dict = self.mp_trainer.master_params_to_state_dict(params)
+        #def save_checkpoint(params):
+        def save_checkpoint(state_dict):
+            #state_dict = self.mp_trainer.master_params_to_state_dict(params)
             # if dist.get_rank() == 0:
             logger.log(f"saving model...")
             filename = self.ckpt_file_name()
             with bf.BlobFile(bf.join(self.save_dir, filename), "wb") as f:
                 torch.save(state_dict, f)
 
-        save_checkpoint(self.mp_trainer.master_params)
+        #save_checkpoint(self.mp_trainer.master_params)
+        save_checkpoint(self.model.state_dict())
 
         with bf.BlobFile(
             bf.join(self.save_dir, f"opt{(self.step+self.resume_step):09d}.pt"),

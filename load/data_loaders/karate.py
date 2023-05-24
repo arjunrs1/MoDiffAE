@@ -11,8 +11,8 @@ class KaratePoses(Dataset):
         data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
         data = np.load(data_file_path, allow_pickle=True)
 
-        print(len(data))
-        exit()
+        #print(len(data))
+        #exit()
 
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]

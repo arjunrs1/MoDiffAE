@@ -7,7 +7,7 @@ from datetime import datetime
 from collections import OrderedDict
 #from data_loaders.humanml.scripts.motion_process import *
 #from data_loaders.humanml.utils.utils import *
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
+from utils.model_util import create_model_and_diffusion, load_model
 
 from diffusion import logger
 from utils import dist_util
@@ -286,7 +286,7 @@ if __name__ == '__main__':
 
     logger.log(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')
-    load_model_wo_clip(model, state_dict)
+    load_model(model, state_dict)
 
     if args.guidance_param != 1:
         model = ClassifierFreeSampleModel(model)   # wrapping model with the classifier-free sampler

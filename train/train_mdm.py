@@ -1,18 +1,13 @@
-# This code is based on https://github.com/openai/guided-diffusion
-"""
-Train a diffusion model on images.
-"""
-
 import os
 import json
 from utils.fixseed import fixseed
 from utils.parser_util import train_args
 from utils import dist_util
 from train.training_loop import TrainLoop
-#from data_loaders.get_data import get_dataset_loader
 from load.get_data import get_dataset_loader
 from utils.model_util import create_model_and_diffusion
 from train.train_platforms import ClearmlPlatform, TensorboardPlatform, NoPlatform  # required for the eval operation
+
 
 def main():
     args = train_args()
@@ -33,8 +28,8 @@ def main():
 
     dist_util.setup_dist(args.device)
 
-    print("creating data loader...")
-    data = get_dataset_loader(
+    print("creating train data loader...")
+    train_data = get_dataset_loader(
         name=args.dataset,
         batch_size=args.batch_size,
         num_frames=args.num_frames,
@@ -42,16 +37,24 @@ def main():
         split='train'
     )
 
-    print("creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, data)
-    model.to(dist_util.dev())
-    # Anthony: not using smpl model
-    #model.rot2xyz.smpl_model.eval()
+    print("creating validation data loader...")
+    validation_data = get_dataset_loader(
+        name=args.dataset,
+        batch_size=args.batch_size,
+        num_frames=args.num_frames,
+        test_participant='b0372',
+        split='validation'
+    )
 
-    print('Total params: %.2fM' % (sum(p.numel() for p in model.decoder.parameters_wo_clip()) / 1000000.0))
+    print("creating model and diffusion...")
+    model, diffusion = create_model_and_diffusion(args, train_data)
+    model.to(dist_util.dev())
+
+    print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
     print("Training...")
-    TrainLoop(args, train_platform, model, diffusion, data).run_loop()
+    TrainLoop(args, train_platform, model, diffusion, train_data, validation_data).run_loop()
     train_platform.close()
+
 
 if __name__ == "__main__":
     main()

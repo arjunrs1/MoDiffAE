@@ -1,12 +1,12 @@
-from model.mdm import MoDiffAE
+from model.modiffae import MoDiffAE
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import SpacedDiffusion, space_timesteps
 
 
-def load_model_wo_clip(model, state_dict):
+def load_model(model, state_dict):
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
     assert len(unexpected_keys) == 0
-    assert all([k.startswith('clip_model.') for k in missing_keys])
+    #assert all([k.startswith('clip_model.') for k in missing_keys])
 
 
 def create_model_and_diffusion(args, data):
@@ -18,44 +18,49 @@ def create_model_and_diffusion(args, data):
 def get_model_args(args, data):
 
     # default args
-    clip_version = 'ViT-B/32'
-    action_emb = 'tensor'
+    #clip_version = 'ViT-B/32'
+    #action_emb = 'tensor'
+
     if args.unconstrained:
         cond_mode = 'no_cond'
-    elif args.dataset in ['kit', 'humanml']:
+    else:
+        cond_mode = 'action'
+
+    '''elif args.dataset in ['kit', 'humanml']:
         cond_mode = 'text'
     else:
         cond_mode = 'action'
     if hasattr(data.dataset, 'num_actions'):
         num_actions = data.dataset.num_actions
     else:
-        num_actions = 1
+        num_actions = 1'''
 
-    # SMPL defaults
+    '''# SMPL defaults
     data_rep = 'rot6d'
-    njoints = 25
-    nfeats = 6
+    num_joints = 25
+    num_feats = 6
 
     if args.dataset == 'humanml':
         data_rep = 'hml_vec'
-        njoints = 263
-        nfeats = 1
+        num_joints = 263
+        num_feats = 1
     elif args.dataset == 'kit':
         data_rep = 'hml_vec'
-        njoints = 251
-        nfeats = 1
+        num_joints = 251
+        num_feats = 1'''
 
     # Check if this works
-    if args.dataset == 'karate':
-        njoints = 39
-        nfeats = 6
+    #if args.dataset == 'karate':
+    #    data_rep = 'rot6d'
+    #    num_joints = 39
+    #    num_feats = 6
 
-    return {'modeltype': '', 'njoints': njoints, 'nfeats': nfeats, 'num_actions': num_actions,
-            'num_frames': args.num_frames, 'translation': True, 'pose_rep': 'rot6d', 'glob': True, 'glob_rot': True,
+    return {'num_joints': data.dataset.num_joints, 'num_feats': data.dataset.num_feats,
+            'num_frames': args.num_frames, 'translation': True, 'pose_rep': data.dataset.pose_rep,
             'latent_dim': args.latent_dim, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
-            'dropout': 0.1, 'activation': "gelu", 'data_rep': data_rep, 'cond_mode': cond_mode,
-            'cond_mask_prob': args.cond_mask_prob, 'action_emb': action_emb, 'arch': args.arch,
-            'emb_trans_dec': args.emb_trans_dec, 'clip_version': clip_version, 'dataset': args.dataset}
+            'dropout': 0.1, 'activation': "gelu", 'data_rep': data.dataset.pose_rep, 'cond_mode': cond_mode,
+            'cond_mask_prob': args.cond_mask_prob,
+            'dataset': args.dataset}
 
 
 def create_gaussian_diffusion(args):

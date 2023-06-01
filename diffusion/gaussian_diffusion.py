@@ -1355,7 +1355,7 @@ class GaussianDiffusion:
         dist = model_kwargs['y']['distance']
 
         get_xyz = lambda sample: enc.rot2xyz(sample, mask=None, pose_rep=enc.pose_rep, translation=enc.translation,
-                                             glob=enc.glob,
+                                             #glob=enc.glob,
                                              # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
                                              #jointstype='smpl',  # 3.4 iter/sec
                                              jointstype='karate', # for karate data 

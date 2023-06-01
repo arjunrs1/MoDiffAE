@@ -8,7 +8,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import generate_args
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
+from utils.model_util import create_model_and_diffusion, load_model
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
 from load.get_data import get_dataset_loader
@@ -88,7 +88,7 @@ def main():
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')
-    load_model_wo_clip(model, state_dict)
+    load_model(model, state_dict)
 
     if args.guidance_param != 1:
         print('Using classifier-free guidance')

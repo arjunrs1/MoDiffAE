@@ -140,7 +140,7 @@ def zero_grad(model_params):
 
 def param_grad_or_zeros(param):
     if param.grad is not None:
-        return param.grad.data.detach()
+        return param.grad.train_data.detach()
     else:
         return th.zeros_like(param)
 

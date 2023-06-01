@@ -27,16 +27,17 @@ INITIAL_LOG_LOSS_SCALE = 20.0
 
 
 class TrainLoop:
-    def __init__(self, args, train_platform, model, diffusion, data):
+    def __init__(self, args, train_platform, model, diffusion, train_data, validation_data):
         self.args = args
         self.dataset = args.dataset
         self.train_platform = train_platform
         self.model = model
         self.diffusion = diffusion
         self.cond_mode = model.cond_mode
-        self.data = data
+        self.train_data = train_data
+        self.validation_data = validation_data
         self.batch_size = args.batch_size
-        self.microbatch = args.batch_size  # deprecating this option
+        #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
         self.log_interval = args.log_interval
         self.save_interval = args.save_interval
@@ -51,8 +52,11 @@ class TrainLoop:
         self.global_batch = self.batch_size # * dist.get_world_size()
         self.num_steps = args.num_steps
 
-        print(self.num_steps, len(self.data))
-        self.num_epochs = self.num_steps // len(self.data) + 1
+        #print(self.num_steps, len(self.data))
+        self.num_epochs = self.num_steps // len(self.train_data) + 1
+
+        self.num_epochs = 100
+        print(f"Number of epochs: {self.num_epochs}")
 
         self.sync_cuda = torch.cuda.is_available()
 
@@ -76,7 +80,7 @@ class TrainLoop:
         #    self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
         #)
 
-        print(self.lr)
+        #print(self.lr)
 
         '''self.opt = AdamW(
             [
@@ -161,13 +165,9 @@ class TrainLoop:
             self.opt.load_state_dict(state_dict)
 
     def run_loop(self):
-
-        self.num_epochs = 100
-        print(f"Number of epochs: {self.num_epochs}")
-        
         for epoch in range(self.num_epochs):
             print(f'Starting epoch {epoch}')
-            for motion, cond in tqdm(self.data): # the condition now includes distances for karate
+            for motion, cond in tqdm(self.train_data): # the condition now includes distances for karate
                 
                 #distance = cond['distance']
                 #print(distance)
@@ -180,9 +180,16 @@ class TrainLoop:
 
                 self.run_step(motion, cond)
                 if self.step % self.log_interval == 0:
-                    for k,v in logger.get_current().name2val.items():
-                        if k == 'loss':
-                            print('step[{}]: loss[{:0.5f}]'.format(self.step+self.resume_step, v))
+
+                    self.model.eval()
+                    self.run_validation()
+                    self.model.train()
+
+                    for k, v in logger.get_current().name2val.items():
+                        if k == 'train_loss':
+                            print('step[{}]: train loss[{:0.5f}]'.format(self.step+self.resume_step, v))
+                        if k == 'validation_loss':
+                            print('step[{}]: validation loss[{:0.5f}]'.format(self.step + self.resume_step, v))
 
                         if k in ['step', 'samples'] or '_q' in k:
                             continue
@@ -234,7 +241,7 @@ class TrainLoop:
                                         batch_size=self.args.eval_batch_size, device=self.device, guidance_param = 1,
                                         dataset=self.dataset, unconstrained=self.args.unconstrained,
                                         model_path=os.path.join(self.save_dir, self.ckpt_file_name()))
-            eval_dict = eval_humanact12_uestc.evaluate(eval_args, model=self.model, diffusion=self.diffusion, data=self.data.dataset)
+            eval_dict = eval_humanact12_uestc.evaluate(eval_args, model=self.model, diffusion=self.diffusion, data=self.train_data.dataset)
             print(f'Evaluation results on {self.dataset}: {sorted(eval_dict["feats"].items())}')
             for k, v in eval_dict["feats"].items():
                 if 'unconstrained' not in k:
@@ -246,25 +253,38 @@ class TrainLoop:
         print(f'Evaluation time: {round(end_eval-start_eval)/60}min')
 
 
-    def  run_step(self, batch, cond):
-        self.forward_backward(batch, cond)
+    def run_validation(self):
+        # iterate over validation batches
+        for motion, cond in tqdm(self.validation_data, desc='Validation round'):  # the condition now includes distances for karate
+
+            # if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+            #     break
+
+            motion = motion.to(self.device)
+            cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in cond['y'].items()}
+
+            self.forward(motion, cond, split='validation')
+
+    def run_step(self, batch, cond):
+        loss = self.forward(batch, cond, split='train')
+        loss.backward()
         # Anthony: note that by this I removed the logging for
         # gradient and param normalization
         #self.mp_trainer.optimize(self.opt)
         self.opt.step()
-        self._anneal_lr()
+        #self._anneal_lr()
         self.log_step()
 
-    def forward_backward(self, batch, cond):
+    def forward(self, batch, cond, split):
         #self.mp_trainer.zero_grad()
         self.opt.zero_grad()
-        for i in range(0, batch.shape[0], self.microbatch):
+        for i in range(0, batch.shape[0], self.batch_size):
             # Eliminates the microbatch feature
             assert i == 0
-            assert self.microbatch == self.batch_size
+            #assert self.microbatch == self.batch_size
             micro = batch
             micro_cond = cond
-            last_batch = (i + self.microbatch) >= batch.shape[0]
+            last_batch = (i + self.batch_size) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
 
             compute_losses = functools.partial(
@@ -273,7 +293,7 @@ class TrainLoop:
                 micro,  # [bs, ch, image_size, image_size]
                 t,  # [bs](int) sampled timesteps
                 model_kwargs=micro_cond,
-                dataset=self.data.dataset
+                dataset=self.train_data.dataset
             )
 
             if last_batch or not self.use_ddp:
@@ -282,25 +302,31 @@ class TrainLoop:
                 with self.ddp_model.no_sync():
                     losses = compute_losses()
 
-            if isinstance(self.schedule_sampler, LossAwareSampler):
+            #print(isinstance(self.schedule_sampler, LossAwareSampler))
+            if isinstance(self.schedule_sampler, LossAwareSampler) and split == 'train':
                 self.schedule_sampler.update_with_local_losses(
                     t, losses["loss"].detach()
                 )
 
             loss = (losses["loss"] * weights).mean()
             log_loss_dict(
-                self.diffusion, t, {k: v * weights for k, v in losses.items()}
+                self.diffusion, t, {k: v * weights for k, v in losses.items()}, split
             )
             #self.mp_trainer.backward(loss)
-            loss.backward()
+            #loss.backward()
+            return loss
 
-    def _anneal_lr(self):
+    # Anthony: important not to use this because
+    # of the different learning rates in different parts of the model.
+    # If I wish to do lr decay this needs to be adjusted.
+    '''def _anneal_lr(self):
+        print(not self.lr_anneal_steps)
         if not self.lr_anneal_steps:
             return
         frac_done = (self.step + self.resume_step) / self.lr_anneal_steps
         lr = self.lr * (1 - frac_done)
         for param_group in self.opt.param_groups:
-            param_group["lr"] = lr
+            param_group["lr"] = lr'''
 
     def log_step(self):
         logger.logkv("step", self.step + self.resume_step)
@@ -358,10 +384,10 @@ def find_resume_checkpoint():
     return None
 
 
-def log_loss_dict(diffusion, ts, losses):
+def log_loss_dict(diffusion, ts, losses, split):
     for key, values in losses.items():
-        logger.logkv_mean(key, values.mean().item())
+        logger.logkv_mean(f'{split}_{key}', values.mean().item())
         # Log the quantiles (four quartiles, in particular).
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
             quartile = int(4 * sub_t / diffusion.num_timesteps)
-            logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
+            logger.logkv_mean(f"{split}_{key}_q{quartile}", sub_loss)

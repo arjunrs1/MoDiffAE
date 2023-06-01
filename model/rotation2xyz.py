@@ -37,8 +37,7 @@ class Rotation2xyz:
             rotations = x_rotations[mask].view(-1, n_joints, 3, 3)
         elif pose_rep == "rot_quat":
             rotations = geometry.quaternion_to_matrix(x_rotations[mask])
-        elif pose_rep == "rot6d":
-            #print(x_rotations[mask].shape)
+        elif pose_rep == "rot_6d":
             rotations = geometry.rotation_6d_to_matrix(x_rotations[mask])
         else:
             raise NotImplementedError("No geometry for this pose representation.")
@@ -58,7 +57,7 @@ class Rotation2xyz:
             raise NotImplementedError("No conversion implemented for this joint type.")
 
         x_xyz = torch.empty(n_samples, n_time_steps, joints.shape[1], 3, device=x.device, dtype=x.dtype)
-        # TODO: why if this is 0 is the final position held for the remaining time?
+        # TODO: why is this is 0 is the final position held for the remaining time?
         x_xyz[~mask] = 0
         x_xyz[mask] = joints
 

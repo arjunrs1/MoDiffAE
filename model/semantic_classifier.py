@@ -6,12 +6,12 @@ from load.data_loaders.karate import KaratePoses
 from utils.parser_util import classify_args, train_args
 from utils.fixseed import fixseed
 from load.get_data import get_dataset_loader
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
+from utils.model_util import create_model_and_diffusion, load_model
 from utils import dist_util
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-from model.mdm import SemanticEncoder
+from model.modiffae import SemanticEncoder
 
 import torch
 

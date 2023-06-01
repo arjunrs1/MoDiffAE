@@ -16,7 +16,7 @@ import torch
 
 
 class SemanticRegressor(nn.Module):
-    def __init__(self, input_dim=512, output_dim=5):
+    def __init__(self, input_dim=512, output_dim=18):
         super(SemanticRegressor, self).__init__()
         self.linear = torch.nn.Linear(input_dim, output_dim)
 
@@ -37,18 +37,18 @@ def load_dataset(args, max_frames, n_frames):
                               batch_size=args.batch_size,
                               num_frames=max_frames,
                               test_participant='b0372',
-                              split='test')
+                              split='train')
     ds_loader.fixed_length = n_frames
     return ds_loader
 
 
 if __name__ == "__main__":
 
-    kp = KaratePoses()
-    kp.num_frames = 100
+    #kp = KaratePoses()
+    #kp.num_frames = 100
 
 
-    pos = kp[0]
+    #pos = kp[0]
 
     args = classify_args()
 
@@ -87,12 +87,14 @@ if __name__ == "__main__":
     regressor = SemanticRegressor()
     regressor.to(dist_util.dev())
     #criterion =  #torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(regressor.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(regressor.parameters(), lr=0.005)
 
     all_loss = []
-    all_acc = []
-    for epoch in range(100): # 300
-        total_correct = 0
+    action_all_acc = []
+    skill_level_all_acc = []
+    for epoch in range(300): # 300
+        action_total_correct = 0
+        skill_level_total_correct = 0
         total_instances = 0
         epoch_loss = []
         for motion, cond in tqdm(data):
@@ -101,8 +103,11 @@ if __name__ == "__main__":
 
             og_motion = cond['y']['original_motion']
             target = cond['y']['labels'].squeeze() #.unsqueeze(dim=1)
+            
+            
 
-            #print(target)
+            #print(target[0])
+            #print(target.shape)
             #exit()
 
             #print(target)
@@ -121,29 +126,38 @@ if __name__ == "__main__":
                 # Fixed by not having an own class for the semantic encoder but do it inside the mdm class.
                 # Strange that this makes a difference....
                 #emb = model.semantic_encoder(og_motion)
-                emb = model.encode_semantic(og_motion)
+                #emb = model.encode_semantic(og_motion)
+                emb = model.semantic_encoder(og_motion)
                 #print(emb)
                 #print(emb.shape)
             #exit()
 
             output = regressor(emb)
-
-            classifications = torch.argmax(output, dim=-1)
-            labels_idxs = torch.argmax(target, dim=-1)
-
-            #print(classifications)
-            #print(labels_idxs)
-
-
-            correct_predictions = sum(classifications==labels_idxs).item()
-
-            #print(classifications==labels_idxs)
-            #print(correct_predictions)
+            
+            action_output = output[:, :5]
+            skill_level_output = output[:, 5:]
+            
+            action_target = target[:, :5]
+            skill_level_target = target[:, 5:]
+            
+            #print(output_action)
+            #print(target_action.shape)
+            #print(target_skill_level.shape)
+            
             #exit()
-            total_correct += correct_predictions
-            #print(len(og_motion))
-            #exit()
-            total_instances += len(og_motion) # not shape?
+
+            action_classifications = torch.argmax(action_output, dim=-1)
+            action_labels_idxs = torch.argmax(action_target, dim=-1)
+            action_correct_predictions = sum(action_classifications==action_labels_idxs).item()
+            action_total_correct += action_correct_predictions
+            
+            skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
+            skill_level_labels_idxs = torch.argmax(skill_level_target, dim=-1)
+            skill_level_correct_predictions = sum(skill_level_classifications==skill_level_labels_idxs).item()
+            skill_level_total_correct += skill_level_correct_predictions
+            
+            
+            total_instances += len(og_motion)
 
             #if epoch == 0:
                 #print(output)
@@ -170,10 +184,16 @@ if __name__ == "__main__":
 
         #exit()
 
-        all_acc.append(total_correct/total_instances)
-        print(total_correct/total_instances)
+        action_all_acc.append(action_total_correct/total_instances)
+        print(action_total_correct/total_instances)
+        
+        skill_level_all_acc.append(skill_level_total_correct/total_instances)
+        print(skill_level_total_correct/total_instances)
 
     print(all_loss)
+    
+    print(action_all_acc)
+    print(skill_level_all_acc)
 
 
     print('works till here')

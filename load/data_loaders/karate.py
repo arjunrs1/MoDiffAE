@@ -26,7 +26,8 @@ class KaratePoses(Dataset):
         num_of_grades = len(karate_grade_enumerator.keys())
         grade_to_label = lambda grade: (1 / (num_of_grades - 1)) * karate_grade_enumerator[grade]
         #self._grades = [grade_to_label(x) for x in data['grade']]
-        self._grades = [np.array([1.0, 0.0]) if grade_to_label(x) > 0.5 else np.array([0.0, 1.0]) for x in data['grade']]
+        self._grades = [karate_grade_enumerator[x] for x in data['grade']]
+        #self._grades = [np.array([1.0, 0.0]) if grade_to_label(x) > 0.5 else np.array([0.0, 1.0]) for x in data['grade']]
 
         total_num_actions = 5
         self.num_actions = total_num_actions
@@ -50,11 +51,15 @@ class KaratePoses(Dataset):
     def _load_labels(self, ind):
         # TODO: maybe add more labels later (np.append on axis 1)
 
-        #labels = np.array([self._grades[ind]])
+        skill_labels = np.array([self._grades[ind]])
+        one_hot_skill_labels = np.eye(len(karate_grade_enumerator))[skill_labels]
 
         labels = np.array([self._actions[ind]])
         # TODO: check if this works
         one_hot_labels = np.eye(len(karate_action_enumerator))[labels]
+        
+        #one_hot_labels = np.append(one_hot_labels, skill_labels, axis=1)
+        one_hot_labels = np.append(one_hot_labels, one_hot_skill_labels, axis=1)
 
         #print(ind)
         #print(one_hot_labels)

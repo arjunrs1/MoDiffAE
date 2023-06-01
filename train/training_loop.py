@@ -55,7 +55,7 @@ class TrainLoop:
         #print(self.num_steps, len(self.data))
         self.num_epochs = self.num_steps // len(self.train_data) + 1
 
-        self.num_epochs = 100
+        #self.num_epochs = 100
         print(f"Number of epochs: {self.num_epochs}")
 
         self.sync_cuda = torch.cuda.is_available()

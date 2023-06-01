@@ -8,7 +8,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import edit_args
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
+from utils.model_util import create_model_and_diffusion, load_model
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
 from data_loaders.get_data import get_dataset_loader
@@ -55,7 +55,7 @@ def main():
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')
-    load_model_wo_clip(model, state_dict)
+    load_model(model, state_dict)
 
     model = ClassifierFreeSampleModel(model)   # wrapping model with the classifier-free sampler
     model.to(dist_util.dev())

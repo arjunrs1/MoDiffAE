@@ -154,7 +154,7 @@ def modify_data():
 
                 # Re-centering and calculating new joint angles and distances
                 positions_df = pd.DataFrame(rec.reshape(-1, 39 * 3),
-                    columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(), time=False))
+                        columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(), time=False))
                 centered_positions_df = data_prep.center_initial_position(positions_df)
 
                 rec = centered_positions_df.to_numpy().reshape(-1, 39, 3)

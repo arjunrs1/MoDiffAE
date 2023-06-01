@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import generate_args
-from utils.model_util import create_model_and_diffusion, load_model_wo_clip
+from utils.model_util import create_model_and_diffusion, load_model
 from utils import dist_util
 from load.get_data import get_dataset_loader
 import shutil
@@ -62,7 +62,7 @@ def main():
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')
-    load_model_wo_clip(model, state_dict)
+    load_model(model, state_dict)
 
     model.to(dist_util.dev())
     # Disable random masking
@@ -159,7 +159,7 @@ def main():
         # Using the diffused data from the encoder in the form of noise
         sample = sample_fn(
             model,
-            (args.batch_size, model.njoints, model.nfeats, n_frames),
+            (args.batch_size, model.n_joints, model.nfeats, n_frames),
             clip_denoised=False,
             model_kwargs=model_kwargs,
             skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step

@@ -1351,15 +1351,18 @@ class GaussianDiffusion:
         enc = model.model
         mask = model_kwargs['y']['mask']
 
-        # For karate 
-        dist = model_kwargs['y']['distance']
+        data_name = dataset.data_name
+        if data_name == "karate":
+            dist = model_kwargs['y']['distance']
+        else:
+            dist = None
 
         get_xyz = lambda sample: enc.rot2xyz(sample, mask=None, pose_rep=enc.pose_rep, translation=enc.translation,
                                              #glob=enc.glob,
                                              # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
                                              #jointstype='smpl',  # 3.4 iter/sec
-                                             jointstype='karate', # for karate data 
-                                             vertstrans=False, 
+                                             data_name=data_name,  # for karate data
+                                             #vertstrans=False,
                                              distance=dist) # # For karate 
 
         if model_kwargs is None:

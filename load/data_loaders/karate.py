@@ -5,13 +5,14 @@ import utils.karate.data_info as data_info
 
 
 class KaratePoses(Dataset):
-    def __init__(self, test_participant, data_path="datasets/karate", split="train",
+    def __init__(self, test_participant, data_path="datasets/kyokushin_karate", split="train",
                  pose_rep="rot_6d", num_joints=39, root_joint_name='T10', **kwargs):
 
         root_joint_idx = data_info.joint_to_index[root_joint_name]
         super().__init__(pose_rep=pose_rep, num_joints=num_joints, root_joint_idx=root_joint_idx, **kwargs)
 
         self.data_name = "karate"
+        self.xyz_reconstruction_mode = "geometry"
         data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
         data = np.load(data_file_path, allow_pickle=True)
 

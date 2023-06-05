@@ -6,6 +6,9 @@ def get_dataset_class(name):
     if name == 'karate':
         from .data_loaders.karate import KaratePoses
         return KaratePoses
+    elif name == 'humanact12':
+        from .data_loaders.humanact12poses import HumanAct12Poses
+        return HumanAct12Poses
     else:
         raise ValueError(f'Unsupported dataset name [{name}]')
 
@@ -23,10 +26,8 @@ def get_dataset(name, num_frames, test_participant, split='train'):
 def get_dataset_loader(name, batch_size, num_frames, test_participant, split='train'):
     dataset = get_dataset(name, num_frames, test_participant, split)
     collate = get_collate_fn()
-
     loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=True,
         num_workers=8, drop_last=True, collate_fn=collate
     )
-
     return loader

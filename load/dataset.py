@@ -7,6 +7,7 @@ import torch
 from load.tensors import collate
 from utils.misc import to_torch
 import utils.rotation_conversions as geometry
+from model.rotation2xyz import Rotation2xyz
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -56,19 +57,59 @@ class Dataset(torch.utils.data.Dataset):
             label = np.argmax(label)
             return self._label_to_action[label]
 
-    def get_pose_data(self, data_index, frame_ix):
+    def get_data_dict(self, data_index, frame_ix):
+        output = {}
         pose = self._load(data_index, frame_ix)
-        action = self.get_label(data_index)
+        output['inp'] = pose
+
+        ####
+        '''print(pose.shape)
+        pose_batch = pose.unsqueeze(dim=0)
+        rot2xyz = Rotation2xyz(device='cpu')
+        get_xyz = lambda sample: rot2xyz(sample, mask=None, pose_rep='rot_6d', translation=True,
+                                             # glob=enc.glob,
+                                             # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
+                                             # jointstype='smpl',  # 3.4 iter/sec
+                                             data_name='humanact12',  # for karate data
+                                             # vertstrans=False,
+                                             distance=None)
+
+        xyz = get_xyz(pose_batch)
+        xyz = xyz.to(device='cpu')
+        print(xyz.shape)
+
+        #print(xyz)
+
+        actual_pose = torch.tensor(np.transpose(self._load_joints(data_index, frame_ix), (1, 2, 0)), device='cpu').unsqueeze(dim=0)
+
+        #print(actual_pose)
+        print(actual_pose.shape)
+
+        print(xyz - actual_pose)
+
+
+
+        exit()'''
+
+
+        ####
+
+        #action = self.get_label(data_index)
         # Added for karate
-        distances = None
+        #distances = None
         if getattr(self, "data_name", None) is not None and self.data_name == "karate": 
             distances = self._joint_distances[data_index]
             distances = torch.as_tensor(distances)
+            output['dist'] = distances
 
-        labels = None
+        #labels = None
         if getattr(self, "_load_labels", None) is not None:
             labels = self._load_labels(data_index)
-        return pose, action, distances, labels
+            output['labels'] = labels
+
+        #output = {'inp': pose, 'dist': distances, 'labels': labels}
+
+        return output
 
     def get_label(self, ind):
         action = self.get_action(ind)
@@ -143,6 +184,8 @@ class Dataset(torch.utils.data.Dataset):
 
         #print(self.num_frames)
 
+        #frame_ix = None
+
         if self.num_frames == -1 and (self.max_len == -1 or nframes <= self.max_len):
             frame_ix = np.arange(nframes)
         else:
@@ -158,6 +201,7 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 num_frames = self.num_frames if self.num_frames != -1 else self.max_len
 
+            #print(num_frames, nframes)
             if num_frames > nframes:
                 '''fair = False  # True
                 if fair:
@@ -174,9 +218,11 @@ class Dataset(torch.utils.data.Dataset):
                 frame_ix = np.concatenate((np.arange(0, nframes),
                                            padding))
 
-            '''elif self.sampling in ["conseq", "random_conseq"]:
+                #print('hi')
 
-                print('happening')
+            elif self.sampling in ["conseq", "random_conseq"]:
+
+                #print('happening')
 
                 #print(nframes, num_frames)
                 step_max = (nframes - 1) // (num_frames - 1)
@@ -200,15 +246,16 @@ class Dataset(torch.utils.data.Dataset):
                 frame_ix = sorted(choices)
 
             else:
-                raise ValueError("Sampling not recognized.")'''
+                raise ValueError("Sampling not recognized.")
 
-        inp, action, distances, labels = self.get_pose_data(data_index, frame_ix)
+        output = self.get_data_dict(data_index, frame_ix)
 
         #output = {'inp': inp, 'action': action, 'dist': distances, 'labels': labels}
-        output = {'inp': inp, 'dist': distances, 'labels': labels}
 
-        if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
-            output['action_text'] = self.action_to_action_name(self.get_action(data_index))
+        #output = {'inp': inp, 'dist': distances, 'labels': labels}
+
+        #if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
+        #    output['action_text'] = self.action_to_action_name(self.get_action(data_index))
 
         return output
 

@@ -18,7 +18,7 @@ class MoDiffAE(nn.Module):
         #self.nfeats = nfeats
         #self.num_actions = num_actions
         ##self.data_rep = data_rep
-        ##self.dataset = dataset
+        self.dataset = dataset
 
         self.pose_rep = pose_rep
         #self.glob = glob
@@ -64,13 +64,25 @@ class MoDiffAE(nn.Module):
                                latent_dim, ff_size, num_layers, num_heads, dropout,
                                activation, data_rep, dataset, **kwargs)
 
-        self.rot2xyz = Rotation2xyz()
+        #self.rot2xyz = Rotation2xyz(device='cpu') #, dataset=self.dataset)
+        self.rot2xyz = Rotation2xyz(device='cpu')  # , dataset=self.dataset)
 
     def forward(self, x, timesteps, y=None):
         og_motion = y['original_motion']
         semantic_emb = self.semantic_encoder(og_motion)
         output = self.decoder.forward(x, semantic_emb, timesteps, y)
         return output
+
+    def _apply(self, fn):
+        super()._apply(fn)
+        if self.dataset == 'humanact12':
+            self.rot2xyz.smpl_model._apply(fn)
+
+    def train(self, *args, **kwargs):
+        super().train(*args, **kwargs)
+        if self.dataset == 'humanact12':
+            print('training smpl')
+            self.rot2xyz.smpl_model.train(*args, **kwargs)
 
 
 class Decoder(nn.Module):
@@ -217,6 +229,8 @@ class InputProcess(nn.Module):
         x = x.permute((3, 0, 1, 2)).reshape(nframes, bs, njoints*nfeats)
 
         #if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
+        #print(x.shape)
+        #print(self.input_feats)
         x = self.poseEmbedding(x)  # [seqlen, bs, d]
         return x
         #elif self.data_rep == 'rot_vel':

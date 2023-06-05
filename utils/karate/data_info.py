@@ -7,7 +7,7 @@ from io import StringIO
 
 
 cwd = os.getcwd()
-participant_data = open(os.path.join(cwd, 'datasets/karate/participants.csv'), 'r').readlines()
+participant_data = open(os.path.join(cwd, 'datasets/kyokushin_karate/participants.csv'), 'r').readlines()
 # Deleting the unit row.
 del participant_data[1]
 participants_df = pd.read_csv(StringIO(','.join(participant_data)), sep=',', header=0)

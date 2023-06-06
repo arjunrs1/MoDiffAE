@@ -26,7 +26,7 @@ from eval import eval_humanml, eval_humanact12_uestc
 INITIAL_LOG_LOSS_SCALE = 20.0
 
 
-class TrainLoop:
+class ModiffaeTrainLoop:
     def __init__(self, args, train_platform, model, diffusion, train_data, validation_data):
         self.args = args
         self.dataset = args.dataset

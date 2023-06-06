@@ -45,6 +45,7 @@ def get_args_per_group_name(parser, args, group_name):
             return list(argparse.Namespace(**group_dict).__dict__.keys())
     return ValueError('group_name was not found.')
 
+
 def get_model_path_from_args():
     try:
         dummy_parser = ArgumentParser()
@@ -61,8 +62,7 @@ def add_base_options(parser):
     group.add_argument("--device", default=0, type=int, help="Device id to use.")
     group.add_argument("--seed", default=10, type=int, help="For fixing random seed.")
     group.add_argument("--batch_size", default=64, type=int, help="Batch size during training.")
-    group.add_argument("--num_frames", default=100, type=int,
-                       help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
+    group.add_argument("--num_frames", default=100, type=int, help="Limit for the maximal number of frames.")
 
 
 def add_diffusion_options(parser):
@@ -76,9 +76,6 @@ def add_diffusion_options(parser):
 
 def add_model_options(parser):
     group = parser.add_argument_group('model')
-    group.add_argument("--arch", default='trans_enc',
-                       choices=['trans_enc', 'trans_dec', 'gru'], type=str,
-                       help="Architecture types as reported in the paper.")
     group.add_argument("--emb_trans_dec", default=False, type=bool,
                        help="For trans_dec architecture only, if true, will inject condition as a class token"
                             " (in addition to cross-attention).")
@@ -97,7 +94,6 @@ def add_model_options(parser):
                             "Currently tested on HumanAct12 only.")
 
 
-
 def add_data_options(parser):
     group = parser.add_argument_group('dataset')
     group.add_argument("--dataset", default='karate', choices=['karate', 'humanact12'], type=str,
@@ -108,12 +104,15 @@ def add_data_options(parser):
 
 def add_training_options(parser):
     group = parser.add_argument_group('training')
+    group.add_argument("--model_type", default='modiffae',
+                       choices=['modiffae', 'semantic_regressor', 'semantic_ddim'], type=str,
+                       help="Different components of the system.")
     group.add_argument("--save_dir", required=True, type=str,
                        help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    group.add_argument("--train_platform_type", default='NoPlatform', choices=['NoPlatform', 'ClearmlPlatform', 'TensorboardPlatform'], type=str,
-                       help="Choose platform to log results. NoPlatform means no logging.")
+    #group.add_argument("--train_platform_type", default='NoPlatform', choices=['TensorboardPlatform'], type=str,
+    #                   help="Choose platform to log results. NoPlatform means no logging.")
     group.add_argument("--lr", default=1e-4, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
     group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
@@ -220,6 +219,7 @@ def classify_args():
     add_model_options(parser)
     add_diffusion_options(parser)
     add_sampling_options(parser)
+    add_training_options(parser)
     #add_training_options(parser)
     return parser.parse_args()
 

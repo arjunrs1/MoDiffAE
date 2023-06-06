@@ -1,7 +1,7 @@
-import os
+
 
 class TrainPlatform:
-    def __init__(self, save_dir):
+    def __init__(self):
         pass
 
     def report_scalar(self, name, value, iteration, group_name=None):
@@ -14,7 +14,7 @@ class TrainPlatform:
         pass
 
 
-class ClearmlPlatform(TrainPlatform):
+'''class ClearmlPlatform(TrainPlatform):
     def __init__(self, save_dir):
         from clearml import Task
         path, name = os.path.split(save_dir)
@@ -30,11 +30,12 @@ class ClearmlPlatform(TrainPlatform):
         self.task.connect(args, name=name)
 
     def close(self):
-        self.task.close()
+        self.task.close()'''
 
 
 class TensorboardPlatform(TrainPlatform):
     def __init__(self, save_dir):
+        super().__init__()
         from torch.utils.tensorboard import SummaryWriter
         self.writer = SummaryWriter(log_dir=save_dir)
 
@@ -45,8 +46,8 @@ class TensorboardPlatform(TrainPlatform):
         self.writer.close()
 
 
-class NoPlatform(TrainPlatform):
+'''class NoPlatform(TrainPlatform):
     def __init__(self, save_dir):
-        pass
-
+        super().__init__(save_dir)
+'''
 

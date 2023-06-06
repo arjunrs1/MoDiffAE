@@ -1,6 +1,8 @@
 from model.modiffae import MoDiffAE
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import SpacedDiffusion, space_timesteps
+import torch
+from utils import dist_util
 
 
 def load_model(model, state_dict):
@@ -104,3 +106,19 @@ def create_gaussian_diffusion(args):
         lambda_rcxyz=args.lambda_rcxyz,
         lambda_fc=args.lambda_fc,
     )
+
+
+def calculate_z_parameters(data, semantic_encoder):
+    embeddings = []
+    for motion, cond in data:
+        cond['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val for key, val in
+                     cond['y'].items()}
+        og_motion = cond['y']['original_motion']
+
+        with torch.no_grad():
+            emb = semantic_encoder(og_motion)
+        embeddings.append(emb)
+
+    embeddings = torch.cat(embeddings)
+    std, mean = torch.std_mean(embeddings)
+    return mean, std

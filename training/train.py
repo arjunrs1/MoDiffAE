@@ -93,7 +93,7 @@ def main():
 
         sem_regressor = SemanticRegressor(
             input_dim=512,
-            output_dim=18,
+            output_dim=6, #18,
             semantic_encoder=semantic_encoder,
             cond_mean=cond_mean,
             cond_std=cond_std

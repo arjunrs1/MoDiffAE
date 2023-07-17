@@ -35,8 +35,14 @@ class SemanticRegressorTrainLoop:
         self.batch_size = args.batch_size
         #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
+
+        print(self.lr)
+        # TODO: manage default parameters for each model in utility
+        self.lr = 0.005
+        print(self.lr)
+
         self.log_interval = args.log_interval
-        self.save_interval = args.save_interval
+        self.save_interval = 10_000 #args.save_interval
         #self.resume_checkpoint = args.resume_checkpoint
         #self.use_fp16 = False  # deprecating this option
         #self.fp16_scale_growth = 1e-3  # deprecating this option
@@ -69,6 +75,11 @@ class SemanticRegressorTrainLoop:
         self.device = torch.device("cpu")
         if torch.cuda.is_available() and dist_util.dev() != 'cpu':
             self.device = torch.device(dist_util.dev())
+
+        #self.sigmoid_fn = torch.nn.Sigmoid()
+        #self.loss_fn = torch.nn.BCELoss()
+
+
 
     def run_loop(self):
         for epoch in range(self.num_epochs):
@@ -126,13 +137,20 @@ class SemanticRegressorTrainLoop:
 
         output = self.model(og_motion)
 
+        #loss = self.loss_fn(self.sigmoid_fn(output), target)
+
         loss = F.binary_cross_entropy_with_logits(output, target)
 
         action_output = output[:, :5]
-        skill_level_output = output[:, 5:]
+        action_output = F.softmax(action_output)
+        skill_level_output = output[:, 5]
+        skill_level_output = torch.sigmoid(skill_level_output)
+        #skill_level_output = output[:, 5:]
+        #skill_level_output = F.softmax(skill_level_output)
 
         action_target = target[:, :5]
-        skill_level_target = target[:, 5:]
+        skill_level_target = target[:, 5]
+        #skill_level_target = target[:, 5:]
 
         action_classifications = torch.argmax(action_output, dim=-1)
         action_labels_idxs = torch.argmax(action_target, dim=-1)
@@ -140,10 +158,12 @@ class SemanticRegressorTrainLoop:
         acc_technique = action_correct_predictions / len(og_motion)
         #action_total_correct += action_correct_predictions
 
-        skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
+        '''skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
         skill_level_labels_idxs = torch.argmax(skill_level_target, dim=-1)
         skill_level_correct_predictions = sum(skill_level_classifications == skill_level_labels_idxs).item()
-        acc_skill_level = skill_level_correct_predictions / len(og_motion)
+        acc_skill_level = skill_level_correct_predictions / len(og_motion)'''
+
+        mae_skill_level = F.l1_loss(skill_level_target, skill_level_output)
         #skill_level_total_correct += skill_level_correct_predictions
 
         #total_instances += len(og_motion)
@@ -156,8 +176,10 @@ class SemanticRegressorTrainLoop:
         log_loss_dict(
             {
                 'bce_w_logits': loss.item(),
+                #'bce_loss': loss.item(),
                 'acc_technique': acc_technique,
-                'acc_skill_level': acc_skill_level
+                #'acc_skill_level': acc_skill_level
+                'mae_skill_level': mae_skill_level
             },
             split
         )

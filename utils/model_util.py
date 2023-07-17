@@ -108,17 +108,31 @@ def create_gaussian_diffusion(args):
     )
 
 
-def calculate_z_parameters(data, semantic_encoder):
+def calculate_embeddings(data, semantic_encoder, return_labels=False):
     embeddings = []
+    labels = []
     for motion, cond in data:
         cond['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val for key, val in
                      cond['y'].items()}
         og_motion = cond['y']['original_motion']
+        batch_labels = cond['y']['labels']
+        batch_labels = batch_labels.squeeze()
 
         with torch.no_grad():
             emb = semantic_encoder(og_motion)
         embeddings.append(emb)
+        labels.append(batch_labels)
+    embeddings = torch.cat(embeddings, dim=0)
+    labels = torch.cat(labels, dim=0)
 
-    embeddings = torch.cat(embeddings)
+    if return_labels:
+        return embeddings, labels
+    else:
+        return embeddings
+
+
+def calculate_z_parameters(data, semantic_encoder):
+    embeddings = calculate_embeddings(data, semantic_encoder)
+    #embeddings = torch.cat(embeddings)
     std, mean = torch.std_mean(embeddings)
     return mean, std

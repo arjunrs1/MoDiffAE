@@ -68,8 +68,18 @@ class MoDiffAE(nn.Module):
         self.rot2xyz = Rotation2xyz(device='cpu')  # , dataset=self.dataset)
 
     def forward(self, x, timesteps, y=None):
+
+        #print(y.keys(), 'hi')
+
+
         og_motion = y['original_motion']
-        semantic_emb = self.semantic_encoder(og_motion)
+        # For the manipulation, the new semantic embedding
+        # is passed in y.
+        if 'semantic_emb' in y.keys():
+            #print('using new emb')
+            semantic_emb = y['semantic_emb']
+        else:
+            semantic_emb = self.semantic_encoder(og_motion)
         output = self.decoder.forward(x, semantic_emb, timesteps, y)
         return output
 

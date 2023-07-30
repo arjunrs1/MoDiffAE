@@ -3,13 +3,13 @@
 
 <p float="left">
   <img src="images/skill_level_mod/low_skill.gif" width="250" />
-  <img src="images/skill_level_mod/high_skill.gif" width="250" /> 
+  <img src="images/skill_level_mod/skill_arrow.png" width="250" /> 
   <img src="images/skill_level_mod/high_skill.gif" width="250" />
 </p>
 
 <p float="left">
   <img src="images/technique_mod/high_kick.gif" width="250" />
-  <img src="images/technique_mod/low_kick.gif" width="250" /> 
+  <img src="images/technique_mod/technique_arrow.png" width="250" /> 
   <img src="images/technique_mod/low_kick.gif" width="250" />
 </p>
 

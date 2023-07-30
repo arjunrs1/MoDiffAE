@@ -1,15 +1,13 @@
 # motion-diffusion-autoencoder
 
+This is the official repository for 
+
 ![image](images/modiffae_architecture.svg)
 
 
-
-## TODOS
-- rework eval directory
-- clean environment installation file and procedure 
-
-
 ## Preprocessing 
+
+Before training, the data was preprocessed in multiple steps. An overview of the pipeline in shown below.
 
 ![image](images/preprocessing_pipeline.png)
 

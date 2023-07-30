@@ -121,7 +121,8 @@ def main():
     skill_level_labels *= 12
     skill_level_labels = [int(x) for x in skill_level_labels]
 
-    reducer = umap.UMAP(n_neighbors=100, min_dist=0.5, n_components=2)
+    #reducer = umap.UMAP(n_neighbors=100, min_dist=0.5, n_components=2)
+    reducer = umap.UMAP(n_neighbors=50, min_dist=0.3, n_components=2)
 
     embedding = reducer.fit_transform(semantic_embeddings)
     print(embedding.shape)

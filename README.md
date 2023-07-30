@@ -2,9 +2,9 @@
 
 
 <p float="left">
-  <img src="images/skill_level_mod/low_skill.gif" width="300" />
-  <img src="images/skill_level_mod/high_skill.gif" width="300" /> 
-  <img src="images/skill_level_mod/high_skill.gif" width="300" />
+  <img src="images/skill_level_mod/low_skill.gif" width="250" />
+  <img src="images/skill_level_mod/high_skill.gif" width="250" /> 
+  <img src="images/skill_level_mod/high_skill.gif" width="250" />
 </p>
 
 <p float="left">

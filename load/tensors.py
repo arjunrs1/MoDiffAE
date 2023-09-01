@@ -36,20 +36,16 @@ def collate(batch):
     motion = data_batch_tensor
     cond = {'y': {'mask': mask_batch_tensor, 'lengths': len_batch_tensor}}
 
-    # TODO: once there is the sematic encoder this has to be removed
-    if 'action' in not_none_batches[0]:
-        action_batch = [b['action'] for b in not_none_batches]
-        cond['y'].update({'action': torch.as_tensor(action_batch).unsqueeze(1)})
-
-    # collate action textual names
-    if 'action_text' in not_none_batches[0]:
-        action_text = [b['action_text'] for b in not_none_batches]
-        cond['y'].update({'action_text': action_text})
+    cond['y'].update({'original_motion': data_batch_tensor})
 
     # For reconstructing the original skeleton
     if 'dist' in not_none_batches[0]:
         dist = [b['dist'] for b in not_none_batches]
         dist = collate_tensors(dist)
         cond['y'].update({'distance': dist})
+
+    if 'labels' in not_none_batches[0]:
+        labels_batch = [b['labels'] for b in not_none_batches]
+        cond['y'].update({'labels': torch.as_tensor(labels_batch, dtype=torch.float32).unsqueeze(1)})
 
     return motion, cond

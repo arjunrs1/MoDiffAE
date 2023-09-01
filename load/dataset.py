@@ -7,28 +7,37 @@ import torch
 from load.tensors import collate
 from utils.misc import to_torch
 import utils.rotation_conversions as geometry
+from model.rotation2xyz import Rotation2xyz
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, num_frames=1, sampling="conseq", sampling_step=1, split="train",
-                 pose_rep="rot6d", translation=True, glob=True, max_len=-1, min_len=-1, num_seq_max=-1, **kwargs):
+                 pose_rep="rot_6d", num_joints=39, translation=True, root_joint_idx=5,
+                 max_len=-1, min_len=-1, num_seq_max=-1, **kwargs):
         self.num_frames = num_frames
         self.sampling = sampling
         self.sampling_step = sampling_step
         self.split = split
         self.pose_rep = pose_rep
+        self.num_joints = num_joints
         self.translation = translation
-        self.glob = glob
         self.max_len = max_len
         self.min_len = min_len
         self.num_seq_max = num_seq_max
+        self.root_joint_idx = root_joint_idx
 
-        self.align_pose_frontview = kwargs.get('align_pose_frontview', False)
-        self.use_action_cat_as_text_labels = kwargs.get('use_action_cat_as_text_labels', False)
-        self.only_60_classes = kwargs.get('only_60_classes', False)
-        self.leave_out_15_classes = kwargs.get('leave_out_15_classes', False)
-        self.use_only_15_classes = kwargs.get('use_only_15_classes', False)
+        if pose_rep == "rot_vec":
+            self.num_feats = 3
+        elif pose_rep == "rot_mat":
+            self.num_feats = 9
+        elif pose_rep == "rot_quat":
+            self.num_feats = 4
+        elif pose_rep == "rot_6d":
+            self.num_feats = 6
+        else:
+            raise NotImplementedError("This pose representation is not implemented.")
 
-        if self.split not in ["train", "val", "test"]:
+        if self.split not in ["train", "validation", "test"]:
             raise ValueError(f"{self.split} is not a valid split")
 
         super().__init__()
@@ -48,15 +57,59 @@ class Dataset(torch.utils.data.Dataset):
             label = np.argmax(label)
             return self._label_to_action[label]
 
-    def get_pose_data(self, data_index, frame_ix):
+    def get_data_dict(self, data_index, frame_ix):
+        output = {}
         pose = self._load(data_index, frame_ix)
-        label = self.get_label(data_index)
+        output['inp'] = pose
+
+        ####
+        '''print(pose.shape)
+        pose_batch = pose.unsqueeze(dim=0)
+        rot2xyz = Rotation2xyz(device='cpu')
+        get_xyz = lambda sample: rot2xyz(sample, mask=None, pose_rep='rot_6d', translation=True,
+                                             # glob=enc.glob,
+                                             # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
+                                             # jointstype='smpl',  # 3.4 iter/sec
+                                             data_name='humanact12',  # for karate data
+                                             # vertstrans=False,
+                                             distance=None)
+
+        xyz = get_xyz(pose_batch)
+        xyz = xyz.to(device='cpu')
+        print(xyz.shape)
+
+        #print(xyz)
+
+        actual_pose = torch.tensor(np.transpose(self._load_joints(data_index, frame_ix), (1, 2, 0)), device='cpu').unsqueeze(dim=0)
+
+        #print(actual_pose)
+        print(actual_pose.shape)
+
+        print(xyz - actual_pose)
+
+
+
+        exit()'''
+
+
+        ####
+
+        #action = self.get_label(data_index)
         # Added for karate
-        distances = None
+        #distances = None
         if getattr(self, "data_name", None) is not None and self.data_name == "karate": 
             distances = self._joint_distances[data_index]
             distances = torch.as_tensor(distances)
-        return pose, label, distances
+            output['dist'] = distances
+
+        #labels = None
+        if getattr(self, "_load_labels", None) is not None:
+            labels = self._load_labels(data_index)
+            output['labels'] = labels
+
+        #output = {'inp': pose, 'dist': distances, 'labels': labels}
+
+        return output
 
     def get_label(self, ind):
         action = self.get_action(ind)
@@ -73,7 +126,8 @@ class Dataset(torch.utils.data.Dataset):
         all_action_names = self._action_classes
         if isinstance(all_action_names, dict):
             all_action_names = list(all_action_names.values())
-            assert list(self._action_classes.keys()) == list(range(len(all_action_names)))  # the keys should be ordered from 0 to num_actions
+            # the keys should be ordered from 0 to num_actions
+            assert list(self._action_classes.keys()) == list(range(len(all_action_names)))
 
         sorter = np.argsort(all_action_names)
         actions = sorter[np.searchsorted(all_action_names, action_name, sorter=sorter)]
@@ -84,80 +138,42 @@ class Dataset(torch.utils.data.Dataset):
             data_index = self._train[index]
         else:
             data_index = self._test[index]
-
-        # inp, target = self._get_item_data_index(data_index)
-        # return inp, target
         return self._get_item_data_index(data_index)
 
     def _load(self, ind, frame_ix):
+        ret = None
+        ret_tr = None
         pose_rep = self.pose_rep
         if pose_rep == "xyz" or self.translation:
             if getattr(self, "_load_joints", None) is not None:
-                # Locate the root joint of initial pose at origin
-                joints3D = self._load_joints(ind, frame_ix)
-                # Anthony: I think I do not want this. 
-                ##joints3D = joints3D - joints3D[0, 0, :]
-                ret = to_torch(joints3D)
+                joints_3d = self._load_joints(ind, frame_ix)
+                ret = to_torch(joints_3d)
                 if self.translation:
-                    #ret_tr = ret[:, 0, :]
-                    # t10 has index 5
-                    ret_tr = ret[:, 5, :]
-                    #print("ret_tr shape up:" + str(ret_tr.shape))
+                    # Locate the root joint of all frames.
+                    ret_tr = ret[:, self.root_joint_idx, :]
             else:
-                if pose_rep == "xyz":
-                    raise ValueError("This representation is not possible.")
-                if getattr(self, "_load_translation") is None:
-                    raise ValueError("Can't extract translations.")
-                ret_tr = self._load_translation(ind, frame_ix)
-                ret_tr = to_torch(ret_tr - ret_tr[0])
+                raise ValueError("Joint positions could not be loaded.")
 
         if pose_rep != "xyz":
             if getattr(self, "_load_rot_vec", None) is None:
                 raise ValueError("This representation is not possible.")
             else:
                 pose = self._load_rot_vec(ind, frame_ix)
-                # print('hbbbb')
-                if not self.glob:
-                    print('hiiiiii')
-                    pose = pose[:, 1:, :]
                 pose = to_torch(pose)
-                if self.align_pose_frontview:
-                    print('Align pose front view')
-                    first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
-                    all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
-                    aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
-                                                             all_root_poses_matrix)
-                    pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
 
-                    if self.translation:
-                        print('Translation')
-                        ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
-                                              torch.transpose(ret_tr, 0, 1))
-                        ret_tr = torch.transpose(ret_tr, 0, 1)
-
-                if pose_rep == "rotvec":
+                if pose_rep == "rot_vec":
                     ret = pose
-                elif pose_rep == "rotmat":
+                elif pose_rep == "rot_mat":
                     ret = geometry.axis_angle_to_matrix(pose).view(*pose.shape[:2], 9)
-                elif pose_rep == "rotquat":
+                elif pose_rep == "rot_quat":
                     ret = geometry.axis_angle_to_quaternion(pose)
-                elif pose_rep == "rot6d":
-                    #num = np.random.randn()
-                    #print(f'{num} origin {pose}')
-                    #print(pose)
+                elif pose_rep == "rot_6d":
                     ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(pose))
-                    #rec_pose = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret))
-                    #ret_2 = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(rec_pose))
-                    #rec_pose_2 = geometry.matrix_to_axis_angle(geometry.rotation_6d_to_matrix(ret_2))
-                    #print(f'{num} origin {pose.shape} - \n {num} recon {rec_pose.shape} - \n {num} recon 2 {rec_pose_2.shape}')
-                    #print(f'{num} origin {pose[0, 0, :]} - \n {num} recon {rec_pose[0, 0, :]} - \n {num} recon 2 {rec_pose_2[0, 0, :]}') # rec_pose and rec_pose_2 are the same. pose is not...
-                    #print(rec_pose)
 
         if pose_rep != "xyz" and self.translation:
             padded_tr = torch.zeros((ret.shape[0], ret.shape[2]), dtype=ret.dtype)
             padded_tr[:, :3] = ret_tr
-            #print("shape of padded_tr: " + str(padded_tr.shape))
-            #print("shape of ret_tr: " + str(ret_tr.shape))
+            # Putting the position at the end so that the indices of the joints stay the same.
             ret = torch.cat((ret, padded_tr[:, None]), 1)
         ret = ret.permute(1, 2, 0).contiguous()
 
@@ -167,6 +183,8 @@ class Dataset(torch.utils.data.Dataset):
         nframes = self._num_frames_in_video[data_index]
 
         #print(self.num_frames)
+
+        #frame_ix = None
 
         if self.num_frames == -1 and (self.max_len == -1 or nframes <= self.max_len):
             frame_ix = np.arange(nframes)
@@ -183,23 +201,29 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 num_frames = self.num_frames if self.num_frames != -1 else self.max_len
 
+            #print(num_frames, nframes)
             if num_frames > nframes:
-                fair = False  # True
+                '''fair = False  # True
                 if fair:
                     # distills redundancy everywhere
                     choices = np.random.choice(range(nframes),
                                                num_frames,
                                                replace=True)
-                    frame_ix = sorted(choices)
-                else:
-                    # adding the last frame until done
-                    ntoadd = max(0, num_frames - nframes)
-                    lastframe = nframes - 1
-                    padding = lastframe * np.ones(ntoadd, dtype=int)
-                    frame_ix = np.concatenate((np.arange(0, nframes),
-                                               padding))
+                    frame_ix = sorted(choices)'''
+                #else:
+                # adding the last frame until done
+                ntoadd = max(0, num_frames - nframes)
+                lastframe = nframes - 1
+                padding = lastframe * np.ones(ntoadd, dtype=int)
+                frame_ix = np.concatenate((np.arange(0, nframes),
+                                           padding))
+
+                #print('hi')
 
             elif self.sampling in ["conseq", "random_conseq"]:
+
+                #print('happening')
+
                 #print(nframes, num_frames)
                 step_max = (nframes - 1) // (num_frames - 1)
                 if self.sampling == "conseq":
@@ -224,36 +248,16 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 raise ValueError("Sampling not recognized.")
 
-        inp, action, distances = self.get_pose_data(data_index, frame_ix)
+        output = self.get_data_dict(data_index, frame_ix)
 
+        #output = {'inp': inp, 'action': action, 'dist': distances, 'labels': labels}
 
-        output = {'inp': inp, 'action': action, 'dist': distances}
+        #output = {'inp': inp, 'dist': distances, 'labels': labels}
 
-        if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
-            output['action_text'] = self.action_to_action_name(self.get_action(data_index))
+        #if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
+        #    output['action_text'] = self.action_to_action_name(self.get_action(data_index))
 
         return output
-
-    # Anthony: this is unused
-    def get_mean_length_label(self, label):
-        if self.num_frames != -1:
-            return self.num_frames
-
-        if self.split == 'train':
-            index = self._train
-        else:
-            index = self._test
-
-        action = self.label_to_action(label)
-        choices = np.argwhere(self._actions[index] == action).squeeze(1)
-        lengths = self._num_frames_in_video[np.array(index)[choices]]
-
-        if self.max_len == -1:
-            return np.mean(lengths)
-        else:
-            # make the lengths less than max_len
-            lengths[lengths > self.max_len] = self.max_len
-        return np.mean(lengths)
 
     def __len__(self):
         num_seq_max = getattr(self, "num_seq_max", -1)

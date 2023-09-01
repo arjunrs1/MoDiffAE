@@ -8,7 +8,7 @@ import functools
 from torch.utils.data import DataLoader
 
 from utils.fixseed import fixseed
-from data_loaders.tensors import collate
+from load.tensors import collate
 from eval.a2m.action2motion.evaluate import A2MEvaluation
 from eval.unconstrained.evaluate import evaluate_unconstrained_metrics
 from .tools import save_metrics, format_metrics
@@ -24,6 +24,11 @@ class NewDataloader:
         with torch.no_grad():
             for motions, model_kwargs in tqdm(dataiterator, desc=f"Construct dataloader: {mode}.."):
                 motions = motions.to(device)
+                ##
+                print(device)
+                #print(model.device)
+                model.to(device)
+                ##
                 if num_samples != -1 and len(self.batches) * dataiterator.batch_size > num_samples:
                     continue  # do not break because it confuses the multiple loaders
                 batch = dict()
@@ -57,7 +62,7 @@ def evaluate(args, model, diffusion, data):
 
     # fix parameters for action2motion evaluation
     args.num_frames = num_frames
-    args.jointstype = "smpl"
+    args.data_name = "smpl"
     args.vertstrans = True
 
     device = dist_util.dev()

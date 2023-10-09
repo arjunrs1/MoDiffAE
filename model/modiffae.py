@@ -216,6 +216,7 @@ class TimestepEmbedder(nn.Module):
         time_embed_dim = self.latent_dim
         self.time_embed = nn.Sequential(
             nn.Linear(self.latent_dim, time_embed_dim),
+            # TODO: change to gelu
             nn.SiLU(),
             nn.Linear(time_embed_dim, time_embed_dim),
         )

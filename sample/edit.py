@@ -5,7 +5,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import generate_args
-from utils.model_util import create_model_and_diffusion, load_model, calculate_z_parameters
+from utils.model_util import create_modiffae_and_diffusion, load_model, calculate_z_parameters
 from utils import dist_util
 from load.get_data import get_dataset_loader
 import shutil
@@ -73,7 +73,7 @@ def main():
     total_num_samples = args.num_samples * args.num_repetitions
 
     print("Creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, data)
+    model, diffusion = create_modiffae_and_diffusion(args, data)
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

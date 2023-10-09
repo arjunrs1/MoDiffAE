@@ -198,6 +198,13 @@ class GaussianDiffusion:
 
         self.l2_loss = lambda a, b: (a - b) ** 2  # th.nn.MSELoss(reduction='none')  # must be None for handling mask later on.
 
+    def l2(self, a, b):
+        loss = self.l2_loss(a, b)
+        loss = sum_flat(loss)
+        n_entries = a.shape[1] # * a.shape[2]
+        mse_loss_val = loss / n_entries
+        return mse_loss_val
+
     def masked_l2(self, a, b, mask):
         # assuming a.shape == b.shape == bs, J, Jdim, seqlen
         # assuming mask.shape == bs, 1, 1, seqlen
@@ -1332,6 +1339,26 @@ class GaussianDiffusion:
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = th.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
+
+    def generator_training_loss(self, model, x_start, cond, t):
+        noise = th.randn_like(x_start)
+        x_t = self.q_sample(x_start, t, noise=noise)
+
+        t = t.type("torch.cuda.FloatTensor")
+
+        t = self._scale_timesteps(t)
+
+        #print(x_start.dtype, x_start.shape, x_start.device)
+        #print(cond.dtype, cond.shape, cond.device)
+        #print(t.dtype, t.shape, t.device)
+        #print(model.device)
+        #print(next(model.parameters()).is_cuda)
+        #exit()
+        out = model(x=x_t, att=cond, timesteps=t)
+        loss = self.l2(x_start, out)
+        #print(out)
+        #exit()
+        return loss
 
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None, dataset=None):
         """

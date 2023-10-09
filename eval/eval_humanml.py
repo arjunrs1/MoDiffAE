@@ -7,7 +7,7 @@ from datetime import datetime
 from collections import OrderedDict
 #from data_loaders.humanml.scripts.motion_process import *
 #from data_loaders.humanml.utils.utils import *
-from utils.model_util import create_model_and_diffusion, load_model
+from utils.model_util import create_modiffae_and_diffusion, load_model
 
 from diffusion import logger
 from utils import dist_util
@@ -282,7 +282,7 @@ if __name__ == '__main__':
     num_actions = gen_loader.dataset.num_actions
 
     logger.log("Creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, gen_loader)
+    model, diffusion = create_modiffae_and_diffusion(args, gen_loader)
 
     logger.log(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

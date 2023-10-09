@@ -1,4 +1,5 @@
 from model.modiffae import MoDiffAE
+from model.semantic_generator import SemanticGenerator
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import SpacedDiffusion, space_timesteps
 import torch
@@ -11,8 +12,22 @@ def load_model(model, state_dict):
     #assert all([k.startswith('clip_model.') for k in missing_keys])
 
 
-def create_model_and_diffusion(args, data):
+def create_modiffae_and_diffusion(args, data):
     model = MoDiffAE(**get_model_args(args, data))
+    diffusion = create_gaussian_diffusion(args)
+    return model, diffusion
+
+
+def create_latent_net_and_diffusion(args):
+    model = SemanticGenerator(
+        attribute_dim=6,
+        input_dim=args.latent_dim,
+        latent_dim=args.latent_dim,
+        output_dim=args.latent_dim,
+        condition_dim=args.latent_dim,
+        num_layers=args.layers,
+        dropout=0.1
+    )
     diffusion = create_gaussian_diffusion(args)
     return model, diffusion
 
@@ -131,8 +146,9 @@ def calculate_embeddings(data, semantic_encoder, return_labels=False):
         return embeddings
 
 
-def calculate_z_parameters(data, semantic_encoder):
-    embeddings = calculate_embeddings(data, semantic_encoder)
+def calculate_z_parameters(data, semantic_encoder, embeddings=None):
+    if embeddings is None:
+        embeddings = calculate_embeddings(data, semantic_encoder)
     #embeddings = torch.cat(embeddings)
     std, mean = torch.std_mean(embeddings)
     return mean, std

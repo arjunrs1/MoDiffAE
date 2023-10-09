@@ -105,7 +105,7 @@ def add_data_options(parser):
 def add_training_options(parser):
     group = parser.add_argument_group('training')
     group.add_argument("--model_type", default='modiffae',
-                       choices=['modiffae', 'semantic_regressor', 'semantic_ddim'], type=str,
+                       choices=['modiffae', 'semantic_regressor', 'latentNet'], type=str,
                        help="Different components of the system.")
     group.add_argument("--save_dir", required=True, type=str,
                        help="Path to save checkpoints and results.")
@@ -200,6 +200,17 @@ def add_evaluation_options(parser):
                             "full (a2m only) - 20 repetitions.")
     group.add_argument("--guidance_param", default=2.5, type=float,
                        help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
+
+
+def generator_train_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_data_options(parser)
+    add_model_options(parser)
+    add_diffusion_options(parser)
+    add_training_options(parser)
+    add_sampling_options(parser)
+    return parser.parse_args()
 
 
 def train_args():

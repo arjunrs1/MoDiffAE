@@ -2,7 +2,7 @@ import numpy as np
 import os
 from load.dataset import Dataset
 import utils.karate.data_info as data_info
-
+import torch
 
 class KaratePoses(Dataset):
     def __init__(self, test_participant, data_path="datasets/kyokushin_karate", split="train",
@@ -17,7 +17,7 @@ class KaratePoses(Dataset):
         data = np.load(data_file_path, allow_pickle=True)
 
         #data = np.where(data['condition'] == 'air', data)
-        data = data[data['condition'] == 'air']
+        #data = data[data['condition'] == 'air']
 
         #print(len(data))
         #exit()
@@ -73,6 +73,22 @@ class KaratePoses(Dataset):
         #print(one_hot_labels)
         #exit()
         return one_hot_labels
+
+
+class KarateEmbeddings(torch.utils.data.Dataset):
+    def __init__(self, emb, att):
+        self.emb = emb
+        self.att = att
+        if len(self.emb) != len(self.att):
+            raise Exception("The length of the embeddings does not match the length of the attributes")
+
+    def __len__(self):
+        return len(self.emb)
+
+    def __getitem__(self, index):
+        e = self.emb[index]
+        a = self.att[index]
+        return e, a
 
 
 karate_grade_enumerator = {

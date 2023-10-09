@@ -3,13 +3,17 @@ import sys
 import json
 import torch
 from utils.fixseed import fixseed
-from utils.parser_util import classify_args, train_args
+from utils.parser_util import classify_args, train_args, generator_train_args
 from utils import dist_util
 from training.modiffae_training_loop import ModiffaeTrainLoop
 from training.semantic_regressor_training_loop import SemanticRegressorTrainLoop
+from training.semantic_generator_training_loop import SemanticGeneratorTrainLoop
 from load.get_data import get_dataset_loader
+from load.data_loaders.karate import KarateEmbeddings
+from torch.utils.data import DataLoader
 from model.semantic_regressor import SemanticRegressor
-from utils.model_util import create_model_and_diffusion, load_model, calculate_z_parameters
+from utils.model_util import create_modiffae_and_diffusion, load_model, calculate_z_parameters, calculate_embeddings
+from utils.model_util import create_latent_net_and_diffusion
 from training.train_platforms import TensorboardPlatform
 
 
@@ -18,7 +22,7 @@ def main():
     try:
         model_type = sys.argv[sys.argv.index('--model_type') + 1]
     except ValueError:
-        raise Exception('No model_type specified. Options: modiffae, semantic_regressor, semantic_ddim')
+        raise Exception('No model_type specified. Options: modiffae, semantic_regressor, latentNet')
 
     if model_type == "modiffae":
         args = train_args()
@@ -26,9 +30,9 @@ def main():
     elif model_type == "semantic_regressor":
         args = classify_args()
         args.save_dir = os.path.join(args.save_dir, "semantic_regressor")
-    elif model_type == "semantic_ddim":
-        pass
-        #args.save_dir = os.path.join(args.save_dir, "semantic_ddim")
+    elif model_type == "latentNet":
+        args = generator_train_args()
+        args.save_dir = os.path.join(args.save_dir, "latentNet")
     else:
         pass
 
@@ -71,7 +75,7 @@ def main():
         validation_data = None
 
     print("creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, train_data)
+    model, diffusion = create_modiffae_and_diffusion(args, train_data)
 
     if model_type == "modiffae":
         model.to(dist_util.dev())
@@ -79,7 +83,8 @@ def main():
         print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
         print("Training...")
         ModiffaeTrainLoop(args, train_platform, model, diffusion, train_data, validation_data).run_loop()
-    elif model_type == "semantic_regressor":
+    else:
+
         print(f"Loading checkpoints from [{args.model_path}]...")
         state_dict = torch.load(args.model_path, map_location='cpu')
         load_model(model, state_dict)
@@ -89,21 +94,41 @@ def main():
         semantic_encoder.requires_grad_(False)
         semantic_encoder.eval()
 
-        cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder)
+        emb_train_data, emb_train_labels = (
+            calculate_embeddings(train_data, semantic_encoder, return_labels=True))
+        emb_validation_data, emb_validation_labels = (
+            calculate_embeddings(validation_data, semantic_encoder, return_labels=True))
 
-        sem_regressor = SemanticRegressor(
-            input_dim=512,
-            output_dim=6, #18,
-            semantic_encoder=semantic_encoder,
-            cond_mean=cond_mean,
-            cond_std=cond_std
-        )
-        sem_regressor.to(dist_util.dev())
-        SemanticRegressorTrainLoop(args, train_platform, sem_regressor, train_data, validation_data).run_loop()
-    elif model_type == "semantic_ddim":
-        pass
-    else:
-        pass
+        if model_type == "semantic_regressor":
+            cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder, embeddings=emb_train_data)
+
+            sem_regressor = SemanticRegressor(
+                input_dim=512,
+                output_dim=6,
+                semantic_encoder=semantic_encoder,
+                cond_mean=cond_mean,
+                cond_std=cond_std
+            )
+            sem_regressor.to(dist_util.dev())
+            SemanticRegressorTrainLoop(args, train_platform, sem_regressor, train_data, validation_data).run_loop()
+        elif model_type == "latentNet":
+            emb_train_loader = DataLoader(
+                KarateEmbeddings(emb_train_data, emb_train_labels), batch_size=args.batch_size, shuffle=True,
+                drop_last=True  # , collate_fn=collate
+            )
+            emb_validation_loader = DataLoader(
+                KarateEmbeddings(emb_validation_data, emb_validation_labels), batch_size=args.batch_size, shuffle=True,
+                drop_last=True  # , collate_fn=collate
+            )
+            emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
+            emb_model.to(dist_util.dev())
+            SemanticGeneratorTrainLoop(
+                args, train_platform, emb_model, emb_diffusion,
+                emb_train_loader,  # list(zip(emb_train_data, emb_train_labels)),
+                emb_validation_loader  # list(zip(emb_validation_data, emb_validation_labels))
+            ).run_loop()
+        else:
+            pass
 
     train_platform.close()
 

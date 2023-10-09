@@ -13,7 +13,7 @@ from load.get_data import get_dataset_loader
 from eval.a2m.tools import save_metrics
 from utils.parser_util import evaluation_parser
 from utils.fixseed import fixseed
-from utils.model_util import create_model_and_diffusion, load_model
+from utils.model_util import create_modiffae_and_diffusion, load_model
 
 
 def evaluate(args, model, diffusion, data):
@@ -66,7 +66,7 @@ def main():
     data_loader = get_dataset_loader(name=args.dataset, num_frames=60, batch_size=args.batch_size,)
 
     print("creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, data_loader)
+    model, diffusion = create_modiffae_and_diffusion(args, data_loader)
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

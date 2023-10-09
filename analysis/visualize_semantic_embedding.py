@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import generate_args
-from utils.model_util import create_model_and_diffusion, load_model, calculate_embeddings, calculate_z_parameters
+from utils.model_util import create_modiffae_and_diffusion, load_model, calculate_embeddings, calculate_z_parameters
 from utils import dist_util
 from load.get_data import get_dataset_loader
 import umap
@@ -41,7 +41,7 @@ def main():
     )
 
     print("Creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion(args, train_data)
+    model, diffusion = create_modiffae_and_diffusion(args, train_data)
 
     print(f"Loading checkpoints from [{args.model_path}]...")
     state_dict = torch.load(args.model_path, map_location='cpu')

@@ -40,7 +40,7 @@ class SemanticGeneratorTrainLoop:
 
         print(self.lr)
         # TODO: manage default parameters for each model in utility
-        self.lr = 0.005
+        self.lr = 0.0001  # 005
         print(self.lr)
 
         self.log_interval = args.log_interval
@@ -147,81 +147,19 @@ class SemanticGeneratorTrainLoop:
         self.log_step()
 
     def forward(self, motion, cond, split):
-
-       # print(motion.shape)
-        #motion = torch.unsqueeze(motion, 0)
-        #cond = torch.unsqueeze(cond, 0)
-        #print(motion.shape)
-        #exit()
-
         self.opt.zero_grad()
         t, weights = self.schedule_sampler.sample(motion.shape[0], dist_util.dev())
 
         t = torch.unsqueeze(t, 1)
 
-
-        self.model = self.model.to(self.device)
+        #self.model = self.model.to(self.device)
 
         loss = self.diffusion.generator_training_loss(self.model, x_start=motion, cond=cond, t=t)
-
-        #print(loss)
-
-        #exit()
-
-        ####
-        """
-        self.opt.zero_grad()
-
-        og_motion = cond['y']['original_motion']
-        target = cond['y']['labels'].squeeze()
-
-        output = self.model(og_motion)
-
-        #loss = self.loss_fn(self.sigmoid_fn(output), target)
-
-        loss = F.binary_cross_entropy_with_logits(output, target)
-
-        action_output = output[:, :5]
-        action_output = F.softmax(action_output)
-        skill_level_output = output[:, 5]
-        skill_level_output = torch.sigmoid(skill_level_output)
-        #skill_level_output = output[:, 5:]
-        #skill_level_output = F.softmax(skill_level_output)
-
-        action_target = target[:, :5]
-        skill_level_target = target[:, 5]
-        #skill_level_target = target[:, 5:]
-
-        action_classifications = torch.argmax(action_output, dim=-1)
-        action_labels_idxs = torch.argmax(action_target, dim=-1)
-        action_correct_predictions = sum(action_classifications == action_labels_idxs).item()
-        acc_technique = action_correct_predictions / len(og_motion)
-        #action_total_correct += action_correct_predictions
-
-        '''skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
-        skill_level_labels_idxs = torch.argmax(skill_level_target, dim=-1)
-        skill_level_correct_predictions = sum(skill_level_classifications == skill_level_labels_idxs).item()
-        acc_skill_level = skill_level_correct_predictions / len(og_motion)'''
-
-        mae_skill_level = F.l1_loss(skill_level_target, skill_level_output)
-        #skill_level_total_correct += skill_level_correct_predictions
-
-        #total_instances += len(og_motion)
-
-        """
-
-        #print(loss)
-        #exit()
-
         loss = (loss * weights).mean()
 
         log_loss_dict(
             {
-                'mse': loss  #,
-                #'bce_loss': loss.item(),
-                #'acc_technique': acc_technique,
-                #'acc_skill_level': acc_skill_level
-                #'mae_skill_level': mae_skill_level
+                'mse': loss
             },
             split
         )

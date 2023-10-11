@@ -9,10 +9,7 @@ from training.modiffae_training_loop import ModiffaeTrainLoop
 from training.semantic_regressor_training_loop import SemanticRegressorTrainLoop
 from training.semantic_generator_training_loop import SemanticGeneratorTrainLoop
 from load.get_data import get_dataset_loader
-from load.data_loaders.karate import KarateEmbeddings
-from torch.utils.data import DataLoader
-from model.semantic_regressor import SemanticRegressor
-from utils.model_util import create_modiffae_and_diffusion, load_model, calculate_z_parameters, calculate_embeddings
+from utils.model_util import create_modiffae_and_diffusion, load_model, create_semantic_regressor
 from utils.model_util import create_latent_net_and_diffusion
 from training.train_platforms import TensorboardPlatform
 
@@ -94,13 +91,13 @@ def main():
         semantic_encoder.requires_grad_(False)
         semantic_encoder.eval()
 
-        emb_train_data, emb_train_labels = (
+        '''emb_train_data, emb_train_labels = (
             calculate_embeddings(train_data, semantic_encoder, return_labels=True))
         emb_validation_data, emb_validation_labels = (
-            calculate_embeddings(validation_data, semantic_encoder, return_labels=True))
+            calculate_embeddings(validation_data, semantic_encoder, return_labels=True))'''
 
         if model_type == "semantic_regressor":
-            cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder, embeddings=emb_train_data)
+            '''cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder)  # , embeddings=emb_train_data)
 
             sem_regressor = SemanticRegressor(
                 input_dim=512,
@@ -108,24 +105,30 @@ def main():
                 semantic_encoder=semantic_encoder,
                 cond_mean=cond_mean,
                 cond_std=cond_std
-            )
+            )'''
+            sem_regressor = create_semantic_regressor(args, train_data, semantic_encoder)
             sem_regressor.to(dist_util.dev())
             SemanticRegressorTrainLoop(args, train_platform, sem_regressor, train_data, validation_data).run_loop()
         elif model_type == "latentNet":
-            emb_train_loader = DataLoader(
+            """emb_train_loader = DataLoader(
                 KarateEmbeddings(emb_train_data, emb_train_labels), batch_size=args.batch_size, shuffle=True,
                 drop_last=True  # , collate_fn=collate
             )
             emb_validation_loader = DataLoader(
                 KarateEmbeddings(emb_validation_data, emb_validation_labels), batch_size=args.batch_size, shuffle=True,
                 drop_last=True  # , collate_fn=collate
-            )
-            emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
+            )"""
+            emb_model, emb_diffusion = create_latent_net_and_diffusion(args, semantic_encoder)
             emb_model.to(dist_util.dev())
             SemanticGeneratorTrainLoop(
-                args, train_platform, emb_model, emb_diffusion,
-                emb_train_loader,  # list(zip(emb_train_data, emb_train_labels)),
-                emb_validation_loader  # list(zip(emb_validation_data, emb_validation_labels))
+                args,
+                train_platform,
+                emb_model,
+                emb_diffusion,
+                train_data,
+                validation_data
+                #emb_train_loader,  # list(zip(emb_train_data, emb_train_labels)),
+                #emb_validation_loader  # list(zip(emb_validation_data, emb_validation_labels))
             ).run_loop()
         else:
             pass

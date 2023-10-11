@@ -5,6 +5,8 @@ import torch.nn as nn
 class SemanticGenerator(nn.Module):
     def __init__(
             self,
+            semantic_encoder,
+            diffusion,
             attribute_dim,
             input_dim,
             latent_dim,
@@ -15,6 +17,8 @@ class SemanticGenerator(nn.Module):
 
         super().__init__()
 
+        self.semantic_encoder = semantic_encoder
+        self.diffusion = diffusion
         self.attribute_emb = nn.Linear(attribute_dim, latent_dim)
         self.input_emb = nn.Linear(input_dim, latent_dim)
         self.output_emb = nn.Linear(latent_dim, output_dim)
@@ -22,19 +26,36 @@ class SemanticGenerator(nn.Module):
         self.layers = [AdaLNBlock(latent_dim, condition_dim, dropout) for _ in range(num_layers)]
         self.layers = torch.nn.ModuleList(self.layers)
 
-    def forward(self, x, att, timesteps):
-        #print(f"Att:{att}, {att.shape}")
+    def forward(self, x_0, t, y):
+        with torch.no_grad():
+            z_0 = self.semantic_encoder(x_0)
+
+        noise = torch.randn_like(z_0)
+        z_t = self.diffusion.q_sample(z_0, t, noise=noise)
+
+        t = t.type("torch.cuda.FloatTensor")
+        time_steps = self.diffusion._scale_timesteps(t)
+
+        att = y["labels"]
+
+        #print(att.shape)
+        #exit()
+
         att_emb = self.attribute_emb(att)
-        ts_emb = self.timestep_emb(timesteps)
+        ts_emb = self.timestep_emb(time_steps)
         cond = att_emb + ts_emb
 
-        out = self.input_emb(x)
+
+        #print(cond.shape)
+        #exit()
+
+        out = self.input_emb(z_t)
 
         for layer in self.layers:
             out = layer(out, cond)
 
         out = self.output_emb(out)
-        return out
+        return out, z_0
 
 
 class AdaLNBlock(nn.Module):
@@ -65,34 +86,22 @@ class AdaLNBlock(nn.Module):
         )
 
     def forward(self, x, cond):
-
-        #print(f"x:{x.device}")
-
         h = self.in_layers(x)
-
-        #print(f"h:{h.device}")
-
-
         cond_out = self.cond_layers(cond)  # .type(h.dtype)
-        #while len(emb_out.shape) < len(h.shape):
-        #    emb_out = emb_out[..., None]
-        #if self.use_scale_shift_norm:
-            #out_norm, out_rest = self.out_layers[0], self.out_layers[1:]
+        #print(cond_out.shape)
+        #exit()
         scale, shift = torch.chunk(cond_out, 2, dim=1)
+        #print(scale.shape, shift.shape, h.shape)
+        #exit()
         h = h * (1 + scale) + shift
         h = self.out_layers(h)
         return x + h
 
 
 class TimestepEmbedder(nn.Module):
-    def __init__(self, condition_dim):  # , sequence_pos_encoder):
+    def __init__(self, condition_dim):
         super().__init__()
         self.emb_dim = condition_dim
-        #self.sequence_pos_encoder = sequence_pos_encoder
-
-        # input dimension should be the batch size right ? [bs](int)
-
-        #time_embed_dim = self.emb_dim
         self.time_embed = nn.Sequential(
             nn.Linear(1, self.emb_dim),
             nn.GELU(),
@@ -100,5 +109,4 @@ class TimestepEmbedder(nn.Module):
         )
 
     def forward(self, timesteps):
-        #return self.time_embed(self.sequence_pos_encoder.pe[timesteps]).permute(1, 0, 2)
         return self.time_embed(timesteps)  # .permute(1, 0, 2)

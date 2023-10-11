@@ -40,6 +40,7 @@ class SemanticGeneratorTrainLoop:
 
         print(self.lr)
         # TODO: manage default parameters for each model in utility
+        # TODO: test even lower lr because train loss jumps to fast in the beginning
         self.lr = 0.0001  # 005
         print(self.lr)
 
@@ -100,11 +101,12 @@ class SemanticGeneratorTrainLoop:
                 #while True:
                 #    pass
 
-                #cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in
-                #             cond['y'].items()}
-
                 motion = motion.to(self.device)
-                cond = cond.to(self.device)
+                cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in
+                             cond['y'].items()}
+
+
+                #cond = cond.to(self.device)
 
                 self.run_step(motion, cond)
                 if self.step % self.log_interval == 0:
@@ -135,8 +137,9 @@ class SemanticGeneratorTrainLoop:
 
     def run_validation(self):
         for motion, cond in tqdm(self.validation_data, desc='Validation round'):
-            #cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in
-            #             cond['y'].items()}
+            motion = motion.to(self.device)
+            cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in
+                         cond['y'].items()}
             self.forward(motion, cond, split='validation')
 
     def run_step(self, motion, cond):
@@ -148,13 +151,16 @@ class SemanticGeneratorTrainLoop:
 
     def forward(self, motion, cond, split):
         self.opt.zero_grad()
-        t, weights = self.schedule_sampler.sample(motion.shape[0], dist_util.dev())
+
+        #print(cond["y"]["labels"].shape[0])
+        #exit()
+        t, weights = self.schedule_sampler.sample(cond["y"]["labels"].shape[0], dist_util.dev())
 
         t = torch.unsqueeze(t, 1)
 
         #self.model = self.model.to(self.device)
 
-        loss = self.diffusion.generator_training_loss(self.model, x_start=motion, cond=cond, t=t)
+        loss = self.diffusion.generator_training_loss(self.model, x_0=motion, t=t, model_kwargs=cond)
         loss = (loss * weights).mean()
 
         log_loss_dict(

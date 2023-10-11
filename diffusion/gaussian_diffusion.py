@@ -1340,13 +1340,14 @@ class GaussianDiffusion:
         output = th.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-    def generator_training_loss(self, model, x_start, cond, t):
-        noise = th.randn_like(x_start)
-        x_t = self.q_sample(x_start, t, noise=noise)
+    def generator_training_loss(self, model, x_0, t, model_kwargs):
+        #noise = th.randn_like(x_0)
+        #x_t = self.q_sample(x_0, t, noise=noise)
 
-        t = t.type("torch.cuda.FloatTensor")
+        # should already be on correct device
+        #t = t.type("torch.cuda.FloatTensor")
 
-        t = self._scale_timesteps(t)
+        #t = self._scale_timesteps(t)
 
         #print(x_start.dtype, x_start.shape, x_start.device)
         #print(cond.dtype, cond.shape, cond.device)
@@ -1354,8 +1355,8 @@ class GaussianDiffusion:
         #print(model.device)
         #print(next(model.parameters()).is_cuda)
         #exit()
-        out = model(x=x_t, att=cond, timesteps=t)
-        loss = self.l2(x_start, out)
+        out, z_0 = model(x_0=x_0, t=t, y=model_kwargs['y'])
+        loss = self.l2(z_0, out)
         #print(out)
         #exit()
         return loss

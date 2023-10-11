@@ -242,7 +242,16 @@ class InputProcess(nn.Module):
         #if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
         #print(x.shape)
         #print(self.input_feats)
+
+
+        #print(next(self.poseEmbedding.parameters()).device)
+        #print(x.device)
+        #exit()
+
         x = self.poseEmbedding(x)  # [seqlen, bs, d]
+
+
+
         return x
         #elif self.data_rep == 'rot_vel':
         #    first_pose = x[[0]]  # [1, bs, 150]

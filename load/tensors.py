@@ -46,6 +46,6 @@ def collate(batch):
 
     if 'labels' in not_none_batches[0]:
         labels_batch = [b['labels'] for b in not_none_batches]
-        cond['y'].update({'labels': torch.as_tensor(labels_batch, dtype=torch.float32).unsqueeze(1)})
+        cond['y'].update({'labels': torch.as_tensor(labels_batch, dtype=torch.float32).squeeze()}) #.unsqueeze(1)})  # remove unsqueeze?
 
     return motion, cond

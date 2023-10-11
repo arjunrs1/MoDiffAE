@@ -1,5 +1,6 @@
 from model.modiffae import MoDiffAE
 from model.semantic_generator import SemanticGenerator
+from model.semantic_regressor import SemanticRegressor
 from diffusion import gaussian_diffusion as gd
 from diffusion.respace import SpacedDiffusion, space_timesteps
 import torch
@@ -18,8 +19,11 @@ def create_modiffae_and_diffusion(args, data):
     return model, diffusion
 
 
-def create_latent_net_and_diffusion(args):
+def create_latent_net_and_diffusion(args, semantic_encoder):
+    diffusion = create_gaussian_diffusion(args)
     model = SemanticGenerator(
+        semantic_encoder=semantic_encoder,
+        diffusion=diffusion,
         attribute_dim=6,
         input_dim=args.latent_dim,
         latent_dim=args.latent_dim,
@@ -28,8 +32,19 @@ def create_latent_net_and_diffusion(args):
         num_layers=args.layers,
         dropout=0.1
     )
-    diffusion = create_gaussian_diffusion(args)
     return model, diffusion
+
+
+def create_semantic_regressor(args, train_data, semantic_encoder):
+    cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder)
+    model = SemanticRegressor(
+        input_dim=512,  # TODO: use args
+        output_dim=6,  # TODO: use args
+        semantic_encoder=semantic_encoder,
+        cond_mean=cond_mean,
+        cond_std=cond_std
+    )
+    return model
 
 
 def get_model_args(args, data):

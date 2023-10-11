@@ -8,7 +8,7 @@ import os
 import numpy as np
 import torch
 from utils.parser_util import generate_args
-from utils.model_util import create_modiffae_and_diffusion, load_model
+from utils.model_util import create_modiffae_and_diffusion, load_model, create_latent_net_and_diffusion
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
 from load.get_data import get_dataset_loader
@@ -22,8 +22,153 @@ from load.tensors import collate, collate_tensors
 from visualize.vicon_visualization import from_array
 import random
 
+
+# TODO:
+#  - create and load base model and generator
+#  - sample z conditionally from generator
+#  - decode with ddim_sample_loop, providing noise=None (causes sampling of xT from normal dist)
+#  and z in model_kwargs (z is the sample from generator)
+#  - visualize and store
+
 def main():
     args = generate_args()
+
+    fixseed(args.seed)
+    out_path = args.output_dir
+    name = os.path.basename(os.path.dirname(args.model_path))
+    niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
+
+    if args.dataset == 'karate':
+        max_frames = 100
+    else:
+        raise NotImplementedError("No number of maximum frames specified for this dataset.")
+
+    if args.dataset == 'karate':
+        fps = 25
+    else:
+        raise NotImplementedError("No framerate specified for this dataset.")
+    n_frames = min(max_frames, int(args.motion_length * fps))
+
+    dist_util.setup_dist(args.device)
+    if out_path == '':
+        out_path = os.path.join(os.path.dirname(args.model_path),
+                                'generated_samples_{}_{}_seed{}'.format(name, niter, args.seed))
+
+    assert args.num_samples <= args.batch_size, \
+        f'Please either increase batch_size({args.batch_size}) or reduce num_samples({args.num_samples})'
+    # We need this check in order to protect GPU from a memory overload in the following line.
+    # If your GPU can handle batch size larger than default, you can specify it through --batch_size flag.
+    # If it doesn't, and you still want more samples, run this script with different seeds
+    # (specify through the --seed flag)
+    args.num_samples = 10  # 10
+    args.batch_size = args.num_samples
+    #args.num_repetitions = 1
+
+    if os.path.exists(out_path):
+        shutil.rmtree(out_path)
+    os.makedirs(out_path)
+
+    # Subdirectory for each sample
+    for i in range(args.num_samples):
+        sample_path = os.path.join(out_path, str(i))
+        os.mkdir(sample_path)
+
+    print('Loading dataset...')
+    data = load_dataset(args, max_frames, n_frames, split='test')
+    #total_num_samples = args.num_samples * args.num_repetitions
+
+    print("Creating model and diffusion...")
+    model, diffusion = create_modiffae_and_diffusion(args, data)
+
+    print(f"Loading checkpoints from [{args.model_path}]...")
+    state_dict = torch.load(args.model_path, map_location='cpu')
+    load_model(model, state_dict)
+
+    model.to(dist_util.dev())
+    # Disable random masking
+    model.eval()
+
+    emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
+    print(f"Loading checkpoints from [{args.latent_model_path}]...")
+    latent_state_dict = torch.load(args.latent_model_path, map_location='cpu')
+    load_model(emb_model, latent_state_dict)
+    emb_model.to(dist_util.dev())
+    emb_model.eval()
+    # TODO: generate z (shape as the batch size)
+    generator_sample_fn = diffusion.ddim_sample_loop
+
+    # Using the diffused data from the encoder in the form of noise
+    generator_samples = generator_sample_fn(
+        emb_model,
+        # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+        (args.batch_size, args.emb_dim),  # TODO: check if emb_dim is correct
+        clip_denoised=False,
+        model_kwargs=model_kwargs,
+        skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+        init_image=None,
+        progress=True,
+        dump_steps=None,
+        noise=None,  # causes the model to sample xT from a normal distribution
+        # noise=None,
+        const_noise=False,
+    )
+
+
+    # TODO: create model kwargs with
+
+    rot2xyz_pose_rep = model.pose_rep
+    rot2xyz_mask = model_kwargs['y']['mask'].reshape(args.batch_size, n_frames).bool()
+
+    sample_file_template = 'genertaed_sample{:02d}.ogv'
+
+    model_kwargs['y']['semantic_emb'] = generator_samples
+
+    # sample_fn = diffusion.p_sample_loop
+    # Anthony: changed to use ddim sampling. Maybe use ddpm function instead
+    sample_fn = diffusion.ddim_sample_loop
+
+    # Using the diffused data from the encoder in the form of noise
+    samples = sample_fn(
+        model,
+        # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+        (args.batch_size, data.dataset.num_joints, data.dataset.num_feats, n_frames),
+        clip_denoised=False,
+        model_kwargs=model_kwargs,
+        skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+        init_image=None,
+        progress=True,
+        dump_steps=None,
+        noise=None,  # causes the model to sample xT from a normal distribution
+        # noise=None,
+        const_noise=False,
+    )
+
+    # Modified for karate
+    if args.dataset == 'karate':
+        j_type = 'karate'
+        datapath = "datasets/karate"
+        npydatafilepath = os.path.join(datapath, "karate_motion_modified.npy")
+        all_data = np.load(npydatafilepath, allow_pickle=True)
+        joint_distances = [torch.Tensor(x) for x in all_data["joint_distances"]]
+        distance = random.choices(joint_distances, k=args.batch_size)
+        distance = collate_tensors(distance)
+        distance = distance.to(dist_util.dev())
+    else:
+        j_type = 'smpl'
+        distance = None
+
+    samples = model.rot2xyz(x=samples, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
+                           jointstype='karate', vertstrans=True, betas=None, beta=0, glob_rot=None,
+                           get_rotations_back=False, distance=distance)
+
+    # TODO: visualize and save
+
+    exit()
+
+    ################
+
+
+    """args = generate_args()
     #print(args.dataset)
 
     fixseed(args.seed)
@@ -128,7 +273,7 @@ def main():
 
         sample_fn = diffusion.ddim_sample_loop
 
-        sample = sample_fn(
+        samples = sample_fn(
             model,
             (args.batch_size, model.njoints, model.nfeats, n_frames),
             clip_denoised=False,
@@ -165,10 +310,10 @@ def main():
             j_type = 'smpl'
             distance = None
 
-        print(sample.device)
+        print(samples.device)
         print(distance.device)
         
-        sample = model.rot2xyz(x=sample, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
+        samples = model.rot2xyz(x=samples, mask=rot2xyz_mask, pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
                             jointstype=j_type, vertstrans=True, betas=None, beta=0, glob_rot=None,
                             get_rotations_back=False, distance=distance)
 
@@ -178,7 +323,7 @@ def main():
             text_key = 'text' if 'text' in model_kwargs['y'] else 'action_text'
             all_text += model_kwargs['y'][text_key]
 
-        all_motions.append(sample.cpu().numpy())
+        all_motions.append(samples.cpu().numpy())
         all_lengths.append(model_kwargs['y']['lengths'].cpu().numpy())
 
         print(f"created {len(all_motions) * args.batch_size} samples")
@@ -300,7 +445,7 @@ def construct_template_variables(unconstrained):
         all_print_template = '[samples {:02d} to {:02d} | all repetitions | -> {}]'
 
     return sample_print_template, row_print_template, all_print_template, \
-           sample_file_template, row_file_template, all_file_template
+           sample_file_template, row_file_template, all_file_template"""
 
 
 def load_dataset(args, max_frames, n_frames):

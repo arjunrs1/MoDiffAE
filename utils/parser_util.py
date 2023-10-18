@@ -76,9 +76,9 @@ def add_diffusion_options(parser):
 
 def add_model_options(parser):
     group = parser.add_argument_group('model')
-    group.add_argument("--emb_trans_dec", default=False, type=bool,
-                       help="For trans_dec architecture only, if true, will inject condition as a class token"
-                            " (in addition to cross-attention).")
+    #group.add_argument("--emb_trans_dec", default=False, type=bool,
+    #                   help="For trans_dec architecture only, if true, will inject condition as a class token"
+    #                        " (in addition to cross-attention).")
     group.add_argument("--layers", default=8, type=int,
                        help="Number of layers.")
     group.add_argument("--latent_dim", default=512, type=int,
@@ -89,17 +89,17 @@ def add_model_options(parser):
     group.add_argument("--lambda_rcxyz", default=0.0, type=float, help="Joint positions loss.")
     group.add_argument("--lambda_vel", default=0.0, type=float, help="Joint velocity loss.")
     group.add_argument("--lambda_fc", default=0.0, type=float, help="Foot contact loss.")
-    group.add_argument("--unconstrained", action='store_true',
-                       help="Model is trained unconditionally. That is, it is constrained by neither text nor action. "
-                            "Currently tested on HumanAct12 only.")
+    #group.add_argument("--unconstrained", action='store_true',
+    #                   help="Model is trained unconditionally. That is, it is constrained by neither text nor action. "
+    #                        "Currently tested on HumanAct12 only.")
 
 
 def add_data_options(parser):
     group = parser.add_argument_group('dataset')
     group.add_argument("--dataset", default='karate', choices=['karate', 'humanact12'], type=str,
                        help="Dataset name (choose from list).")
-    group.add_argument("--data_dir", default="", type=str,
-                       help="If empty, will use defaults according to the specified dataset.")
+    #group.add_argument("--data_dir", default="", type=str,
+    #                   help="If empty, will use defaults according to the specified dataset.")
 
 
 def add_training_options(parser):

@@ -88,7 +88,9 @@ def main():
     # Disable random masking
     model.eval()
 
-    emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
+    args.latent_model_path = "./save/karateWithValidation/latentNet_ok/model000120000.pt"
+
+    emb_model, emb_diffusion = create_latent_net_and_diffusion(args, semantic_encoder=model.semantic_encoder)
     print(f"Loading checkpoints from [{args.latent_model_path}]...")
     latent_state_dict = torch.load(args.latent_model_path, map_location='cpu')
     load_model(emb_model, latent_state_dict)
@@ -96,6 +98,49 @@ def main():
     emb_model.eval()
     # TODO: generate z (shape as the batch size)
     generator_sample_fn = diffusion.ddim_sample_loop
+
+    ####
+
+    collate_args = [{'inp': torch.zeros(n_frames), 'tokens': None, 'lengths': n_frames}] * args.num_samples
+    #is_t2m = any([args.input_text, args.text_prompt])
+    #if is_t2m:
+        # t2m
+    #    collate_args = [dict(arg, text=txt) for arg, txt in zip(collate_args, texts)]
+    #else:
+        # a2m
+        #action = data.dataset.action_name_to_action(action_text)
+
+    #label_tensors =
+
+    skill_labels = np.array([[1], [1], [1], [1], [1], [1], [1], [1], [1], [1]])
+    # one_hot_skill_labels = np.eye(len(karate_grade_enumerator))[skill_labels]
+
+    labels = np.array([3, 3, 3, 3, 3, 4, 4, 4, 4, 4])
+    # TODO: check if this works
+    one_hot_labels = np.eye(5)[labels]
+
+    #print(one_hot_labels)
+    #print(skill_labels)
+    #exit()
+
+
+
+    # one_hot_labels = np.append(one_hot_labels, one_hot_skill_labels, axis=1)
+    one_hot_labels = np.append(one_hot_labels, skill_labels, axis=1)
+
+    collate_args = [dict(arg, labels=l) for
+                    arg, l in zip(collate_args, one_hot_labels)]
+    _, model_kwargs = collate(collate_args)
+
+    model_kwargs['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val
+                         for key, val in model_kwargs['y'].items()}
+
+    print(model_kwargs)
+
+
+    ####
+
+    args.emb_dim = 512
 
     # Using the diffused data from the encoder in the form of noise
     generator_samples = generator_sample_fn(
@@ -113,13 +158,12 @@ def main():
         const_noise=False,
     )
 
-
-    # TODO: create model kwargs with
+    #exit()
 
     rot2xyz_pose_rep = model.pose_rep
     rot2xyz_mask = model_kwargs['y']['mask'].reshape(args.batch_size, n_frames).bool()
 
-    sample_file_template = 'genertaed_sample{:02d}.ogv'
+
 
     model_kwargs['y']['semantic_emb'] = generator_samples
 
@@ -143,10 +187,13 @@ def main():
         const_noise=False,
     )
 
+    print(samples.shape)
+    #exit()
+
     # Modified for karate
     if args.dataset == 'karate':
         j_type = 'karate'
-        datapath = "datasets/karate"
+        datapath = "datasets/kyokushin_karate"
         npydatafilepath = os.path.join(datapath, "karate_motion_modified.npy")
         all_data = np.load(npydatafilepath, allow_pickle=True)
         joint_distances = [torch.Tensor(x) for x in all_data["joint_distances"]]
@@ -161,14 +208,49 @@ def main():
                            jointstype='karate', vertstrans=True, betas=None, beta=0, glob_rot=None,
                            get_rotations_back=False, distance=distance)
 
+    print(samples.shape)
+
     # TODO: visualize and save
+
+    sample_file_template = 'genertaed_sample{:02d}.ogv'
+
+    for sample_i in range(args.num_samples):
+        # rep_files = []
+        #for rep_i in range(args.num_repetitions):
+            # caption = all_text[rep_i*args.batch_size + sample_i]
+
+            # Anthony: I think it might be smart to remove this to allow length change.
+            # length = all_lengths[rep_i*args.batch_size + sample_i]
+            #motion = all_motions[rep_i * args.batch_size + sample_i].transpose(2, 0, 1)  # [:length]
+        s = samples[sample_i, :, :, :].cpu().numpy()
+        #print(s.shape)
+        #exit()
+        motion = s.transpose(2, 0, 1)  # [:length]
+
+        # motion = all_motions[rep_i*args.batch_size + sample_i]
+        t, j, ax = motion.shape
+
+        # It is important that the ordering is correct here.
+        # Numpy reshape uses C like indexing by default.
+        motion = np.reshape(motion, (t, j * ax))
+
+        #print(motion)
+
+        #print(motion.shape)
+
+        #save_file = sample_file_template.format(sample_i, rep_i)
+        # print(sample_print_template.format(caption, sample_i, rep_i, save_file))
+        #animation_save_path = os.path.join(out_path, str(sample_i), save_file)
+        #from_array(arr=motion, sampling_frequency=fps, file_name=animation_save_path)
+        from_array(arr=motion, sampling_frequency=fps)  # , file_name=animation_save_path)
+
 
     exit()
 
     ################
 
-
-    """args = generate_args()
+    """
+    args = generate_args()
     #print(args.dataset)
 
     fixseed(args.seed)
@@ -447,8 +529,17 @@ def construct_template_variables(unconstrained):
     return sample_print_template, row_print_template, all_print_template, \
            sample_file_template, row_file_template, all_file_template"""
 
+def load_dataset(args, max_frames, n_frames, split='test'):
+    data = get_dataset_loader(name=args.dataset,
+                              batch_size=args.batch_size,
+                              num_frames=max_frames,
+                              test_participant='b0372',
+                              #split='test')
+                              split=split)
+    data.fixed_length = n_frames
+    return data
 
-def load_dataset(args, max_frames, n_frames):
+"""def load_dataset(args, max_frames, n_frames):
     data = get_dataset_loader(name=args.dataset,
                               batch_size=args.batch_size,
                               num_frames=max_frames,
@@ -456,7 +547,7 @@ def load_dataset(args, max_frames, n_frames):
                               split='test') #,
                               #hml_mode='text_only')
     data.fixed_length = n_frames
-    return data
+    return data"""
 
 
 if __name__ == "__main__":

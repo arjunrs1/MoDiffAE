@@ -48,4 +48,7 @@ def collate(batch):
         labels_batch = [b['labels'] for b in not_none_batches]
         cond['y'].update({'labels': torch.as_tensor(labels_batch, dtype=torch.float32).squeeze()}) #.unsqueeze(1)})  # remove unsqueeze?
 
+        #print(cond['y']["labels"].shape)
+        #exit()
+
     return motion, cond

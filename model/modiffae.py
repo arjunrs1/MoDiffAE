@@ -9,7 +9,7 @@ from model.rotation2xyz import Rotation2xyz
 class MoDiffAE(nn.Module):
     def __init__(self, num_joints, num_feats, num_frames, translation, pose_rep,
                  latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
-                 activation="gelu", data_rep='rot6d', dataset='karate', **kwargs):
+                 activation="gelu", semantic_pool_type='global_max_pool', data_rep='rot6d', dataset='karate', **kwargs):
         super().__init__()
 
         #self.legacy = legacy
@@ -57,7 +57,8 @@ class MoDiffAE(nn.Module):
             ff_size=ff_size,
             dropout=dropout,
             activation=activation,
-            num_layers=num_layers
+            num_layers=num_layers,
+            semantic_pool_type=semantic_pool_type
         )
 
         self.decoder = Decoder(num_joints, num_feats, num_frames,  #translation, #pose_rep,
@@ -307,7 +308,7 @@ class EmbedAction(nn.Module):
 
 class SemanticEncoder(nn.Module):
     def __init__(self, data_rep, input_feats, num_frames, latent_dim=256, ff_size=1024, num_layers=8,
-                 num_heads=4, dropout=0.1, activation="gelu"):
+                 num_heads=4, dropout=0.1, activation="gelu", semantic_pool_type='global_avg_pool'):
         super().__init__()
 
         self.latent_dim = latent_dim
@@ -320,6 +321,7 @@ class SemanticEncoder(nn.Module):
 
         self.data_rep = data_rep
         self.input_feats = input_feats
+        self.semantic_pool_type = semantic_pool_type
 
         self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
 
@@ -334,10 +336,17 @@ class SemanticEncoder(nn.Module):
         self.seqTransEncoder = nn.TransformerEncoder(seq_trans_encoder_layer,
                                                      num_layers=self.num_layers)
 
-        self.linear_time = nn.Linear(
-            in_features=self.num_frames,
-            out_features=1
-        )
+        if self.semantic_pool_type == 'linear_time_layer':
+            self.linear_time = nn.Linear(
+                in_features=self.num_frames,
+                out_features=1
+            )
+        #elif self.semantic_pool_type == 'multi_head_attention_pooling':
+        #    self.multi_head_attention = torch.nn.MultiheadAttention(
+        #        embed_dim=self.num_frames,
+        #        num_heads=10,
+        #        dropout=0.1
+        #    )
 
     def forward(self, x):
 
@@ -349,7 +358,38 @@ class SemanticEncoder(nn.Module):
 
         output = encoder_output.transpose(2, 0)   # # [semdim, bs, seqlen]
 
-        output = self.linear_time(output).squeeze().transpose(1, 0)   # [bs, semdim]
+        if self.semantic_pool_type == 'global_avg_pool':
+            output = torch.mean(output, dim=-1).transpose(1, 0)
+        elif self.semantic_pool_type == 'global_max_pool':
+            output = torch.amax(output, dim=-1).transpose(1, 0)
+        elif self.semantic_pool_type == 'linear_time_layer':
+            output = self.linear_time(output).squeeze().transpose(1, 0)
+        elif self.semantic_pool_type == 'gated_multi_head_attention_pooling':
+            # TODO: This could be very interesting
+            raise Exception("Not implemented.")
+        else:
+            raise Exception("Pool type not implemented.")
 
         return output
 
+
+'''class MultiHeadAttentionPooling(nn.Module):
+      mlp_dim: Optional[int] = None  # Defaults to 4x input dim
+      num_heads: int = 12
+
+      @nn.compact
+      def __call__(self, x):
+        # TODO
+        n, l, d = x.shape  # pylint: disable=unused-variable
+        probe = self.param("probe", nn.initializers.xavier_uniform(),
+                           (1, 1, d), x.dtype)
+        probe = jnp.tile(probe, [n, 1, 1])
+
+        x = nn.MultiHeadDotProductAttention(
+            num_heads=self.num_heads,
+            kernel_init=nn.initializers.xavier_uniform())(probe, x)
+
+        # TODO: dropout on head?
+        y = nn.LayerNorm()(x)
+        x = x + MlpBlock(mlp_dim=self.mlp_dim)(y)
+        return x[:, 0]'''

@@ -22,8 +22,8 @@ def create_modiffae_and_diffusion(args, data):
 def create_latent_net_and_diffusion(args, semantic_encoder):
     diffusion = create_gaussian_diffusion(args)
     model = SemanticGenerator(
-        semantic_encoder=semantic_encoder,
-        diffusion=diffusion,
+        #semantic_encoder=semantic_encoder,
+        #diffusion=diffusion,
         attribute_dim=6,
         input_dim=args.latent_dim,
         latent_dim=args.latent_dim,

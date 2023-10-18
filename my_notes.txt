@@ -52,3 +52,26 @@ Problem: Reasons to assume instability, due to the vector being scalable but hav
 2) Axis angle between the two joints, distance statically stored. Magnitude of vector is the angle and vector the rotation axis.  
 Problem: Second point can not be uniquely caluclated since the sine rule has cases where there are two solutions. Also angel from dot product is not signed. Therefore potentially 4 solutions. 
 3) Shifted coordinate system so that first point is at (0,0,0). Still axis angles and stored distance. Signed angle. No need for sign rule. One solution. 
+
+
+
+
+-------------
+
+TODO: bei generator training ist es unnoetig dass ich zwei pfade angeben muss fuer model und save. das ist eh immer das gleiche. 
+
+anleitung fuer die scripts:
+train modiifea 
+vizualize semantic embedding 
+train classifier/regressor
+train generator
+geneate data 
+edit data 
+reconstruct data 
+
+python -m training.train --model_type latentNet --model_path ./save/karateWithValidation/model000600028.pt --save_dir ./save/karateWithValidation/ --overwrite
+
+python -m training.train --model_type modiffae --save_dir ./save/testGlobalAvgPool/ --overwrite
+
+python -m sample.generate --model_path ./save/karateWithValidation/model000600028.pt --seed 20
+

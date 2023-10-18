@@ -57,13 +57,9 @@ class KaratePoses(Dataset):
         return pose
 
     def _load_labels(self, ind):
-        # TODO: maybe add more labels later (np.append on axis 1)
-
         skill_labels = np.array([[self._grades[ind]]])
         #one_hot_skill_labels = np.eye(len(karate_grade_enumerator))[skill_labels]
-
         labels = np.array([self._actions[ind]])
-        # TODO: check if this works
         one_hot_labels = np.eye(len(karate_action_enumerator))[labels]
 
         #one_hot_labels = np.append(one_hot_labels, one_hot_skill_labels, axis=1)
@@ -75,7 +71,7 @@ class KaratePoses(Dataset):
         return one_hot_labels
 
 
-class KarateEmbeddings(torch.utils.data.Dataset):
+"""class KarateEmbeddings(torch.utils.data.Dataset):
     def __init__(self, emb, att):
         self.emb = emb
         self.att = att
@@ -88,7 +84,7 @@ class KarateEmbeddings(torch.utils.data.Dataset):
     def __getitem__(self, index):
         e = self.emb[index]
         a = self.att[index]
-        return e, a
+        return e, a"""
 
 
 karate_grade_enumerator = {

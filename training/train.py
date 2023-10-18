@@ -49,6 +49,7 @@ def main():
         json.dump(vars(args), fw, indent=4, sort_keys=True)
 
     dist_util.setup_dist(args.device)
+    print(f"Device: {dist_util.dev()}")
 
     print("creating train data loader...")
     train_data = get_dataset_loader(
@@ -125,6 +126,7 @@ def main():
                 train_platform,
                 emb_model,
                 emb_diffusion,
+                semantic_encoder,
                 train_data,
                 validation_data
                 #emb_train_loader,  # list(zip(emb_train_data, emb_train_labels)),

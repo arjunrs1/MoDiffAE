@@ -17,6 +17,7 @@ from diffusion.nn import mean_flat, sum_flat
 from diffusion.losses import normal_kl, discretized_gaussian_log_likelihood
 import utils.karate.data_info as data_info
 
+
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, scale_betas=1.):
     """
     Get a pre-defined beta schedule for the given name.
@@ -27,7 +28,7 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, scale_betas=
     they are committed to maintain backwards compatibility.
     """
     if schedule_name == "linear":
-        # Linear schedule from Ho et al, extended to work for any number of
+        # Linear schedule from Ho et al., extended to work for any number of
         # diffusion steps.
         scale = scale_betas * 1000 / num_diffusion_timesteps
         beta_start = scale * 0.0001
@@ -1340,14 +1341,17 @@ class GaussianDiffusion:
         output = th.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-    def generator_training_loss(self, model, x_0, t, model_kwargs):
-        #noise = th.randn_like(x_0)
-        #x_t = self.q_sample(x_0, t, noise=noise)
+    def generator_training_loss(self, model, z_0, t, model_kwargs):
+        noise = th.randn_like(z_0)
+        z_t = self.q_sample(z_0, t, noise=noise)
 
         # should already be on correct device
         #t = t.type("torch.cuda.FloatTensor")
 
-        #t = self._scale_timesteps(t)
+        # check if needed
+        t = t.type("torch.cuda.FloatTensor")
+
+        t = self._scale_timesteps(t)
 
         #print(x_start.dtype, x_start.shape, x_start.device)
         #print(cond.dtype, cond.shape, cond.device)
@@ -1355,7 +1359,8 @@ class GaussianDiffusion:
         #print(model.device)
         #print(next(model.parameters()).is_cuda)
         #exit()
-        out, z_0 = model(x_0=x_0, t=t, y=model_kwargs['y'])
+        #out, z_0 = model(x_0=x_0, t=t, y=model_kwargs['y'])
+        out = model(z_t=z_t, t=t, y=model_kwargs['y'])
         loss = self.l2(z_0, out)
         #print(out)
         #exit()

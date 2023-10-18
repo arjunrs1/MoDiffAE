@@ -22,7 +22,7 @@ INITIAL_LOG_LOSS_SCALE = 20.0
 
 
 class SemanticGeneratorTrainLoop:
-    def __init__(self, args, train_platform, model, diffusion, train_data, validation_data):
+    def __init__(self, args, train_platform, model, diffusion, semantic_encoder, train_data, validation_data):
 
 
         self.args = args
@@ -30,6 +30,7 @@ class SemanticGeneratorTrainLoop:
         self.train_platform = train_platform
         self.model = model
         self.diffusion = diffusion
+        self.semantic_encoder = semantic_encoder
         #self.diffusion = diffusion
         #self.cond_mode = model.cond_mode
         self.train_data = train_data
@@ -78,6 +79,7 @@ class SemanticGeneratorTrainLoop:
         self.device = torch.device("cpu")
         if torch.cuda.is_available() and dist_util.dev() != 'cpu':
             self.device = torch.device(dist_util.dev())
+
 
         #self.sigmoid_fn = torch.nn.Sigmoid()
         #self.loss_fn = torch.nn.BCELoss()
@@ -154,13 +156,19 @@ class SemanticGeneratorTrainLoop:
 
         #print(cond["y"]["labels"].shape[0])
         #exit()
-        t, weights = self.schedule_sampler.sample(cond["y"]["labels"].shape[0], dist_util.dev())
 
-        t = torch.unsqueeze(t, 1)
+        #t, weights = self.schedule_sampler.sample(cond["y"]["labels"].shape[0], dist_util.dev())
+        t, weights = self.schedule_sampler.sample(motion.shape[0], dist_util.dev())
+
+        #t = torch.unsqueeze(t, 1)
 
         #self.model = self.model.to(self.device)
 
-        loss = self.diffusion.generator_training_loss(self.model, x_0=motion, t=t, model_kwargs=cond)
+        with torch.no_grad():
+        # I think this needs to be the original motion and not x0
+            z_0 = self.semantic_encoder(motion)
+
+        loss = self.diffusion.generator_training_loss(self.model, z_0=z_0, t=t, model_kwargs=cond)
         loss = (loss * weights).mean()
 
         log_loss_dict(

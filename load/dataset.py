@@ -34,6 +34,8 @@ class Dataset(torch.utils.data.Dataset):
             self.num_feats = 4
         elif pose_rep == "rot_6d":
             self.num_feats = 6
+        elif pose_rep == "xyz":
+            self.num_feats = 3
         else:
             raise NotImplementedError("This pose representation is not implemented.")
 

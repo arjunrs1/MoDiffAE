@@ -4,11 +4,11 @@ from utils import dist_util
 
 
 class SemanticRegressor(nn.Module):
-    def __init__(self, input_dim, output_dim, semantic_encoder, cond_mean, cond_std):
+    def __init__(self, modiffae_latent_dim, attribute_dim, semantic_encoder, cond_mean, cond_std):
         super(SemanticRegressor, self).__init__()
         self.semantic_encoder = semantic_encoder
 
-        self.regressor = torch.nn.Linear(input_dim, output_dim)
+        self.regressor = torch.nn.Linear(modiffae_latent_dim, attribute_dim)
         self.cond_mean = cond_mean
         self.cond_std = cond_std
 

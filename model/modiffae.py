@@ -8,7 +8,7 @@ from model.rotation2xyz import Rotation2xyz
 
 class MoDiffAE(nn.Module):
     def __init__(self, num_joints, num_feats, num_frames, translation, pose_rep,
-                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
+                 modiffae_latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
                  activation="gelu", semantic_pool_type='global_max_pool', data_rep='rot6d', dataset='karate', **kwargs):
         super().__init__()
 
@@ -52,7 +52,7 @@ class MoDiffAE(nn.Module):
             data_rep=data_rep,
             input_feats=num_joints * num_feats,
             num_frames=num_frames,
-            latent_dim=latent_dim,
+            latent_dim=modiffae_latent_dim,
             num_heads=num_heads,
             ff_size=ff_size,
             dropout=dropout,
@@ -62,7 +62,7 @@ class MoDiffAE(nn.Module):
         )
 
         self.decoder = Decoder(num_joints, num_feats, num_frames,  #translation, #pose_rep,
-                               latent_dim, ff_size, num_layers, num_heads, dropout,
+                               modiffae_latent_dim, ff_size, num_layers, num_heads, dropout,
                                activation, data_rep, dataset, **kwargs)
 
         #self.rot2xyz = Rotation2xyz(device='cpu') #, dataset=self.dataset)

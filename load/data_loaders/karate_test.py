@@ -3,7 +3,7 @@ import os
 from load.dataset import Dataset
 
 from load.data_loaders.karate import KaratePoses
-from utils.parser_util import classify_args
+from utils.parser_util import semantic_regressor_train_args
 from utils.fixseed import fixseed
 from load.get_data import get_dataset_loader
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # print(d_post['inp'].shape)
 
     ################
-    args = classify_args()
+    args = semantic_regressor_train_args()
     #args.dataset = 'karate_test'
     #print(args.dataset)
 

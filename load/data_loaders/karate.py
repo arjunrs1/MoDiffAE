@@ -6,7 +6,8 @@ import torch
 
 class KaratePoses(Dataset):
     def __init__(self, test_participant, data_path="datasets/kyokushin_karate", split="train",
-                 pose_rep="rot_6d", num_joints=39, root_joint_name='T10', **kwargs):
+                 pose_rep="xyz", num_joints=39, root_joint_name='T10', **kwargs):
+                #pose_rep="rot_6d", num_joints=39, root_joint_name='T10', **kwargs):
 
         root_joint_idx = data_info.joint_to_index[root_joint_name]
         super().__init__(pose_rep=pose_rep, num_joints=num_joints, root_joint_idx=root_joint_idx, **kwargs)
@@ -39,6 +40,8 @@ class KaratePoses(Dataset):
 
         total_num_actions = 5
         self.num_actions = total_num_actions
+
+        self.num_of_attributes = 6
 
         self._train = list(range(len(self._pose)))
 

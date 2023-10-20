@@ -2,7 +2,7 @@ from utils.fixseed import fixseed
 import os
 import numpy as np
 import torch
-from utils.parser_util import generate_args
+from utils.parser_util import generation_args
 from utils.model_util import create_modiffae_and_diffusion, load_model
 from utils import dist_util
 from load.get_data import get_dataset_loader
@@ -11,7 +11,7 @@ from visualize.vicon_visualization import from_array
 
 
 def main():
-    args = generate_args()
+    args = generation_args()
 
     fixseed(args.seed)
     out_path = args.output_dir

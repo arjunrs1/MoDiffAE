@@ -19,16 +19,16 @@ def create_modiffae_and_diffusion(args, data):
     return model, diffusion
 
 
-def create_latent_net_and_diffusion(args, semantic_encoder):
+def create_latent_net_and_diffusion(args):
     diffusion = create_gaussian_diffusion(args)
     model = SemanticGenerator(
         #semantic_encoder=semantic_encoder,
         #diffusion=diffusion,
-        attribute_dim=6,
-        input_dim=args.latent_dim,
-        latent_dim=args.latent_dim,
-        output_dim=args.latent_dim,
-        condition_dim=args.latent_dim,
+        attribute_dim=args.attribute_dim, #6,
+        modiffae_latent_dim=args.modiffae_latent_dim,
+        latentnet_latent_dim=args.latentnet_latent_dim,
+        #embedding_dim=args.latent_dim,
+        #condition_dim=args.latent_dim,
         num_layers=args.layers,
         dropout=0.1
     )
@@ -38,8 +38,8 @@ def create_latent_net_and_diffusion(args, semantic_encoder):
 def create_semantic_regressor(args, train_data, semantic_encoder):
     cond_mean, cond_std = calculate_z_parameters(train_data, semantic_encoder)
     model = SemanticRegressor(
-        input_dim=512,  # TODO: use args
-        output_dim=6,  # TODO: use args
+        modiffae_latent_dim=args.modiffae_latent_dim,#512,  # TODO: use args
+        attribute_dim=args.attribute_dim, #6,  # TODO: use args
         semantic_encoder=semantic_encoder,
         cond_mean=cond_mean,
         cond_std=cond_std
@@ -53,10 +53,10 @@ def get_model_args(args, data):
     #clip_version = 'ViT-B/32'
     #action_emb = 'tensor'
 
-    if args.unconstrained:
-        cond_mode = 'no_cond'
-    else:
-        cond_mode = 'action'
+    #if args.unconstrained:
+    #    cond_mode = 'no_cond'
+    #else:
+    #    cond_mode = 'action'
 
     '''elif args.dataset in ['kit', 'humanml']:
         cond_mode = 'text'
@@ -89,19 +89,16 @@ def get_model_args(args, data):
 
     return {'num_joints': data.dataset.num_joints, 'num_feats': data.dataset.num_feats,
             'num_frames': args.num_frames, 'translation': True, 'pose_rep': data.dataset.pose_rep,
-            'latent_dim': args.latent_dim, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
-            'dropout': 0.1, 'activation': "gelu", 'data_rep': data.dataset.pose_rep, 'cond_mode': cond_mode,
+            'modiffae_latent_dim': args.modiffae_latent_dim, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
+            'dropout': 0.1, 'activation': "gelu", 'data_rep': data.dataset.pose_rep, #'cond_mode': cond_mode,
             'cond_mask_prob': args.cond_mask_prob,
             'dataset': args.dataset}
 
 
 def create_gaussian_diffusion(args):
     # default params
-    # TODO: (Anthony) Try with false and see what happens. Maybe they also implemented the other version. 
     predict_xstart = True  # we always predict x_start (a.k.a. x0), that's our deal!
-    #steps = 1000
-    # (Anthony: For ddim I use less steps according to the paper) they only use less once there is an additional sematic latent code
-    steps = 1000
+    steps = 1000  # args.diffusion_steps
     scale_beta = 1.  # no scaling
     #timestep_respacing = ''  # can be used for ddim sampling, we don't use it.
     # Anthony: Skipping no steps

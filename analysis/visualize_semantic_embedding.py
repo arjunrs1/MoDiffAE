@@ -2,7 +2,7 @@ from utils.fixseed import fixseed
 import os
 import numpy as np
 import torch
-from utils.parser_util import generate_args
+from utils.parser_util import generation_args
 from utils.model_util import create_modiffae_and_diffusion, load_model, calculate_embeddings, calculate_z_parameters
 from utils import dist_util
 from load.get_data import get_dataset_loader
@@ -24,7 +24,7 @@ def normalize(cond):
 
 
 def main():
-    args = generate_args()
+    args = generation_args()
 
     fixseed(args.seed)
     #out_path = args.output_dir
@@ -53,8 +53,8 @@ def main():
 
     cond_mean, cond_std = calculate_z_parameters(train_data, model.semantic_encoder)
     semantic_regressor = SemanticRegressor(
-        input_dim=512,
-        output_dim=6,  # 18,
+        modiffae_latent_dim=512,
+        attribute_dim=6,  # 18,
         semantic_encoder=model.semantic_encoder,
         cond_mean=cond_mean,
         cond_std=cond_std

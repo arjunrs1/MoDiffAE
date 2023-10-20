@@ -15,6 +15,7 @@ class Rotation2xyz:
     def __call__(self, x, mask, pose_rep, translation, data_name='karate',
                  distance=None, **kwargs):
         if pose_rep == "xyz":
+            #print("hi")
             return x
 
         if mask is None:

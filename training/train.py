@@ -3,7 +3,7 @@ import sys
 import json
 import torch
 from utils.fixseed import fixseed
-from utils.parser_util import classify_args, train_args, generator_train_args
+from utils.parser_util import semantic_regressor_train_args, modiffae_train_args, latentnet_train_args
 from utils import dist_util
 from training.modiffae_training_loop import ModiffaeTrainLoop
 from training.semantic_regressor_training_loop import SemanticRegressorTrainLoop
@@ -22,14 +22,19 @@ def main():
         raise Exception('No model_type specified. Options: modiffae, semantic_regressor, latentNet')
 
     if model_type == "modiffae":
-        args = train_args()
+        args = modiffae_train_args()
+        #print(args.save_dir)
+
+        #args2 = train_args()
+        #print(args2.save_dir)
+        #exit()
         args.save_dir = os.path.join(args.save_dir, "modiffae")
     elif model_type == "semantic_regressor":
-        args = classify_args()
+        args = semantic_regressor_train_args()
         args.save_dir = os.path.join(args.save_dir, "semantic_regressor")
     elif model_type == "latentNet":
-        args = generator_train_args()
-        args.save_dir = os.path.join(args.save_dir, "latentNet")
+        args = latentnet_train_args()
+        args.save_dir = os.path.join(args.save_dir, "latentnet")
     else:
         pass
 
@@ -119,7 +124,7 @@ def main():
                 KarateEmbeddings(emb_validation_data, emb_validation_labels), batch_size=args.batch_size, shuffle=True,
                 drop_last=True  # , collate_fn=collate
             )"""
-            emb_model, emb_diffusion = create_latent_net_and_diffusion(args, semantic_encoder)
+            emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
             emb_model.to(dist_util.dev())
             SemanticGeneratorTrainLoop(
                 args,

@@ -7,7 +7,7 @@ from utils.fixseed import fixseed
 import os
 import numpy as np
 import torch
-from utils.parser_util import generate_args
+from utils.parser_util import generation_args
 from utils.model_util import create_modiffae_and_diffusion, load_model, create_latent_net_and_diffusion
 from utils import dist_util
 from model.cfg_sampler import ClassifierFreeSampleModel
@@ -31,7 +31,7 @@ import random
 #  - visualize and store
 
 def main():
-    args = generate_args()
+    args = generation_args()
 
     fixseed(args.seed)
     out_path = args.output_dir
@@ -90,7 +90,7 @@ def main():
 
     args.latent_model_path = "./save/karateWithValidation/latentNet_ok/model000120000.pt"
 
-    emb_model, emb_diffusion = create_latent_net_and_diffusion(args, semantic_encoder=model.semantic_encoder)
+    emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
     print(f"Loading checkpoints from [{args.latent_model_path}]...")
     latent_state_dict = torch.load(args.latent_model_path, map_location='cpu')
     load_model(emb_model, latent_state_dict)

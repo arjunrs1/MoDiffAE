@@ -1390,6 +1390,7 @@ class GaussianDiffusion:
         else:
             dist = None
 
+        #print(enc.pose_rep)
         get_xyz = lambda sample: enc.rot2xyz(sample, mask=None, pose_rep=enc.pose_rep, translation=enc.translation,
                                              #glob=enc.glob,
                                              # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
@@ -1456,7 +1457,9 @@ class GaussianDiffusion:
             target_xyz, model_output_xyz = None, None
 
             if self.lambda_rcxyz > 0.:
+                #print(f"target shape {target.shape}")
                 target_xyz = get_xyz(target)  # [bs, nvertices(vertices)/njoints(smpl), 3, nframes]
+                #print(f"target xyz shape {target_xyz.shape}")
                 model_output_xyz = get_xyz(model_output)  # [bs, nvertices, 3, nframes]
                 terms["rcxyz_mse"] = self.masked_l2(target_xyz, model_output_xyz, mask)  # mean_flat((target_xyz - model_output_xyz) ** 2)
 

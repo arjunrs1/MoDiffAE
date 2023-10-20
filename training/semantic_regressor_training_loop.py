@@ -38,11 +38,11 @@ class SemanticRegressorTrainLoop:
 
         print(self.lr)
         # TODO: manage default parameters for each model in utility
-        self.lr = 0.005
+        self.lr = args.lr #0.005
         print(self.lr)
 
         self.log_interval = args.log_interval
-        self.save_interval = 10_000 #args.save_interval
+        self.save_interval = args.save_interval  # 10_000 #args.save_interval
         #self.resume_checkpoint = args.resume_checkpoint
         #self.use_fp16 = False  # deprecating this option
         #self.fp16_scale_growth = 1e-3  # deprecating this option

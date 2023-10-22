@@ -240,7 +240,56 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         ))
 
 
+def evaluate_lthi_approximation(joint_positions, avg_lthi_lkne_dist):
+    lthi_idx = data_info.joint_to_index['LTHI']
+    lasi_idx = data_info.joint_to_index['LASI']
+    lkne_idx = data_info.joint_to_index['LKNE']
+
+    positions = np.array(joint_positions[0])
+    count = 1
+    for p in joint_positions[1:]:
+        positions = np.append(positions, p, axis=0)
+        count += 1
+
+    print(f"Used {count} samples for the evaluation of the approximation of the lthi columns")
+
+    lthi_pos_target = positions[:, lthi_idx, :]
+    lasi_pos = positions[:, lasi_idx, :]
+    lkne_pos = positions[:, lkne_idx, :]
+
+    lasi_pos = np.expand_dims(lasi_pos, axis=0)
+    lasi_pos = np.expand_dims(lasi_pos, axis=2)
+    lkne_pos = np.expand_dims(lkne_pos, axis=0)
+    lkne_pos = np.expand_dims(lkne_pos, axis=2)
+
+    avg_lthi_lkne_dist = np.expand_dims(np.array([avg_lthi_lkne_dist]), axis=0)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    lasi_pos_tensor = torch.as_tensor(lasi_pos, device=device)
+    lkne_pos_tensor = torch.as_tensor(lkne_pos, device=device)
+    avg_lthi_lkne_dist = torch.as_tensor(avg_lthi_lkne_dist, device=device)
+
+    lasi_lkne_axis_angles, _ = geometry.points_to_axis_angles_and_distances(
+        start_points=lkne_pos_tensor,
+        end_points=lasi_pos_tensor
+    )
+
+    lthi_pos_approx = geometry.axis_angles_and_distances_to_points(
+        start_points=lkne_pos_tensor,
+        axis_angles=lasi_lkne_axis_angles,
+        distances=avg_lthi_lkne_dist
+    )
+
+    lthi_pos_target = torch.as_tensor(lthi_pos_target, device=device).squeeze()
+    lthi_pos_approx = lthi_pos_approx.squeeze()
+
+    approx_distances = torch.linalg.norm(lthi_pos_target - lthi_pos_approx, dim=-1)
+    mean_distance = torch.mean(approx_distances)
+    print(f"Expected error of approximation of lthi markers: {mean_distance}mm")
+
+
 def compute_avg_lthi_lkne_dist(joint_positions):
+
     lthi_idx = data_info.joint_to_index['LTHI']
     lkne_idx = data_info.joint_to_index['LKNE']
 
@@ -380,6 +429,8 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
                                        s[3] == 'B0400' and s[4] == 4 and s[5] == 'attacker']
         avg_lthi_lkne_dist = compute_avg_lthi_lkne_dist(joint_positions_400_s05_e03)
 
+        evaluate_lthi_approximation(joint_positions_400_s05_e03, avg_lthi_lkne_dist)
+
         for _, (e_dfs, a_code, tech_cls, cond, issues, file_name) in zip(tqdm(range(len(missing_lthi_sample_list)),
                     desc='Completing samples with missing LTHI marker'), missing_lthi_sample_list):
             completed_dfs = []
@@ -459,10 +510,11 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
 
 
 def get_args():
-    dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
+    #dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
+    dataset_dir = os.path.join("/home/anthony/pCloudDrive/storage/data/public/motion_diffusion_autoencoder")
 
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')
-    parser.add_argument('--data_dir', '-d', dest='data_dir', type=str, default=os.path.join(dataset_dir, 'raw_csvs'),
+    parser.add_argument('--data_dir', '-d', dest='data_dir', type=str, default=os.path.join(dataset_dir, 'karate_csv'),
                         help='The directory that stores the karate csv files.')
     parser.add_argument('--target_dir', '-t', dest='target_dir', type=str, default=dataset_dir,
                         help='The directory in which the processed data will be stored in.')

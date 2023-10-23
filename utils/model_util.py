@@ -112,6 +112,15 @@ def create_gaussian_diffusion(args):
     if not timestep_respacing:
         timestep_respacing = [steps]
 
+    try:
+        lambda_vel = args.lambda_vel
+        lambda_rcxyz = args.lambda_rcxyz
+        lambda_fc = args.lambda_fc
+    except AttributeError:
+        lambda_vel = 0
+        lambda_rcxyz = 0
+        lambda_fc = 0
+
     return SpacedDiffusion(
         use_timesteps=space_timesteps(steps, timestep_respacing),
         betas=betas,
@@ -129,9 +138,12 @@ def create_gaussian_diffusion(args):
         ),
         loss_type=loss_type,
         rescale_timesteps=rescale_timesteps,
-        lambda_vel=args.lambda_vel,
-        lambda_rcxyz=args.lambda_rcxyz,
-        lambda_fc=args.lambda_fc,
+        lambda_vel=lambda_vel,
+        lambda_rcxyz=lambda_rcxyz,
+        lambda_fc=lambda_fc,
+        #lambda_vel=args.lambda_vel,
+        #lambda_rcxyz=args.lambda_rcxyz,
+        #lambda_fc=args.lambda_fc,
     )
 
 

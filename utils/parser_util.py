@@ -19,14 +19,17 @@ def parse_and_load_from_model(parser, model_type):
     else:
         print(f'Warning: model type {model_type} is unknown.')
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
+    #args = parser.parse_args()
     args_to_overwrite = []
     for group_name in ['dataset', 'diffusion', model_type]:
         args_to_overwrite += get_args_per_group_name(parser, args, group_name)
 
     # load args from model
     model_path = get_model_path_from_args(model_type)
+
     args_path = os.path.join(os.path.dirname(model_path), 'args.json')
+
     assert os.path.exists(args_path), 'Arguments json file was not found!'
     with open(args_path, 'r') as fr:
         model_args = json.load(fr)
@@ -58,13 +61,12 @@ def get_args_per_group_name(parser, args, group_name):
 def get_model_path_from_args(model_type):
     try:
         dummy_parser = ArgumentParser()
-        # TODO: does this work? Is the model path not also with the specific model and not just the directory?
-        #   do I have to remove ending?
-        dummy_parser.add_argument(f'{model_type}_model_path')
+        dummy_parser.add_argument(f'--{model_type}_model_path')
         dummy_args, _ = dummy_parser.parse_known_args()
-        return dummy_args.model_path
+        #return dummy_args.model_path
+        return getattr(dummy_args, f'{model_type}_model_path')
     except:
-        raise ValueError('model_path argument must be specified.')
+        raise ValueError(f'{model_type}_model_path argument must be specified.')
 
 
 def add_base_options(parser):
@@ -215,7 +217,10 @@ def add_latentnet_training_options(parser):
     group.add_argument("--model_type", default='modiffae',
                        choices=['modiffae', 'semantic_regressor', 'latentnet'], type=str,
                        help="Different components of the system.")
-    group.add_argument("--save_dir", required=True, type=str,
+    #group.add_argument("--modiffae_model_path", required=True, type=str,
+    #                   help="Path to model####.pt file to be sampled.")
+    base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
+    group.add_argument("--save_dir", default=os.path.join(base_dir, "latentnet"), type=str,
                        help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
@@ -300,6 +305,11 @@ def add_sampling_options(parser):
     #                   help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
 
 
+def add_model_path_option(parser, model_type):
+    group = parser.add_argument_group(f'{model_type}_model_path')
+    group.add_argument(f'--{model_type}_model_path', required=True, type=str,
+                       help="Path to model####.pt file to be sampled.")
+
 """def add_generate_options(parser):
     group = parser.add_argument_group('generate')
     group.add_argument("--motion_length", default=6.0, type=float,
@@ -363,6 +373,7 @@ def latentnet_train_args():
     add_data_options(parser)
     add_diffusion_options(parser)
     add_latentnet_model_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
     add_latentnet_training_options(parser)
     #add_sampling_options(parser)
     return parser.parse_args()

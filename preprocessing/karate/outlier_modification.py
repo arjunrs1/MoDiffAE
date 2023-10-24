@@ -66,6 +66,38 @@ def add_orientation_outliers():
     add_to_outliers(outliers, orientation_outliers)
 
 
+def add_dominant_side_outliers():
+    left_hand_labels = ['LFIN']
+    right_hand_labels = ['RFIN']
+    left_hand_indices = [data_info.joint_to_index[la] for la in left_hand_labels]
+    right_hand_indices = [data_info.joint_to_index[ra] for ra in right_hand_labels]
+
+    left_foot_labels = ['LTOE', 'LANK', 'LHEE']
+    right_foot_labels = ['RTOE', 'RANK', 'RHEE']
+    left_foot_indices = [data_info.joint_to_index[lf] for lf in left_foot_labels]
+    right_foot_indices = [data_info.joint_to_index[rf] for rf in right_foot_labels]
+
+    velocities = [d['joint_positions'][1:, :, :] - d['joint_positions'][:-1, :, :] for d in data]
+
+    left_finger_distances_from_center = [
+        np.squeeze(np.linalg.norm(d['joint_positions'][:, left_hand_indices, 1] - 
+                       np.zeros_like(d['joint_positions'][:, left_hand_indices, 1]), axis=-1)) for d in data]
+
+    right_finger_distances_from_center = [
+        np.squeeze(np.linalg.norm(d['joint_positions'][:, right_hand_indices, 1] - 
+                       np.zeros_like(d['joint_positions'][:, right_hand_indices, 1]), axis=-1)) for d in data]
+
+    dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
+                            d['technique_cls'] == 0 and np.argmax(left_finger_distances_from_center[i]) > np.argmax(right_finger_distances_from_center[i])]
+
+    dominant_side_foot_outliers = [(i, durations[i], 'left foot dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
+                            d['technique_cls'] != 0 and np.max(vel[:, left_foot_indices, :]) > np.max(vel[:, right_foot_indices, :])]
+
+    print(f'Number of dominant side outliers: {len(dominant_side_hand_outliers) + len(dominant_side_foot_outliers)}')
+    add_to_outliers(outliers, dominant_side_hand_outliers)
+    add_to_outliers(outliers, dominant_side_foot_outliers)
+
+
 def add_no_movement_outliers():
     mean_variances = [np.mean(np.var(d['joint_positions'], axis=0)) for d in data]
     mean_variances_mean = np.mean(mean_variances)
@@ -129,6 +161,27 @@ def find_duplicate_sample_indices():
     return indices
 
 
+def switch_left_and_right_labels(rec):
+    left_labels = [
+        'LFHD', 'LBHD', 'LSHO', 'LUPA', 'LELB', 'LFRM', 'LWRA', 'LWRB', 'LFIN', 
+        'LASI', 'LPSI', 'LTHI', 'LKNE', 'LTIB', 'LANK', 'LHEE', 'LTOE'
+    ]
+    right_labels = [
+        'RFHD', 'RBHD', 'RSHO', 'RUPA', 'RELB', 'RFRM', 'RWRA', 'RWRB', 'RFIN',
+        'RASI', 'RPSI', 'RTHI', 'RKNE', 'RTIB', 'RANK', 'RHEE', 'RTOE'
+    ]
+    left_indices = [data_info.joint_to_index[l] for l in left_labels]
+    right_indices = [data_info.joint_to_index[r] for r in right_labels]
+
+    new_left_data = rec[:, right_indices, :]
+    new_right_data = rec[:, left_indices, :]
+
+    rec[:, left_indices, :] = new_left_data
+    rec[:, right_indices, :] = new_right_data
+
+    return rec
+
+
 def modify_data():
     new_data = copy.deepcopy(data)
     delete_idxs = []
@@ -136,6 +189,7 @@ def modify_data():
     try:
         for i, (idx, length, reason) in enumerate(outliers):
             pre_mirror = False
+            pre_switch = False
             rec = positions[idx]
             original_rec = copy.deepcopy(rec)
             start = 0
@@ -151,6 +205,17 @@ def modify_data():
                 rec = copy.deepcopy(original_rec[start: end])
                 if ('mirror' in actions and str(idx) not in report.keys()) or pre_mirror:
                     rec[:, :, 1] *= -1
+                    # Also need to switch sides because mirroring 
+                    # would otherwise change the dominant hand. 
+                    # No need to change left and right labels because
+                    # mirrowing and switching cancel eachother out 
+                    # in that regard. 
+                    rec[:, :, 0] *= -1
+
+                if ('switch side' in actions and str(idx) not in report.keys()) or pre_switch:  
+                    rec[:, :, 0] *= -1
+                    # Switch left and right labels
+                    rec = switch_left_and_right_labels(rec)
 
                 # Re-centering and calculating new joint angles and distances
                 positions_df = pd.DataFrame(rec.reshape(-1, 39 * 3),
@@ -198,7 +263,7 @@ def modify_data():
                         print(f'Length: {rec.shape[0] / frequency}')
                         print(f'Detection criteria: {reason}')
                         from_array(rec)
-                        action = input('Choose an action (remove, mirror, trim) or type done for no further actions: ')
+                        action = input('Choose an action (remove, mirror, trim, switch side) or type done for no further actions: ')
 
                 if action == 'remove':
                     if str(idx) in report.keys():
@@ -209,6 +274,9 @@ def modify_data():
                     delete_idxs.append(idx)
                 elif action == 'mirror':
                     rec[:, :, 1] *= -1
+                    # Also need to switch sides because mirroring 
+                    # would otherwise change the dominant hand. 
+                    rec[:, :, 0] *= -1
                     if str(idx) in report.keys():
                         actions.remove(action)
                         pre_mirror = True
@@ -216,6 +284,24 @@ def modify_data():
                             report_step_done = True
                     else:
                         if action in actions:
+                            # Reversing the mirrowing in case
+                            # it was unwanted. 
+                            actions.remove(action)
+                        else:
+                            actions.append(action)
+                elif action == 'switch side':
+                    rec[:, :, 0] *= -1
+                    # Switch left and right labels
+                    rec = switch_left_and_right_labels(rec)
+                    if str(idx) in report.keys():
+                        actions.remove(action)
+                        pre_switch = True
+                        if len(actions) == 0:
+                            report_step_done = True
+                    else:
+                        if action in actions:
+                            # Reversing the switch in case
+                            # it was unwanted. 
                             actions.remove(action)
                         else:
                             actions.append(action)
@@ -354,9 +440,10 @@ if __name__ == '__main__':
     durations = np.array(num_frames_in_video) / framerate
     '''
 
+    add_orientation_outliers()
+    add_dominant_side_outliers()
     add_duration_outliers()
     add_head_outliers()
-    add_orientation_outliers()
     add_no_movement_outliers()
     add_t_pose_outliers()
     add_manual_outliers()
@@ -372,6 +459,21 @@ if __name__ == '__main__':
             report = {}
     else:
         report = {}
+
+    # For removing already finished outliers from the 
+    # report (to do them again). Make sure to 
+    # backup the report before doing this. 
+    '''number_of_removals = 0
+    for (idx, length, reason) in outliers:
+        if str(idx) in report.keys():
+            report.pop(str(idx))
+
+            print(f'Removed idx: {idx}')
+            number_of_removals += 1
+    print(number_of_removals)
+    with open(report_file_path, 'w') as outfile:
+        json.dump(report, outfile)
+    exit()'''
 
     print('------')
     print('Beginning modification')

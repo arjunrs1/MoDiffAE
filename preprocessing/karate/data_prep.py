@@ -21,6 +21,8 @@ def create_multi_index_cols(labels, time=True):
     if time:
         column_combinations.append(('Time', ''))
     for la in labels:
+        if 'RBAK' in la:
+            la = la.replace('RBAK', 'BACK')
         if la != 'Time':
             column_combinations.append((la, 'x'))
             column_combinations.append((la, 'y'))
@@ -118,6 +120,11 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
     df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
     df.columns = cols
 
+    #print(df)
+
+    #print('hi')
+    #exit()
+
     if n_frames != df.shape[0]:
         issues['n_frames_mismatch'] = True
         print(f'Warning: Number of frames {n_frames} in header does not match actual frame number {df.shape[0]}')
@@ -149,6 +156,19 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
                 df = df[ds_labels]
             except Exception:
                 raise Exception('Unknown column label error.')
+            
+            if has_codes:
+                lthi_marker_name = attacker_code + ':LTHI'
+            else: 
+                lthi_marker_name = 'LTHI'
+
+            rthi_marker_name = lthi_marker_name.replace('LTHI', 'RTHI')
+
+            # Placeholder values to create the lthi columns. 
+            # Will be replaced later in the code. 
+            df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, rthi_marker_name, 'x'].to_numpy()
+            df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, rthi_marker_name, 'y'].to_numpy()
+            df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, rthi_marker_name, 'z'].to_numpy()
         else:
             raise Exception('Unknown column label error.')
 
@@ -198,6 +218,8 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
 
         joint_positions = e_df[data_info.joint_to_index.keys()]
         joint_positions = joint_positions.to_numpy().reshape(-1, 39, 3)
+
+        joint_positions = make_skeleton_symmetrical(joint_positions)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         joint_positions_tensor = torch.as_tensor(joint_positions, device=device)
@@ -357,6 +379,27 @@ def center_initial_position_events(event_dfs):
     return centered_event_dfs
 
 
+# TODO: interpolation of the 9 markers
+# Execute with view_problematic to see if 
+# it worked for the missing lthi ones. Should then 
+# also work for rest since that has not been changed. 
+def make_skeleton_symmetrical(joint_positions):
+    # shape : (-1, 39, 3)
+    for joint_name, (c1_name, c2_name) in data_info.asymmetric_joints_to_neighbours.items():
+        c1_idx = data_info.joint_to_index[c1_name]
+        c2_idx = data_info.joint_to_index[c2_name]
+        joint_idx = data_info.joint_to_index[joint_name]
+
+        c1_data = joint_positions[:, c1_idx, :]
+        c2_data = joint_positions[:, c2_idx, :]
+        # Calculating midpoints
+        joint_data = (c1_data + c2_data) / 2
+
+        joint_positions[:, joint_idx, :] = joint_data
+
+    return joint_positions
+
+
 def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report = {}
     npy_name = 'karate_motion_unmodified.npy'
@@ -375,10 +418,13 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     # and storage locations due to the way files are read. This would make indices in the
     # modification incorrect if the data was created on a different machine than the modification is performed.
     file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.') and not p.endswith('.md')]
+    # TODO: remove
+    #file_names = file_names[:3]
+    
     number_of_files = len(file_names)
 
     sample_list = []
-    missing_lthi_sample_list = []
+    #missing_lthi_sample_list = []
 
     for _, file_name in zip(tqdm(range(number_of_files), desc='Processing motion data'), file_names):
         full_path = os.path.join(data_dir, file_name)
@@ -407,24 +453,26 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
         df = resample_df(df, data_frequency, desired_frequency)
         event_dfs = split_events(df, events)
 
-        if issues['missing_lthi']:
-            missing_lthi_sample_list.append(
-                (event_dfs, attacker_code, technique_cls, condition, issues, file_name)
-            )
-        else:
-            event_dfs = center_initial_position_events(event_dfs)
-            add_to_sample_list(
-                sample_list,
-                event_dfs,
-                attacker_code,
-                technique_cls,
-                condition,
-                issues,
-                report,
-                file_name
-            )
+        #if issues['missing_lthi']:
+        #    missing_lthi_sample_list.append(
+        #        (event_dfs, attacker_code, technique_cls, condition, issues, file_name)
+        #    )
+        #else:
+        event_dfs = center_initial_position_events(event_dfs)
+        add_to_sample_list(
+            sample_list,
+            event_dfs,
+            attacker_code,
+            technique_cls,
+            condition,
+            issues,
+            report,
+            file_name
+        )
 
-    if len(missing_lthi_sample_list) > 0:
+    
+
+    '''if len(missing_lthi_sample_list) > 0:
         joint_positions_400_s05_e03 = [s[0] for s in sample_list if
                                        s[3] == 'B0400' and s[4] == 4 and s[5] == 'attacker']
         avg_lthi_lkne_dist = compute_avg_lthi_lkne_dist(joint_positions_400_s05_e03)
@@ -447,7 +495,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
                 issues,
                 report,
                 file_name
-            )
+            )'''
 
     j_dist_shape = (len(data_info.reconstruction_skeleton),)
     samples = np.array(sample_list, dtype=[
@@ -466,7 +514,11 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
         ]
     )
 
-    print(f'Saving processed data at {file_path} ...')
+    #vicon_visualization.from_array(samples['joint_positions'][0])
+    #vicon_visualization.from_array(samples['joint_positions'][1])
+    #exit()
+
+    '''print(f'Saving processed data at {file_path} ...')
     np.save(file_path, samples)
     print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
 
@@ -477,7 +529,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report_path = os.path.join(preprocessing_path, "preparation_report.json")
     with open(report_path, 'w') as outfile:
         json.dump(report, outfile)
-    print(f'Saved report at {report_path}.')
+    print(f'Saved report at {report_path}.')'''
 
     if view_problematic:
         # Inspecting the samples which had problems

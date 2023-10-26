@@ -10,6 +10,8 @@ import vtk
 def get_labels(): 
     labels = []
     for l in data_info.joint_to_index.keys():
+        if 'BACK' in l:
+            l = l.replace('BACK', 'RBAK')
         labels.append(l + ' (x)')
         labels.append(l + ' (y)')
         labels.append(l + ' (z)')

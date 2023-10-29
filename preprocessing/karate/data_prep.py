@@ -166,9 +166,11 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
 
             # Placeholder values to create the lthi columns. 
             # Will be replaced later in the code. 
-            df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, rthi_marker_name, 'x'].to_numpy()
-            df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, rthi_marker_name, 'y'].to_numpy()
-            df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, rthi_marker_name, 'z'].to_numpy()
+            df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, (rthi_marker_name, 'x')].to_numpy()
+            df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, (rthi_marker_name, 'y')].to_numpy()
+            df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, (rthi_marker_name, 'z')].to_numpy()
+
+            ds_labels.append(lthi_marker_name)
         else:
             raise Exception('Unknown column label error.')
 
@@ -262,7 +264,7 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         ))
 
 
-def evaluate_lthi_approximation(joint_positions, avg_lthi_lkne_dist):
+'''def evaluate_lthi_approximation(joint_positions, avg_lthi_lkne_dist):
     lthi_idx = data_info.joint_to_index['LTHI']
     lasi_idx = data_info.joint_to_index['LASI']
     lkne_idx = data_info.joint_to_index['LKNE']
@@ -308,9 +310,9 @@ def evaluate_lthi_approximation(joint_positions, avg_lthi_lkne_dist):
     approx_distances = torch.linalg.norm(lthi_pos_target - lthi_pos_approx, dim=-1)
     mean_distance = torch.mean(approx_distances)
     print(f"Expected error of approximation of lthi markers: {mean_distance}mm")
+'''
 
-
-def compute_avg_lthi_lkne_dist(joint_positions):
+'''def compute_avg_lthi_lkne_dist(joint_positions):
 
     lthi_idx = data_info.joint_to_index['LTHI']
     lkne_idx = data_info.joint_to_index['LKNE']
@@ -325,10 +327,10 @@ def compute_avg_lthi_lkne_dist(joint_positions):
     diff = lthi_pos - lkne_pos
     distances = np.linalg.norm(diff, axis=-1)
     avg_distance = np.average(distances)
-    return avg_distance
+    return avg_distance'''
 
 
-def add_lthi_column(df, avg_lthi_lkne_dist):
+'''def add_lthi_column(df, avg_lthi_lkne_dist):
     lasi_pos = df.loc[:, 'LASI'].to_numpy()
     lkne_pos = df.loc[:, 'LKNE'].to_numpy()
 
@@ -358,12 +360,14 @@ def add_lthi_column(df, avg_lthi_lkne_dist):
     df.loc[:, ('LTHI', 'x')] = lthi_pos[:, 0]
     df.loc[:, ('LTHI', 'y')] = lthi_pos[:, 1]
     df.loc[:, ('LTHI', 'z')] = lthi_pos[:, 2]
-    return df
+    return df'''
 
 
 def center_initial_position(e_df):
     e_df = e_df.copy()
     # Sternum seems like the most centered joint
+    #print(list(e_df.columns))
+    #print(e_df.loc[:, 'STRN'].to_numpy())
     offset = e_df.loc[0, 'STRN'].to_numpy()
     for j in data_info.joint_to_index.keys():
         e_df.loc[:, (j, 'x')] = e_df.loc[:, (j, 'x')] - offset[0]
@@ -379,10 +383,7 @@ def center_initial_position_events(event_dfs):
     return centered_event_dfs
 
 
-# TODO: interpolation of the 9 markers
-# Execute with view_problematic to see if 
-# it worked for the missing lthi ones. Should then 
-# also work for rest since that has not been changed. 
+# Interpolation of the 9 markers 
 def make_skeleton_symmetrical(joint_positions):
     # shape : (-1, 39, 3)
     for joint_name, (c1_name, c2_name) in data_info.asymmetric_joints_to_neighbours.items():
@@ -402,7 +403,7 @@ def make_skeleton_symmetrical(joint_positions):
 
 def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report = {}
-    npy_name = 'karate_motion_unmodified.npy'
+    npy_name = 'karate_motion_prepared.npy' #'karate_motion_unmodified.npy'
     file_path = os.path.join(target_dir, npy_name)
 
     if not os.path.exists(target_dir):
@@ -518,7 +519,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     #vicon_visualization.from_array(samples['joint_positions'][1])
     #exit()
 
-    '''print(f'Saving processed data at {file_path} ...')
+    print(f'Saving processed data at {file_path} ...')
     np.save(file_path, samples)
     print(f'Successfully saved a numpy array with {samples.shape[0]} motion sequences at {desired_frequency} Hz.')
 
@@ -529,7 +530,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report_path = os.path.join(preprocessing_path, "preparation_report.json")
     with open(report_path, 'w') as outfile:
         json.dump(report, outfile)
-    print(f'Saved report at {report_path}.')'''
+    print(f'Saved report at {report_path}.')
 
     if view_problematic:
         # Inspecting the samples which had problems
@@ -562,8 +563,8 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
 
 
 def get_args():
-    #dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
-    dataset_dir = os.path.join("/home/anthony/pCloudDrive/storage/data/public/motion_diffusion_autoencoder")
+    dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
+    #dataset_dir = os.path.join("/home/anthony/pCloudDrive/storage/data/public/motion_diffusion_autoencoder")
 
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')
     parser.add_argument('--data_dir', '-d', dest='data_dir', type=str, default=os.path.join(dataset_dir, 'karate_csv'),

@@ -33,7 +33,7 @@ def add_duration_outliers():
         mean = np.mean(dur)
         std = np.std(dur)
         cls_name = data_info.technique_class_to_name[cl]
-        if cls_name == 'Ushiro-Mawashi-Geri':
+        if cls_name == 'Spinning back kick': #'Ushiro-Mawashi-Geri': 
             # Longest and most difficult technique gets stricter criterion
             # (Since one goal is to reduce the maximum duration).
             z = 1.5
@@ -45,7 +45,8 @@ def add_duration_outliers():
                              for i, v in cls_durations if v >= upper or v <= lower]
         print(f'Number of duration outliers for the {data_info.technique_class_to_name[cl]}: '
               f'{len(duration_outliers)} (borders: ({lower:.2f}, {upper:.2f}))')
-        outliers.extend(duration_outliers)
+        #outliers.extend(duration_outliers)
+        add_to_outliers(outliers, duration_outliers)
 
 
 def add_head_outliers():
@@ -79,16 +80,21 @@ def add_dominant_side_outliers():
 
     velocities = [d['joint_positions'][1:, :, :] - d['joint_positions'][:-1, :, :] for d in data]
 
-    left_finger_distances_from_center = [
-        np.squeeze(np.linalg.norm(d['joint_positions'][:, left_hand_indices, 1] - 
-                       np.zeros_like(d['joint_positions'][:, left_hand_indices, 1]), axis=-1)) for d in data]
+    #left_finger_distances_from_center = [
+    #    np.squeeze(np.linalg.norm(d['joint_positions'][:, left_hand_indices, 1] - 
+    #                   np.zeros_like(d['joint_positions'][:, left_hand_indices, 1]), axis=-1)) for d in data]
 
-    right_finger_distances_from_center = [
-        np.squeeze(np.linalg.norm(d['joint_positions'][:, right_hand_indices, 1] - 
-                       np.zeros_like(d['joint_positions'][:, right_hand_indices, 1]), axis=-1)) for d in data]
+    #right_finger_distances_from_center = [
+    #    np.squeeze(np.linalg.norm(d['joint_positions'][:, right_hand_indices, 1] - 
+    #                   np.zeros_like(d['joint_positions'][:, right_hand_indices, 1]), axis=-1)) for d in data]
 
+    #dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
+    #                        d['technique_cls'] == 0 and np.argmax(left_finger_distances_from_center[i]) > np.argmax(right_finger_distances_from_center[i])]
+
+    # In the reverse punch, the dominant hand moves later than the non-dominant
     dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
-                            d['technique_cls'] == 0 and np.argmax(left_finger_distances_from_center[i]) > np.argmax(right_finger_distances_from_center[i])]
+                            d['technique_cls'] == 0 and np.argmax(vel[:, left_hand_indices, :]) > np.argmax(vel[:, right_hand_indices, :])]
+
 
     dominant_side_foot_outliers = [(i, durations[i], 'left foot dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
                             d['technique_cls'] != 0 and np.max(vel[:, left_foot_indices, :]) > np.max(vel[:, right_foot_indices, :])]
@@ -120,13 +126,13 @@ def add_t_pose_outliers():
     y_variances = [np.var(d, axis=-1) for d in arms_y_values]
     y_variances_mean = np.mean([np.mean(y_v) for y_v in y_variances])
     y_variances_std = np.std([np.std(y_v) for y_v in y_variances])
-    y_variances_lower = y_variances_mean - 1.8 * y_variances_std
+    y_variances_lower = y_variances_mean - 1.8 * y_variances_std # 1.8
     # Determining arm z variance border
     arms_z_values = [d['joint_positions'][:, arm_indices, 2] for d in data]
     z_variances = [np.var(d, axis=-1) for d in arms_z_values]
     z_variances_mean = np.mean([np.mean(z_v) for z_v in z_variances])
     z_variances_std = np.std([np.std(z_v) for z_v in z_variances])
-    z_variances_lower = z_variances_mean - 1.4 * z_variances_std
+    z_variances_lower = z_variances_mean - 1.3 * z_variances_std # 1.4
     # Only an outlier if all arm markers are at a similar height (z) and width (y)
     # and this happens in a time window of a second.
     t_pose_outliers = [(i, durations[i], 't-pose')
@@ -202,7 +208,11 @@ def modify_data():
             report_step = {}
             report_step_done = False
             while not done:
+                #print(original_rec[:, data_info.joint_to_index['STRN'], :])
+                
                 rec = copy.deepcopy(original_rec[start: end])
+
+                #print(start, end)
                 if ('mirror' in actions and str(idx) not in report.keys()) or pre_mirror:
                     rec[:, :, 1] *= -1
                     # Also need to switch sides because mirroring 
@@ -220,6 +230,9 @@ def modify_data():
                 # Re-centering and calculating new joint angles and distances
                 positions_df = pd.DataFrame(rec.reshape(-1, 39 * 3),
                         columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(), time=False))
+                
+                #print(data[idx]['joint_positions'][:, data_info.joint_to_index['STRN'], :])
+                #print(i, idx, length, reason)
                 centered_positions_df = data_prep.center_initial_position(positions_df)
 
                 rec = centered_positions_df.to_numpy().reshape(-1, 39, 3)
@@ -377,9 +390,9 @@ def modify_data():
         print(f'Saved new data at {new_data_file_path}.')
         print(f'It contains {len(new_data)} recordings.')
 
-        print(f'Report:')
-        for key, value in report.items():
-            print(f'{key}: {value}')
+        #print(f'Report:')
+        #for key, value in report.items():
+        #    print(f'{key}: {value}')
 
         with open(report_file_path, 'w') as outfile:
             json.dump(report, outfile)
@@ -419,7 +432,7 @@ if __name__ == '__main__':
             message += 'replaced by new data, run this script with the --replace argument. Exiting...'
             raise Exception(message)
 
-    data_file_path = os.path.join(args.data_dir, 'karate_motion_unmodified.npy')
+    data_file_path = os.path.join(args.data_dir, 'karate_motion_prepared.npy') #'karate_motion_unmodified.npy')
     data = np.load(data_file_path, allow_pickle=True)
 
     duplicate_sample_indices = find_duplicate_sample_indices()
@@ -433,22 +446,26 @@ if __name__ == '__main__':
 
     # For checking that the modified dataset contains no outliers anymore
     '''
-    data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
+    #data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
+    #data_file_path = os.path.join(args.target_dir, "karate_motion_modified.npy")
+    data_file_path = os.path.join(args.target_dir, "karate_motion_prepared.npy")
+    #data_file_path = os.path.join(args.target_dir, "karate_motion_unmodified_before_switch.npy")    
     data = np.load(data_file_path, allow_pickle=True)
-    positions = [x for x in data["joint_positions"]]
-    num_frames_in_video = [p.shape[0] for p in positions]
-    durations = np.array(num_frames_in_video) / framerate
+    new_positions = [x for x in data["joint_positions"]]
+    num_frames_in_video = [p.shape[0] for p in new_positions]
+    durations = np.array(num_frames_in_video) / args.frequency
     '''
 
     add_orientation_outliers()
     add_dominant_side_outliers()
+    add_t_pose_outliers()
     add_duration_outliers()
     add_head_outliers()
     add_no_movement_outliers()
-    add_t_pose_outliers()
     add_manual_outliers()
 
     print(f'Total number of outliers: {len(outliers)}')
+    
 
     use_report = args.use_report
     report_file_path = os.path.join(args.report_dir, "outlier_report.json")
@@ -460,15 +477,69 @@ if __name__ == '__main__':
     else:
         report = {}
 
+    #print(len(report.keys()))
+    #exit()
+    
+    '''c = 0
+    for (idx, length, reason) in outliers:
+        
+        if str(idx) not in report.keys():
+            c+= 1
+            print(idx)
+            p = positions[idx]
+            #print(report[str(idx)])
+            print(reason)
+            #from_array(p)
+        #else: 
+        #    p = positions[idx]
+        #    from_array(p)
+    print(c)
+    exit()'''
+
     # For removing already finished outliers from the 
     # report (to do them again). Make sure to 
     # backup the report before doing this. 
     '''number_of_removals = 0
     for (idx, length, reason) in outliers:
         if str(idx) in report.keys():
+            #if len(reason.split(',')) > 0 and 'dominant' in reason and 'orientation' not in reason:
             report.pop(str(idx))
 
+            print(reason)
+
             print(f'Removed idx: {idx}')
+            number_of_removals += 1
+    print(number_of_removals)
+    with open(report_file_path, 'w') as outfile:
+        json.dump(report, outfile)'''
+
+    '''c = 0
+    report_copy = report.copy()
+    for idx in report_copy.keys():
+        entry = report[idx]
+        #if 'orientation' not in entry['detection_criteria'] and 'dominant' not in entry['detection_criteria']:
+        if 'arning' in entry['note']:
+            report.pop(idx)
+            c += 1
+            print(f'removed {idx}')
+    print(c)
+    with open(report_file_path, 'w') as outfile:
+        json.dump(report, outfile)
+    exit()'''
+
+    '''number_of_removals = 0
+    outlier_keys = [str(idx) for (idx, length, reason) in outliers]
+    report_copy = report.copy()
+    for k in report_copy.keys():
+        if k not in outlier_keys:
+    #for (idx, length, reason) in outliers:
+    #    if str(idx) in report.keys():
+            #if len(reason.split(',')) > 0 and 'dominant' in reason and 'orientation' not in reason:
+            report.pop(str(k))
+
+            #print(reason)
+
+            print(f'Removed idx: {k}')
             number_of_removals += 1
     print(number_of_removals)
     with open(report_file_path, 'w') as outfile:

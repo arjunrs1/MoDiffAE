@@ -63,7 +63,7 @@ def create_split(test_participant_code):
     return train_data, validation_data, test_data
 
 
-def safe_split(train_data, validation_data, test_data, test_participant_code):
+def save_split(train_data, validation_data, test_data, test_participant_code):
     leave_one_out_data_dir = os.path.join(args.target_dir, f'leave_{test_participant_code.lower()}_out')
     if not os.path.exists(leave_one_out_data_dir):
         os.mkdir(leave_one_out_data_dir)
@@ -109,5 +109,5 @@ if __name__ == '__main__':
     train_data_1, validation_data_1, b0372_first_dan_test_data = create_split(test_participant_code='B0372')
     train_data_2, validation_data_2, b0401_eighth_kyu_test_data = create_split(test_participant_code='B0401')
 
-    safe_split(train_data_1, validation_data_1, b0372_first_dan_test_data, 'B0372')
-    safe_split(train_data_2, validation_data_2, b0401_eighth_kyu_test_data, 'B0401')
+    save_split(train_data_1, validation_data_1, b0372_first_dan_test_data, 'B0372')
+    save_split(train_data_2, validation_data_2, b0401_eighth_kyu_test_data, 'B0401')

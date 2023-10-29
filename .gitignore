@@ -1,10 +1,10 @@
 # Save
 save/*
-#datasets/*
+datasets/*
 *.npy
 *.pkl
 
-datasets/kyokushin_karate/raw_csvs/*.csv
+#datasets/kyokushin_karate/raw_csvs/*.csv
 
 !*/README.md
 !preprocessing/karate/check_idx.npy

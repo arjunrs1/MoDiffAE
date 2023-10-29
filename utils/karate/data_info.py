@@ -7,7 +7,7 @@ from io import StringIO
 
 
 cwd = os.getcwd()
-participant_data = open(os.path.join(cwd, 'datasets/kyokushin_karate/participants.csv'), 'r').readlines()
+participant_data = open(os.path.join(cwd, 'datasets/karate/participants.csv'), 'r').readlines()
 # Deleting the unit row.
 del participant_data[1]
 participants_df = pd.read_csv(StringIO(','.join(participant_data)), sep=',', header=0)
@@ -34,12 +34,20 @@ technique_to_class = {
     'S05': 4
 }
 
-technique_class_to_name = {
+'''technique_class_to_name = {
     0: 'Gyaku-Zuki',   # reverse punch
     1: 'Mae-Geri',   # front kick
     2: 'Mawashi-Geri gedan',   # roundhouse kick at knee to hip height
     3: 'Mawashi-Geri jodan',   # roundhouse kick at shoulder to (top) head height
     4: 'Ushiro-Mawashi-Geri'   # spinning back kick
+}'''
+
+technique_class_to_name = {
+    0: 'Reverse punch',   # reverse punch
+    1: 'Front kick',   # front kick
+    2: 'Low roundhouse kick',   # roundhouse kick at knee to hip height
+    3: 'High roundhouse kick',   # roundhouse kick at shoulder to (top) head height
+    4: 'Spinning back kick'   # spinning back kick
 }
 
 asymmetric_joints_to_neighbours = {

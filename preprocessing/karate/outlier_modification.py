@@ -277,7 +277,7 @@ def modify_data():
                     else:
                         print(f'Length: {rec.shape[0] / frequency}')
                         print(f'Detection criteria: {reason}')
-                        from_array(rec)
+                        from_array(rec, mode='inspection')
                         action = input('Choose an action (remove, mirror, trim, switch side) or type done for no further actions: ')
 
                 if action == 'remove':

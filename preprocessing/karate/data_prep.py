@@ -538,7 +538,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
         for i in report.keys():
             i = int(i)
             print(f'Showing motion at index {i}...')
-            vicon_visualization.from_array(samples['joint_positions'][i])
+            vicon_visualization.from_array(samples['joint_positions'][i], mode='inspection')
 
             axis_angles = np.expand_dims(samples['joint_axis_angles'][i], axis=0)
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -560,7 +560,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
             recon_pos = recon_pos.cpu().detach().numpy().squeeze()
 
             print('Showing the same motion but reconstructed (should be the same)...')
-            vicon_visualization.from_array(recon_pos)
+            vicon_visualization.from_array(recon_pos, mode='inspection')
 
 
 def get_args():

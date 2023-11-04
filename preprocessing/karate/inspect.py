@@ -60,7 +60,7 @@ for idx in check_indices:
     print(f'Condition: {condition}')
     print(f'Grade: {grade}')
 
-    from_array(d)
+    from_array(d, mode='inspection')
     print('------')
 
 # Manually add indices of problematic recordings

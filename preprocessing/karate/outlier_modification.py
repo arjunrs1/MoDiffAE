@@ -12,6 +12,7 @@ import utils.karate.data_info as data_info
 import json
 import torch
 import argparse
+from tqdm import tqdm
 
 
 def add_to_outliers(old_outliers, new_outliers):
@@ -193,7 +194,8 @@ def modify_data():
     delete_idxs = []
 
     try:
-        for i, (idx, length, reason) in enumerate(outliers):
+        #for i, (idx, length, reason) in enumerate(outliers):
+        for _, (idx, length, reason) in zip(tqdm(range(len(outliers)), desc='Processing motion data'), outliers):
             pre_mirror = False
             pre_switch = False
             rec = positions[idx]
@@ -365,16 +367,17 @@ def modify_data():
                     rec_data['joint_distances'] = new_joint_distances
                     new_data[idx] = rec_data
                     done = True
-                    print(f'Finished index {i} of the outliers (Total: {len(outliers)})')
+                    #print(f'Finished index {i} of the outliers (Total: {len(outliers)})')
                 else:
                     if action == 'none' and str(idx) in report.keys():
                         done = True
-                        print(f'Finished index {i} of the outliers.')
-                        print('------')
+                        #print(f'Finished index {i} of the outliers.')
+                        #print('------')
                     else:
                         print('Wrong Input. This recording will be repeated.')
     except KeyboardInterrupt:
-        print(f'\nAugmentation was interrupted at index {i} of the outliers.')
+        #print(f'\nAugmentation was interrupted at index {i} of the outliers.')
+        print(f'\nAugmentation was interrupted.')
     finally:
         removed_duplicates_file_path = os.path.join(args.report_dir, "removed_duplicates.json")
         with open(removed_duplicates_file_path, 'w') as outfile:
@@ -444,17 +447,15 @@ if __name__ == '__main__':
 
     outliers = []
 
-    # For checking that the modified dataset contains no outliers anymore
-    '''
+    """# For checking that the modified dataset contains no outliers anymore
     #data_file_path = os.path.join(data_path, "karate_motion_modified.npy")
     #data_file_path = os.path.join(args.target_dir, "karate_motion_modified.npy")
-    data_file_path = os.path.join(args.target_dir, "karate_motion_prepared.npy")
+    data_file_path = os.path.join(args.target_dir, "karate_motion_modified.npy")
     #data_file_path = os.path.join(args.target_dir, "karate_motion_unmodified_before_switch.npy")    
     data = np.load(data_file_path, allow_pickle=True)
     new_positions = [x for x in data["joint_positions"]]
     num_frames_in_video = [p.shape[0] for p in new_positions]
-    durations = np.array(num_frames_in_video) / args.frequency
-    '''
+    durations = np.array(num_frames_in_video) / args.frequency"""
 
     add_orientation_outliers()
     add_dominant_side_outliers()
@@ -465,7 +466,31 @@ if __name__ == '__main__':
     add_manual_outliers()
 
     print(f'Total number of outliers: {len(outliers)}')
-    
+
+    """lfhd_idx = data_info.joint_to_index['LFHD']
+    lbhd_idx = data_info.joint_to_index['LBHD']
+    for (idx, length, reason) in outliers:
+        p = positions[idx]
+        # print(report[str(idx)])
+        #print(reason)
+        mf = np.mean(p[:, lfhd_idx, 1])
+        mb = np.mean(p[:, lbhd_idx, 1])
+
+        if reason == "orientation":
+            #and
+
+            print(int(mf), int(mb))
+
+            if int(mf) - int(mb) < 10 and int(mf) - int(mb) > -10:
+                #print(idx)
+                #p = positions[idx]
+                # print(report[str(idx)])
+                print(reason)
+                print(p[:, lfhd_idx, 1], np.mean(p[:, lfhd_idx, 1]))
+                print(p[:, lbhd_idx, 1], np.mean(p[:, lbhd_idx, 1]))
+                from_array(p, mode="inspection")
+
+    exit()"""
 
     use_report = args.use_report
     report_file_path = os.path.join(args.report_dir, "outlier_report.json")

@@ -153,7 +153,7 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
 
             ds_labels = [la for la in ds_labels if 'LTHI' not in la]
             try:
-                df = df[ds_labels]
+                df = df[ds_labels].copy()
             except Exception:
                 raise Exception('Unknown column label error.')
             
@@ -162,13 +162,16 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
             else: 
                 lthi_marker_name = 'LTHI'
 
-            rthi_marker_name = lthi_marker_name.replace('LTHI', 'RTHI')
+            #rthi_marker_name = lthi_marker_name.replace('LTHI', 'RTHI')
 
             # Placeholder values to create the lthi columns. 
             # Will be replaced later in the code. 
-            df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, (rthi_marker_name, 'x')].to_numpy()
-            df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, (rthi_marker_name, 'y')].to_numpy()
-            df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, (rthi_marker_name, 'z')].to_numpy()
+            #df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, (rthi_marker_name, 'x')].copy().to_numpy()
+            #df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, (rthi_marker_name, 'y')].copy().to_numpy()
+            #df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, (rthi_marker_name, 'z')].copy().to_numpy()
+            df.loc[:, (lthi_marker_name, 'x')] = 0
+            df.loc[:, (lthi_marker_name, 'y')] = 0
+            df.loc[:, (lthi_marker_name, 'z')] = 0
 
             ds_labels.append(lthi_marker_name)
         else:
@@ -419,9 +422,7 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     # and storage locations due to the way files are read. This would make indices in the
     # modification incorrect if the data was created on a different machine than the modification is performed.
     file_names = [p for p in sorted(os.listdir(data_dir)) if not p.startswith('.') and not p.endswith('.md')]
-    # TODO: remove
-    #file_names = file_names[:3]
-    
+
     number_of_files = len(file_names)
 
     sample_list = []

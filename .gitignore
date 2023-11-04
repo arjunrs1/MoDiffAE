@@ -1,14 +1,14 @@
 # Save
 save/*
-datasets/*
+#datasets/*
 *.npy
 *.pkl
 
-#datasets/kyokushin_karate/raw_csvs/*.csv
+datasets/karate/karate_csv/*.csv
 
 !*/README.md
 !preprocessing/karate/check_idx.npy
-!datasets/karate/participants.csv
+#!datasets/karate/participants.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

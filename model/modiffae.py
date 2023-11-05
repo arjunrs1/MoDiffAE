@@ -7,9 +7,9 @@ from model.rotation2xyz import Rotation2xyz
 
 
 class MoDiffAE(nn.Module):
-    def __init__(self, num_joints, num_feats, num_frames, translation, pose_rep,
-                 modiffae_latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
-                 activation="gelu", semantic_pool_type='global_max_pool', data_rep='rot6d', dataset='karate', **kwargs):
+    def __init__(self, num_joints, num_feats, num_frames, pose_rep, translation,
+                 modiffae_latent_dim, transformer_feedforward_dim, num_layers, num_heads, dropout,
+                 semantic_pool_type, dataset):
         super().__init__()
 
         #self.legacy = legacy
@@ -41,29 +41,37 @@ class MoDiffAE(nn.Module):
 
         ##self.input_feats = njoints * nfeats
 
-        self.normalize_output = kwargs.get('normalize_encoder_output', False)
+        #self.normalize_output = kwargs.get('normalize_encoder_output', False)
 
-        self.cond_mode = kwargs.get('cond_mode', 'no_cond')
-        self.cond_mask_prob = kwargs.get('cond_mask_prob', 0.)
+        #self.cond_mode = kwargs.get('cond_mode', 'no_cond') # kwargs.get('cond_mode', 'no_cond')
+        #self.cond_mask_prob = 0.  # kwargs.get('cond_mask_prob', 0.)
         #self.arch = arch
         #self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
 
         self.semantic_encoder = SemanticEncoder(
-            data_rep=data_rep,
+            pose_rep=pose_rep,
             input_feats=num_joints * num_feats,
             num_frames=num_frames,
             latent_dim=modiffae_latent_dim,
             num_heads=num_heads,
-            ff_size=ff_size,
+            transformer_feedforward_dim=transformer_feedforward_dim,
             dropout=dropout,
-            activation=activation,
+            #activation=activation,
             num_layers=num_layers,
             semantic_pool_type=semantic_pool_type
         )
 
-        self.decoder = Decoder(num_joints, num_feats, num_frames,  #translation, #pose_rep,
-                               modiffae_latent_dim, ff_size, num_layers, num_heads, dropout,
-                               activation, data_rep, dataset, **kwargs)
+        self.decoder = Decoder(
+            num_joints,
+            num_feats,
+            num_frames,
+            pose_rep,
+            modiffae_latent_dim,
+            transformer_feedforward_dim,
+            num_layers,
+            num_heads,
+            dropout
+        )
 
         #self.rot2xyz = Rotation2xyz(device='cpu') #, dataset=self.dataset)
         self.rot2xyz = Rotation2xyz(device='cpu')  # , dataset=self.dataset)
@@ -97,16 +105,15 @@ class MoDiffAE(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, njoints, nfeats, num_frames, #translation, #pose_rep,
-                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
-                 activation="gelu", data_rep='rot6d', dataset='amass', **kargs):
+    def __init__(self, num_joints, num_feats, num_frames, pose_rep,
+                 latent_dim, transformer_feedforward_dim, num_layers, num_heads, dropout):
         super().__init__()
 
-        self.n_joints = njoints
-        self.nfeats = nfeats
+        self.num_joints = num_joints
+        self.num_feats = num_feats
         #self.num_actions = num_actions
-        self.data_rep = data_rep
-        self.dataset = dataset
+        self.pose_rep = pose_rep
+        #self.dataset = dataset
 
         #self.pose_rep = pose_rep
         #self.translation = translation
@@ -114,25 +121,20 @@ class Decoder(nn.Module):
         self.latent_dim = latent_dim
         self.num_frames = num_frames
 
-        self.ff_size = ff_size
+        self.transformer_feedforward_dim = transformer_feedforward_dim
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.dropout = dropout
-        self.activation = activation
+        #self.activation = activation
 
-        self.input_feats = self.n_joints * self.nfeats
+        self.input_feats = self.num_joints * self.num_feats
 
-        self.normalize_output = kargs.get('normalize_encoder_output', False)
+        #self.normalize_output = kargs.get('normalize_encoder_output', False)
 
-        # TODO: the diffusion autoencoder does not use this and currently during training the mask
-        #       probability is ste to 0. Experiment with this and compare results.
-        #       This would enable unconditional generation. However, I can simply generate a
-        #       condition with another ddim. So the question would more be what is better.
-        #       This might negatively effect the training of the semantic encoder.
-        self.cond_mode = kargs.get('cond_mode', 'no_cond')
-        self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
+        # self.cond_mode = kargs.get('cond_mode', 'no_cond')
+        #self.cond_mask_prob = 0.  # kargs.get('cond_mask_prob', 0.)
 
-        self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
+        self.input_process = InputProcess(self.pose_rep, self.input_feats, self.latent_dim)
 
         self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
 
@@ -142,19 +144,19 @@ class Decoder(nn.Module):
 
         seq_trans_encoder_layer = nn.TransformerEncoderLayer(d_model=self.latent_dim,
                                                              nhead=self.num_heads,
-                                                             dim_feedforward=self.ff_size,
+                                                             dim_feedforward=self.transformer_feedforward_dim,
                                                              dropout=self.dropout,
-                                                             activation=self.activation)
+                                                             activation="gelu")
 
         self.seqTransEncoder = nn.TransformerEncoder(seq_trans_encoder_layer,
                                                      num_layers=self.num_layers)
 
         self.embed_timestep = TimestepEmbedder(self.latent_dim, self.sequence_pos_encoder)
 
-        self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.n_joints,
-                                            self.nfeats)
+        self.output_process = OutputProcess(self.pose_rep, self.input_feats, self.latent_dim, self.num_joints,
+                                            self.num_feats)
 
-    def mask_cond(self, cond, force_mask=False):
+    '''def mask_cond(self, cond, force_mask=False):
         bs, d = cond.shape
         if force_mask:
             return torch.zeros_like(cond)
@@ -162,7 +164,7 @@ class Decoder(nn.Module):
             mask = torch.bernoulli(torch.ones(bs, device=cond.device) * self.cond_mask_prob).view(bs, 1)  # 1-> use null_cond, 0-> use real cond
             return cond * (1. - mask)
         else:
-            return cond
+            return cond'''
 
     def forward(self, x, semantic_emb, timesteps, y=None):
         """
@@ -172,9 +174,9 @@ class Decoder(nn.Module):
 
         emb = self.embed_timestep(timesteps)  # [1, bs, d]
 
-        force_mask = y.get('uncond', False)
+        #force_mask = y.get('uncond', False)
 
-        emb += self.mask_cond(semantic_emb, force_mask=force_mask)
+        emb += semantic_emb  # self.mask_cond(semantic_emb, force_mask=force_mask)
 
         x = self.input_process(x)
 
@@ -217,8 +219,8 @@ class TimestepEmbedder(nn.Module):
         time_embed_dim = self.latent_dim
         self.time_embed = nn.Sequential(
             nn.Linear(self.latent_dim, time_embed_dim),
-            # TODO: change to gelu
-            nn.SiLU(),
+            #nn.SiLU(),
+            nn.GELU(),
             nn.Linear(time_embed_dim, time_embed_dim),
         )
 
@@ -227,13 +229,13 @@ class TimestepEmbedder(nn.Module):
 
 
 class InputProcess(nn.Module):
-    def __init__(self, data_rep, input_feats, latent_dim):
+    def __init__(self, pose_rep, input_feats, latent_dim):
         super().__init__()
-        self.data_rep = data_rep
+        self.pose_rep = pose_rep
         self.input_feats = input_feats
         self.latent_dim = latent_dim
         self.poseEmbedding = nn.Linear(self.input_feats, self.latent_dim)
-        if self.data_rep == 'rot_vel':
+        if self.pose_rep == 'rot_vel':
             self.velEmbedding = nn.Linear(self.input_feats, self.latent_dim)
 
     def forward(self, x):
@@ -265,15 +267,15 @@ class InputProcess(nn.Module):
 
 
 class OutputProcess(nn.Module):
-    def __init__(self, data_rep, input_feats, latent_dim, njoints, nfeats):
+    def __init__(self, pose_rep, input_feats, latent_dim, njoints, nfeats):
         super().__init__()
-        self.data_rep = data_rep
+        self.pose_rep = pose_rep
         self.input_feats = input_feats
         self.latent_dim = latent_dim
         self.njoints = njoints
         self.nfeats = nfeats
         self.poseFinal = nn.Linear(self.latent_dim, self.input_feats)
-        if self.data_rep == 'rot_vel':
+        if self.pose_rep == 'rot_vel':
             self.velFinal = nn.Linear(self.latent_dim, self.input_feats)
 
     def forward(self, output):
@@ -307,31 +309,31 @@ class EmbedAction(nn.Module):
 
 
 class SemanticEncoder(nn.Module):
-    def __init__(self, data_rep, input_feats, num_frames, latent_dim=256, ff_size=1024, num_layers=8,
-                 num_heads=4, dropout=0.1, activation="gelu", semantic_pool_type='global_avg_pool'):
+    def __init__(self, pose_rep, input_feats, num_frames, latent_dim, transformer_feedforward_dim, num_layers,
+                 num_heads, dropout, semantic_pool_type):
         super().__init__()
 
         self.latent_dim = latent_dim
         self.num_heads = num_heads
-        self.ff_size = ff_size
+        self.transformer_feedforward_dim = transformer_feedforward_dim
         self.dropout = dropout
-        self.activation = activation
+        #self.activation = activation
         self.num_layers = num_layers
         self.num_frames = num_frames
 
-        self.data_rep = data_rep
+        self.pose_rep = pose_rep
         self.input_feats = input_feats
         self.semantic_pool_type = semantic_pool_type
 
-        self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
+        self.input_process = InputProcess(self.pose_rep, self.input_feats, self.latent_dim)
 
         self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
 
         seq_trans_encoder_layer = nn.TransformerEncoderLayer(d_model=self.latent_dim,
                                                              nhead=self.num_heads,
-                                                             dim_feedforward=self.ff_size,
+                                                             dim_feedforward=self.transformer_feedforward_dim,
                                                              dropout=self.dropout,
-                                                             activation=self.activation)
+                                                             activation="gelu")
 
         self.seqTransEncoder = nn.TransformerEncoder(seq_trans_encoder_layer,
                                                      num_layers=self.num_layers)
@@ -365,7 +367,7 @@ class SemanticEncoder(nn.Module):
         elif self.semantic_pool_type == 'linear_time_layer':
             output = self.linear_time(output).squeeze().transpose(1, 0)
         elif self.semantic_pool_type == 'gated_multi_head_attention_pooling':
-            # TODO: This could be very interesting
+            # This could be very interesting
             raise Exception("Not implemented.")
         else:
             raise Exception("Pool type not implemented.")

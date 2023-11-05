@@ -32,7 +32,7 @@ def main():
         args.save_dir = os.path.join(args.save_dir, "modiffae")
     elif model_type == "semantic_regressor":
         args = semantic_regressor_train_args()
-        args.save_dir = os.path.join(args.save_dir, "semantic_regressor")
+        #args.save_dir = os.path.join(args.save_dir, "semantic_regressor")
     elif model_type == "latentnet":
         args = latentnet_train_args()
         #args.save_dir = os.path.join(args.save_dir, "latentnet")
@@ -63,6 +63,7 @@ def main():
         batch_size=args.batch_size,
         num_frames=args.num_frames,
         test_participant='b0372',
+        pose_rep=args.pose_rep,
         split='train'
     )
 
@@ -73,6 +74,7 @@ def main():
             batch_size=args.batch_size,
             num_frames=args.num_frames,
             test_participant='b0372',
+            pose_rep=args.pose_rep,
             split='validation'
         )
     else:

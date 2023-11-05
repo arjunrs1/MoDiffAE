@@ -2,12 +2,15 @@
 
 Train modiffae:
 
-python -m training.train --model_type modiffae --save_dir ./save/testTrainAndLoad/ --overwrite --lambda_rcxyz 1 --lambda_vel 1 --lambda_fc 1
+python -m training.train --model_type modiffae --save_dir ./save/testTrainAndLoad/ --overwrite
 
 
 Train latentnet:
 
  python -m training.train --model_type latentnet --modiffae_model_path ./save/testTrainAndLoad/modiffae/model000000000.pt --overwrite
+ 
+ 
+ 
 
 
 

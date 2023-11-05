@@ -211,7 +211,7 @@ if __name__ == "__main__":
     '''
 
     #rot2xyz_pose_rep = 'xyz' if model.data_rep in ['xyz', 'hml_vec'] else model.data_rep
-    rot2xyz_pose_rep = model.data_rep
+    rot2xyz_pose_rep = model.pose_rep
     # rot2xyz_mask = None if rot2xyz_pose_rep == 'xyz' else model_kwargs['y']['mask'].reshape(1, n_frames).bool()
     rot2xyz_mask = None if rot2xyz_pose_rep == 'xyz' else model_kwargs['y']['mask'].reshape(args.batch_size,
                                                                                             n_frames).bool()

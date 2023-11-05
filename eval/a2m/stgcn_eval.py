@@ -80,7 +80,7 @@ def evaluate(args, model, diffusion, data):
 
     bs = args.batch_size
     args.num_classes = 40
-    args.nfeats = 6
+    args.num_feats = 6
     args.njoint = 25
     device = dist_util.dev()
 

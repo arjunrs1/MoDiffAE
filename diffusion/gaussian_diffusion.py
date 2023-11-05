@@ -1452,7 +1452,10 @@ class GaussianDiffusion:
             }[self.model_mean_type]
             assert model_output.shape == target.shape == x_start.shape  # [bs, njoints, nfeats, nframes]
 
-            terms["rot_mse"] = self.masked_l2(target, model_output, mask) # mean_flat(rot_mse)
+            if dataset.pose_rep != 'xyz':
+                terms["rot_mse"] = self.masked_l2(target, model_output, mask) # mean_flat(rot_mse)
+            #else:
+            #    terms["rot_mse"] = th.tensor(0).to(device=target.device).float()
 
             target_xyz, model_output_xyz = None, None
 
@@ -1503,8 +1506,13 @@ class GaussianDiffusion:
                                                   model_output_vel[:, :-1, :, :],
                                                   mask[:, :, :, 1:])  # mean_flat((target_vel - model_output_vel) ** 2)
 
-            terms["loss"] = terms["rot_mse"] + terms.get('vb', 0.) +\
+            '''terms["loss"] = terms["rot_mse"] + terms.get('vb', 0.) +\
                             (self.lambda_vel * terms.get('vel_mse', 0.)) +\
+                            (self.lambda_rcxyz * terms.get('rcxyz_mse', 0.)) + \
+                            (self.lambda_fc * terms.get('fc', 0.))'''
+
+            terms["loss"] = terms.get("rot_mse", 0.) + terms.get('vb', 0.) + \
+                            (self.lambda_vel * terms.get('vel_mse', 0.)) + \
                             (self.lambda_rcxyz * terms.get('rcxyz_mse', 0.)) + \
                             (self.lambda_fc * terms.get('fc', 0.))
 

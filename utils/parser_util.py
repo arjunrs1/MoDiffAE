@@ -91,92 +91,60 @@ def add_data_options(parser):
     group = parser.add_argument_group('dataset')
     group.add_argument("--dataset", default='karate', choices=['karate', 'humanact12'], type=str,
                        help="Dataset name (choose from list).")
+    group.add_argument("--pose_rep", default='xyz', choices=['xyz', 'rot_6d', 'rot_vec', 'rot_mat', 'rot_quat'],
+                       type=str, help="Pose representation (choose from list).")
+    group.add_argument("--no_translation", action='store_true',
+                       help="If set, no translation will be used.")
     #group.add_argument("--data_dir", default="", type=str,
     #                   help="If empty, will use defaults according to the specified dataset.")
 
 
 def add_modiffae_model_options(parser):
     group = parser.add_argument_group('modiffae')
-    #group.add_argument("--emb_trans_dec", default=False, type=bool,
-    #                   help="For trans_dec architecture only, if true, will inject condition as a class token"
-    #                        " (in addition to cross-attention).")
     group.add_argument("--layers", default=8, type=int,
                        help="Number of layers.")
+    group.add_argument("--heads", default=4, type=int,
+                       help="Number of heads.")
     group.add_argument("--modiffae_latent_dim", default=512, type=int,
                        help="Transformer width.")
-    #group.add_argument("--latentNet_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--modiffae_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    group.add_argument("--cond_mask_prob", default=.1, type=float,
-                       help="The probability of masking the condition during training."
-                            " For classifier-free guidance learning.")
-    group.add_argument("--lambda_rcxyz", default=0.0, type=float, help="Joint positions loss.")
-    group.add_argument("--lambda_vel", default=0.0, type=float, help="Joint velocity loss.")
-    group.add_argument("--lambda_fc", default=0.0, type=float, help="Foot contact loss.")
-    #group.add_argument("--unconstrained", action='store_true',
-    #                   help="Model is trained unconditionally. That is, it is constrained by neither text nor action. "
-    #                        "Currently tested on HumanAct12 only.")
+    group.add_argument("--transformer_feedforward_dim", default=1024, type=int,
+                       help="Transformer width.")
+    group.add_argument("--dropout", default=0.1, type=float,
+                       help="Dropout rate.")
+    group.add_argument("--semantic_pool_type", default='global_max_pool',
+                       choices=['global_avg_pool', 'global_max_pool', 'linear_time_layer'], type=str,
+                       help="Type of pooling to extract the semantic embedding from the semantic encoder output.")
 
 
 def add_latentnet_model_options(parser):
     group = parser.add_argument_group('latentnet')
-    #group.add_argument("--emb_trans_dec", default=False, type=bool,
-    #                   help="For trans_dec architecture only, if true, will inject condition as a class token"
-    #                        " (in addition to cross-attention).")
+    # TODO: in paper they used 10 layers
     group.add_argument("--layers", default=8, type=int,
                        help="Number of layers.")
+    # TODO: try 1024 or like in paper 2048
     group.add_argument("--latentnet_latent_dim", default=512, type=int,
                        help="Transformer width.")
     group.add_argument("--modiffae_latent_dim", default=512, type=int,
                        help="Transformer width.")
     group.add_argument("--attribute_dim", default=6, type=int,
                        help="Number of attributes.")
-    #group.add_argument("--latentNet_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--modiffae_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--cond_mask_prob", default=.1, type=float,
-    #                   help="The probability of masking the condition during training."
-    #                        " For classifier-free guidance learning.")
-    #group.add_argument("--lambda_rcxyz", default=0.0, type=float, help="Joint positions loss.")
-    #group.add_argument("--lambda_vel", default=0.0, type=float, help="Joint velocity loss.")
-    #group.add_argument("--lambda_fc", default=0.0, type=float, help="Foot contact loss.")
-    #group.add_argument("--unconstrained", action='store_true',
-    #                   help="Model is trained unconditionally. That is, it is constrained by neither text nor action. "
-    #                        "Currently tested on HumanAct12 only.")
+    group.add_argument("--dropout", default=0.1, type=float,
+                       help="Dropout rate.")
 
 
 def add_semantic_regressor_model_options(parser):
     group = parser.add_argument_group('semantic_regressor')
-    #group.add_argument("--emb_trans_dec", default=False, type=bool,
-    #                   help="For trans_dec architecture only, if true, will inject condition as a class token"
-    #                        " (in addition to cross-attention).")
-    #group.add_argument("--layers", default=8, type=int,
-    #                   help="Number of layers.")
     group.add_argument("--modiffae_latent_dim", default=512, type=int,
                        help="Transformer width.")
     group.add_argument("--attribute_dim", default=6, type=int,
                        help="Number of attributes.")
-    #group.add_argument("--latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--latentNet_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--modiffae_latent_dim", default=512, type=int,
-    #                   help="Transformer width.")
-    #group.add_argument("--cond_mask_prob", default=.1, type=float,
-    #                   help="The probability of masking the condition during training."
-    #                        " For classifier-free guidance learning.")
-    #group.add_argument("--lambda_rcxyz", default=0.0, type=float, help="Joint positions loss.")
-    #group.add_argument("--lambda_vel", default=0.0, type=float, help="Joint velocity loss.")
-    #group.add_argument("--lambda_fc", default=0.0, type=float, help="Foot contact loss.")
-    #group.add_argument("--unconstrained", action='store_true',
-    #                   help="Model is trained unconditionally. That is, it is constrained by neither text nor action. "
-    #                        "Currently tested on HumanAct12 only.")
 
 
 def add_modiffae_training_options(parser):
     group = parser.add_argument_group('modiffae_training')
+    group.add_argument("--lambda_rcxyz", default=1, type=float, help="Joint positions loss.")
+    group.add_argument("--lambda_vel", default=1, type=float, help="Joint velocity loss.")
+    group.add_argument("--lambda_fc", default=1, type=float, help="Foot contact loss.")
     group.add_argument("--model_type", default='modiffae',
                        choices=['modiffae', 'semantic_regressor', 'latentnet'], type=str,
                        help="Different components of the system.")
@@ -184,8 +152,6 @@ def add_modiffae_training_options(parser):
                        help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    #group.add_argument("--train_platform_type", default='NoPlatform', choices=['TensorboardPlatform'], type=str,
-    #                   help="Choose platform to log results. NoPlatform means no logging.")
     group.add_argument("--lr", default=1e-4, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
     group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
@@ -206,8 +172,6 @@ def add_modiffae_training_options(parser):
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=600_000, type=int,
                        help="Training will stop after the specified number of steps.")
-    # group.add_argument("--num_frames", default=60, type=int,
-    #                    help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 
@@ -224,8 +188,6 @@ def add_latentnet_training_options(parser):
                        help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    #group.add_argument("--train_platform_type", default='NoPlatform', choices=['TensorboardPlatform'], type=str,
-    #                   help="Choose platform to log results. NoPlatform means no logging.")
     group.add_argument("--lr", default=0.0001, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
     group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
@@ -246,8 +208,6 @@ def add_latentnet_training_options(parser):
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=600_000, type=int,
                        help="Training will stop after the specified number of steps.")
-    # group.add_argument("--num_frames", default=60, type=int,
-    #                    help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 
@@ -257,12 +217,13 @@ def add_semantic_regressor_training_options(parser):
     group.add_argument("--model_type", default='modiffae',
                        choices=['modiffae', 'semantic_regressor', 'latentnet'], type=str,
                        help="Different components of the system.")
-    group.add_argument("--save_dir", required=True, type=str,
+    base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
+    group.add_argument("--save_dir", default=os.path.join(base_dir, "semantic_regressor"), type=str,
                        help="Path to save checkpoints and results.")
+    #group.add_argument("--save_dir", required=True, type=str,
+    #                   help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    #group.add_argument("--train_platform_type", default='NoPlatform', choices=['TensorboardPlatform'], type=str,
-    #                   help="Choose platform to log results. NoPlatform means no logging.")
     group.add_argument("--lr", default=0.005, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
     group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
@@ -283,8 +244,6 @@ def add_semantic_regressor_training_options(parser):
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=600_000, type=int,
                        help="Training will stop after the specified number of steps.")
-    # group.add_argument("--num_frames", default=60, type=int,
-    #                    help="Limit for the maximal number of frames. In HumanML3D and KIT this field is ignored.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 

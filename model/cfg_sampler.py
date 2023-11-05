@@ -16,9 +16,9 @@ class ClassifierFreeSampleModel(nn.Module):
         # pointers to inner model
         self.rot2xyz = self.model.rot2xyz
         self.translation = self.model.translation
-        self.njoints = self.model.n_joints
-        self.nfeats = self.model.nfeats
-        self.data_rep = self.model.data_rep
+        self.njoints = self.model.num_joints
+        self.nfeats = self.model.num_feats
+        self.data_rep = self.model.pose_rep
         self.cond_mode = self.model.cond_mode
 
     def forward(self, x, timesteps, y=None):

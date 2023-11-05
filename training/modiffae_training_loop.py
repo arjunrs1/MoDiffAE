@@ -33,7 +33,7 @@ class ModiffaeTrainLoop:
         self.train_platform = train_platform
         self.model = model
         self.diffusion = diffusion
-        self.cond_mode = model.cond_mode
+        #self.cond_mode = model.cond_mode
         self.train_data = train_data
         self.validation_data = validation_data
         self.batch_size = args.batch_size

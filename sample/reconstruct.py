@@ -80,7 +80,7 @@ def main():
     #rot2xyz_mask = None if rot2xyz_pose_rep == 'xyz' \
     #    else model_kwargs['y']['mask'].reshape(args.batch_size, n_frames).bool()
 
-    rot2xyz_pose_rep = model.data_rep
+    rot2xyz_pose_rep = model.pose_rep
     rot2xyz_mask = model_kwargs['y']['mask'].reshape(args.batch_size, n_frames).bool()
 
     distance = model_kwargs['y']['distance']
@@ -159,7 +159,7 @@ def main():
         # Using the diffused data from the encoder in the form of noise
         sample = sample_fn(
             model,
-            (args.batch_size, model.n_joints, model.nfeats, n_frames),
+            (args.batch_size, model.num_joints, model.num_feats, n_frames),
             clip_denoised=False,
             model_kwargs=model_kwargs,
             skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step

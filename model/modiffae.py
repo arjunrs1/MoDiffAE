@@ -62,19 +62,18 @@ class MoDiffAE(nn.Module):
         )
 
         self.decoder = Decoder(
-            num_joints,
-            num_feats,
-            num_frames,
-            pose_rep,
-            modiffae_latent_dim,
-            transformer_feedforward_dim,
-            num_layers,
-            num_heads,
-            dropout
+            num_joints=num_joints,
+            num_feats=num_feats,
+            num_frames=num_frames,
+            pose_rep=pose_rep,
+            latent_dim=modiffae_latent_dim,
+            transformer_feedforward_dim=transformer_feedforward_dim,
+            num_layers=num_layers,
+            num_heads=num_heads,
+            dropout=dropout
         )
 
-        #self.rot2xyz = Rotation2xyz(device='cpu') #, dataset=self.dataset)
-        self.rot2xyz = Rotation2xyz(device='cpu')  # , dataset=self.dataset)
+        self.rot2xyz = Rotation2xyz(device='cpu')
 
     def forward(self, x, timesteps, y=None):
 

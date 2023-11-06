@@ -23,7 +23,7 @@ class KaratePoses(Dataset):
         #print(len(data))
         #exit()
 
-        print(pose_rep)
+        #print(pose_rep)
 
         self._pose = [x for x in data["joint_axis_angles"]]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]

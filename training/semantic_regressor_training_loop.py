@@ -36,10 +36,9 @@ class SemanticRegressorTrainLoop:
         #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
 
-        print(self.lr)
-        # TODO: manage default parameters for each model in utility
+        #print(self.lr)
         self.lr = args.lr #0.005
-        print(self.lr)
+        #print(self.lr)
 
         self.log_interval = args.log_interval
         self.save_interval = args.save_interval  # 10_000 #args.save_interval
@@ -142,7 +141,9 @@ class SemanticRegressorTrainLoop:
         loss = F.binary_cross_entropy_with_logits(output, target)
 
         action_output = output[:, :5]
-        action_output = F.softmax(action_output)
+        #action_output = F.softmax(action_output)
+        action_output = F.softmax(action_output, dim=-1)
+
         skill_level_output = output[:, 5]
         skill_level_output = torch.sigmoid(skill_level_output)
         #skill_level_output = output[:, 5:]

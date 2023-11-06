@@ -39,11 +39,10 @@ class SemanticGeneratorTrainLoop:
         #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
 
-        print(self.lr)
-        # TODO: manage default parameters for each model in utility
+        #print(self.lr)
         # TODO: test even lower lr because train loss jumps to fast in the beginning
         self.lr = args.lr #0.0001  # 005
-        print(self.lr)
+        #print(self.lr)
 
         self.log_interval = args.log_interval
         self.save_interval = args.save_interval  # 10_000 #args.save_interval
@@ -86,6 +85,8 @@ class SemanticGeneratorTrainLoop:
 
         self.schedule_sampler_type = 'uniform'
         self.schedule_sampler = create_named_schedule_sampler(self.schedule_sampler_type, diffusion)
+
+        # TODO implement evaluation
         self.eval_wrapper, self.eval_data, self.eval_gt_data = None, None, None
 
     def run_loop(self):

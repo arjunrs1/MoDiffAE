@@ -11,6 +11,11 @@ Train latentnet:
  
  
  
+ 
+ 
+For humanact12 comparisson: 
+python -m training.train --model_type modiffae --save_dir ./save/testHumandAct/ --dataset humanact12 --pose_rep rot_6d --num_steps 750000
+ 
 
 
 

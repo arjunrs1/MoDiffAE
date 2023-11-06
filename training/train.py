@@ -3,56 +3,67 @@ import sys
 import json
 import torch
 from utils.fixseed import fixseed
-from utils.parser_util import semantic_regressor_train_args, modiffae_train_args, latentnet_train_args
-from utils.parser_util import model_parser
+from utils.parser_util import semantic_regressor_train_args, modiffae_train_args, semantic_generator_train_args
+from utils.parser_util import model_parser, get_model_path_from_args
 from utils import dist_util
 from training.modiffae_training_loop import ModiffaeTrainLoop
 from training.semantic_regressor_training_loop import SemanticRegressorTrainLoop
 from training.semantic_generator_training_loop import SemanticGeneratorTrainLoop
 from load.get_data import get_dataset_loader
 from utils.model_util import create_modiffae_and_diffusion, load_model, create_semantic_regressor
-from utils.model_util import create_latent_net_and_diffusion
+from utils.model_util import create_semantic_generator_and_diffusion
 from training.train_platforms import TensorboardPlatform
 
 
 def main():
-    args = None
     try:
         model_type = sys.argv[sys.argv.index('--model_type') + 1]
     except ValueError:
-        raise Exception('No model_type specified. Options: modiffae, semantic_regressor, latentNet')
+        raise Exception('No model_type specified. Options: modiffae, semantic_regressor, semantic_generator')
 
     if model_type == "modiffae":
         args = modiffae_train_args()
-        #print(args.save_dir)
-
-        #args2 = train_args()
-        #print(args2.save_dir)
-        #exit()
-        args.save_dir = os.path.join(args.save_dir, "modiffae")
-    elif model_type == "semantic_regressor":
-        args = semantic_regressor_train_args()
-        #args.save_dir = os.path.join(args.save_dir, "semantic_regressor")
-    elif model_type == "latentnet":
-        args = latentnet_train_args()
-        #args.save_dir = os.path.join(args.save_dir, "latentnet")
+        args.save_dir = os.path.join(args.save_dir, f"modiffae_{args.test_participant}")
     else:
-        pass
+        _, model_name = os.path.split(get_model_path_from_args("modiffae"))
+        model_name = model_name.split('.')[0]
+        base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
+        tmp_modiffae_args = model_parser(model_type="modiffae")
+        test_participant = tmp_modiffae_args.test_participant
+        if model_type == "semantic_regressor":
+            args = semantic_regressor_train_args()
+            args.test_participant = test_participant
+            #print(test_participant)
+            #exit()
+            #_, model_name = os.path.split(get_model_path_from_args("modiffae"))
+            #model_name = model_name.split('.')[0]
+            #base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
+            args.save_dir = os.path.join(base_dir, f"{model_type}_based_on_modiffae_{test_participant}_{model_name}")
+        elif model_type == "semantic_generator":
+            args = semantic_generator_train_args()
+            args.test_participant = test_participant
+            #_, model_name = os.path.split(get_model_path_from_args("modiffae"))
+            #model_name = model_name.split('.')[0]
+            #base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
+            args.save_dir = os.path.join(base_dir, f"{model_type}_based_on_modiffae_{test_participant}_{model_name}")
+        else:
+            raise Exception('Model type not supported. Options: modiffae, semantic_regressor, semantic_generator')
 
     fixseed(args.seed)
 
-    train_platform = TensorboardPlatform(args.save_dir)
-    train_platform.report_args(args, name='Args')
-
     if args.save_dir is None:
-        raise FileNotFoundError('save_dir was not specified.')
+        raise FileNotFoundError('save_dir is unknown.')
     elif os.path.exists(args.save_dir) and not args.overwrite:
         raise FileExistsError('save_dir [{}] already exists.'.format(args.save_dir))
     elif not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
+
     args_path = os.path.join(args.save_dir, 'args.json')
     with open(args_path, 'w') as fw:
         json.dump(vars(args), fw, indent=4, sort_keys=True)
+
+    train_platform = TensorboardPlatform(args.save_dir)
+    train_platform.report_args(args, name='Args')
 
     dist_util.setup_dist(args.device)
     print(f"Device: {dist_util.dev()}")
@@ -62,7 +73,7 @@ def main():
         name=args.dataset,
         batch_size=args.batch_size,
         num_frames=args.num_frames,
-        test_participant='b0372',
+        test_participant=args.test_participant,
         pose_rep=args.pose_rep,
         split='train'
     )
@@ -73,7 +84,7 @@ def main():
             name=args.dataset,
             batch_size=args.batch_size,
             num_frames=args.num_frames,
-            test_participant='b0372',
+            test_participant=args.test_participant,
             pose_rep=args.pose_rep,
             split='validation'
         )
@@ -122,7 +133,7 @@ def main():
             sem_regressor = create_semantic_regressor(args, train_data, semantic_encoder)
             sem_regressor.to(dist_util.dev())
             SemanticRegressorTrainLoop(args, train_platform, sem_regressor, train_data, validation_data).run_loop()
-        elif model_type == "latentnet":
+        elif model_type == "semantic_generator":
             """emb_train_loader = DataLoader(
                 KarateEmbeddings(emb_train_data, emb_train_labels), batch_size=args.batch_size, shuffle=True,
                 drop_last=True  # , collate_fn=collate
@@ -131,7 +142,7 @@ def main():
                 KarateEmbeddings(emb_validation_data, emb_validation_labels), batch_size=args.batch_size, shuffle=True,
                 drop_last=True  # , collate_fn=collate
             )"""
-            emb_model, emb_diffusion = create_latent_net_and_diffusion(args)
+            emb_model, emb_diffusion = create_semantic_generator_and_diffusion(args)
             emb_model.to(dist_util.dev())
             SemanticGeneratorTrainLoop(
                 args,

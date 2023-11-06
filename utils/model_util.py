@@ -32,12 +32,12 @@ def create_modiffae_and_diffusion(args, data):
     return model, diffusion
 
 
-def create_latent_net_and_diffusion(args):
+def create_semantic_generator_and_diffusion(args):
     diffusion = create_gaussian_diffusion(args)
     model = SemanticGenerator(
         attribute_dim=args.attribute_dim,
         modiffae_latent_dim=args.modiffae_latent_dim,
-        latentnet_latent_dim=args.latentnet_latent_dim,
+        latent_dim=args.semantic_generator_latent_dim,
         num_layers=args.layers,
         dropout=args.dropout
     )

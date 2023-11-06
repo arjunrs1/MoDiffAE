@@ -11,7 +11,6 @@ from torch.optim import AdamW
 
 from diffusion import logger
 from utils import dist_util
-from diffusion.fp16_util import MixedPrecisionTrainer
 from diffusion.resample import LossAwareSampler, UniformSampler
 from tqdm import tqdm
 from diffusion.resample import create_named_schedule_sampler
@@ -39,17 +38,18 @@ class ModiffaeTrainLoop:
         self.batch_size = args.batch_size
         #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
+        self.semantic_encoder_lr = args.semantic_encoder_lr
         self.log_interval = args.log_interval
         self.save_interval = args.save_interval
         self.resume_checkpoint = args.resume_checkpoint
-        self.use_fp16 = False  # deprecating this option
-        self.fp16_scale_growth = 1e-3  # deprecating this option
+        #self.use_fp16 = False  # deprecating this option
+        #self.fp16_scale_growth = 1e-3  # deprecating this option
         self.weight_decay = args.weight_decay
-        self.lr_anneal_steps = args.lr_anneal_steps
+        #self.lr_anneal_steps = args.lr_anneal_steps
 
         self.step = 0
         self.resume_step = 0
-        self.global_batch = self.batch_size # * dist.get_world_size()
+        #self.global_batch = self.batch_size # * dist.get_world_size()
         self.num_steps = args.num_steps
 
         #print(self.num_steps, len(self.data))
@@ -58,7 +58,7 @@ class ModiffaeTrainLoop:
         #self.num_epochs = 100
         print(f"Number of epochs: {self.num_epochs}")
 
-        self.sync_cuda = torch.cuda.is_available()
+        #self.sync_cuda = torch.cuda.is_available()
 
         #print(self.use_fp16)
         #exit()
@@ -97,7 +97,8 @@ class ModiffaeTrainLoop:
 
         self.opt = AdamW(
             [
-                {'params': self.model.semantic_encoder.parameters(), 'lr': 1e-5},
+                #{'params': self.model.semantic_encoder.parameters(), 'lr': 1e-5},
+                {'params': self.model.semantic_encoder.parameters(), 'lr': self.semantic_encoder_lr},
                 {'params': self.model.decoder.parameters()}
             ],
             lr=self.lr,
@@ -118,6 +119,8 @@ class ModiffaeTrainLoop:
 
         self.schedule_sampler_type = 'uniform'
         self.schedule_sampler = create_named_schedule_sampler(self.schedule_sampler_type, diffusion)
+
+        # TODO: implement evaluation
         self.eval_wrapper, self.eval_data, self.eval_gt_data = None, None, None
         #if args.dataset in ['kit', 'humanml'] and args.eval_during_training:
         #    mm_num_samples = 0  # mm is super slow hence we won't run it during training
@@ -137,8 +140,8 @@ class ModiffaeTrainLoop:
         #            args.eval_num_samples, scale=1.,
         #        )
         #    }
-        self.use_ddp = False
-        self.ddp_model = self.model
+        #self.use_ddp = False
+        #self.ddp_model = self.model
 
     def _load_and_sync_parameters(self):
         resume_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
@@ -179,8 +182,8 @@ class ModiffaeTrainLoop:
                 #distance = cond['distance']
                 #print(distance)
 
-                if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
-                    break
+                #if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+                #    break
 
                 motion = motion.to(self.device)
                 cond['y'] = {key: val.to(self.device) if torch.is_tensor(val) else val for key, val in cond['y'].items()}
@@ -214,8 +217,8 @@ class ModiffaeTrainLoop:
                     if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                         return
                 self.step += 1
-            if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
-                break
+            #if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+            #    break
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
@@ -261,7 +264,6 @@ class ModiffaeTrainLoop:
         end_eval = time.time()
         print(f'Evaluation time: {round(end_eval-start_eval)/60}min')
 
-
     def run_validation(self):
         # iterate over validation batches
         for motion, cond in tqdm(self.validation_data, desc='Validation round'):  # the condition now includes distances for karate
@@ -298,18 +300,19 @@ class ModiffaeTrainLoop:
 
             compute_losses = functools.partial(
                 self.diffusion.training_losses,
-                self.ddp_model,
+                #self.ddp_model,
+                self.model,
                 micro,  # [bs, ch, image_size, image_size]
                 t,  # [bs](int) sampled timesteps
                 model_kwargs=micro_cond,
                 dataset=self.train_data.dataset
             )
 
-            if last_batch or not self.use_ddp:
-                losses = compute_losses()
-            else:
-                with self.ddp_model.no_sync():
-                    losses = compute_losses()
+            #if last_batch or not self.use_ddp:
+            losses = compute_losses()
+            #else:
+            #    with self.ddp_model.no_sync():
+            #        losses = compute_losses()
 
             #print(isinstance(self.schedule_sampler, LossAwareSampler))
             if isinstance(self.schedule_sampler, LossAwareSampler) and split == 'train':
@@ -339,8 +342,8 @@ class ModiffaeTrainLoop:
 
     def log_step(self):
         logger.logkv("step", self.step + self.resume_step)
-        logger.logkv("samples", (self.step + self.resume_step + 1) * self.global_batch)
-
+        #logger.logkv("samples", (self.step + self.resume_step + 1) * self.global_batch)
+        logger.logkv("samples", (self.step + self.resume_step + 1) * self.batch_size)
 
     def ckpt_file_name(self):
         return f"model{(self.step+self.resume_step):09d}.pt"

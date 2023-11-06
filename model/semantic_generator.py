@@ -8,7 +8,7 @@ class SemanticGenerator(nn.Module):
             self,
             attribute_dim,
             modiffae_latent_dim,
-            latentnet_latent_dim,
+            latent_dim,
             #embedding_dim,
             #condition_dim,
             num_layers,
@@ -16,11 +16,11 @@ class SemanticGenerator(nn.Module):
 
         super().__init__()
 
-        self.attribute_emb = nn.Linear(attribute_dim, latentnet_latent_dim)
-        self.input_emb = nn.Linear(modiffae_latent_dim, latentnet_latent_dim)
-        self.output_emb = nn.Linear(latentnet_latent_dim, modiffae_latent_dim)
-        self.timestep_emb = TimestepEmbedder(latentnet_latent_dim)
-        self.layers = [AdaLNBlock(latentnet_latent_dim, dropout) for _ in range(num_layers)]
+        self.attribute_emb = nn.Linear(attribute_dim, latent_dim)
+        self.input_emb = nn.Linear(modiffae_latent_dim, latent_dim)
+        self.output_emb = nn.Linear(latent_dim, modiffae_latent_dim)
+        self.timestep_emb = TimestepEmbedder(latent_dim)
+        self.layers = [AdaLNBlock(latent_dim, dropout) for _ in range(num_layers)]
         self.layers = torch.nn.ModuleList(self.layers)
 
     def forward(self, z_t, t, y):
@@ -76,9 +76,9 @@ class AdaLNBlock(nn.Module):
 
 
 class TimestepEmbedder(nn.Module):
-    def __init__(self, condition_dim):
+    def __init__(self, emb_dim):
         super().__init__()
-        self.emb_dim = condition_dim
+        self.emb_dim = emb_dim
         self.time_embed = nn.Sequential(
             nn.Linear(1, self.emb_dim),
             nn.GELU(),

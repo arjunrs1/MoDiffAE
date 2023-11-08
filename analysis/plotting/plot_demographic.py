@@ -60,6 +60,46 @@ ordered_counts = [counts[x] for x in labels]
 ax = sns.barplot(x=labels, y=ordered_counts, color='tab:blue') #, palette=cols)
 plt.show()
 
+###########
+
+# Relevant two plots: 
+
+# TODO: add standard deviations. see seaborn stuff. 
+
+fig = plt.figure()
+fig.set_figwidth(7)
+fig.set_figheight(4)
+means = participants_df.groupby('Grade')['Experience'].mean()
+stds = participants_df.groupby('Grade')['Experience'].std()
+stds = stds.fillna(0)
+labels = ['9 kyu', '8 kyu', '7 kyu', '6 kyu', '5 kyu', '4 kyu', '3 kyu', '2 kyu', '1 kyu', '1 dan', '2 dan', '3 dan', '4 dan']
+ordered_means = [means[x] for x in labels]
+ordered_stds = [stds[x] for x in labels]
+ax = sns.barplot(x=labels, y=ordered_means, yerr=ordered_stds, color='tab:blue', alpha=0.75, edgecolor='black', capsize=0.4) #, palette=cols)
+#ax = sns.barplot(x=labels, y=ordered_means, yerr=ordered_stds, color='tab:blue', alpha=0.75, edgecolor='black', capsize=0.4) #, palette=cols)
+#ax.capsize = 0.5
+#print(ax)
+#exit()
+ax.set_xlabel('Grade')
+ax.set_ylabel('Experience in years')
+plt.show()
+
+
+fig = plt.figure()
+fig.set_figwidth(7)
+fig.set_figheight(4)
+means = participants_df.groupby('Grade')['Height'].mean()
+stds = participants_df.groupby('Grade')['Height'].std()
+stds = stds.fillna(0)
+labels = ['9 kyu', '8 kyu', '7 kyu', '6 kyu', '5 kyu', '4 kyu', '3 kyu', '2 kyu', '1 kyu', '1 dan', '2 dan', '3 dan', '4 dan']
+ordered_means = [means[x] for x in labels]
+ordered_stds = [stds[x] for x in labels]
+ax = sns.barplot(x=labels, y=ordered_means, yerr=ordered_stds, color='tab:blue', alpha=0.75, edgecolor='black', capsize=0.4) #, palette=cols)
+ax.set_ylim(140, 195)
+ax.set_xlabel('Grade')
+ax.set_ylabel('Height in cm')
+plt.show()
+
 print(counts)
 
 
@@ -83,6 +123,10 @@ ax = sns.barplot(x=labels, y=label_means, palette=cols)
 #ax.set_xticklabels(labels)
 ax.set_ylabel('Experience in years')
 plt.show()
+
+
+
+
 
 edit_df = participants_df
 edit_df.drop('B0404', inplace=True)

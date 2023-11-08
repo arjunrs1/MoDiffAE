@@ -26,16 +26,21 @@ def calc_technique_statistics():
     #print(len([d for d in data if d['condition'] == 'attacker']))
     #exit()
 
+    sums_p = []
     with open(os.path.join(os.getcwd(), 'analysis', 'data_statistics', 
                            'technique_statistics.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Code", *data_info.technique_class_to_name.values(), 'Total per condition', 'Total'])
+        #writer.writerow(["Code", *data_info.technique_class_to_name.values(), 'Total per condition', 'Total'])
+        writer.writerow(["Code", *data_info.technique_class_to_name.values()])
 
         for p, d in codes_with_data:
             row = [p]
+
+            sum_p = [p]
             sum_p_air = 0
             sum_p_shield = 0
             sum_p_opponent = 0
+            
             for cls in technique_classes:
                 technique_d_air = [t_d for t_d in d if t_d['technique_cls'] == cls
                                    and t_d['condition'] == 'air']
@@ -47,33 +52,69 @@ def calc_technique_statistics():
                 sum_p_shield += len(technique_d_shield)
                 sum_p_opponent += len(technique_d_opponent)
                 row.append(f'{len(technique_d_air)}(A), {len(technique_d_shield)}(S), {len(technique_d_opponent)}(O)')
-            row.append(f'{sum_p_air}(A), {sum_p_shield}(S), {sum_p_opponent}(O)')
-            row.append(f'{sum_p_air + sum_p_shield + sum_p_opponent}')
+            
             writer.writerow(row)
 
-        last_row = ["Total"]
+            #row.append(f'{sum_p_air}(A), {sum_p_shield}(S), {sum_p_opponent}(O)')
+            #sum_p.append(f'{sum_p_air}(A), {sum_p_shield}(S), {sum_p_opponent}(O)')
+            sum_p.append(f'{sum_p_air}')
+            sum_p.append(f'{sum_p_shield}')
+            sum_p.append(f'{sum_p_opponent}')
+            #row.append(f'{sum_p_air + sum_p_shield + sum_p_opponent}')
+            sum_p.append(f'{sum_p_air + sum_p_shield + sum_p_opponent}')
+            sums_p.append(sum_p)
+
+    with open(os.path.join(os.getcwd(), 'analysis', 'data_statistics', 
+                           'technique_statistics_total_participant.csv'), 'w', newline='') as file:
+        writer = csv.writer(file)
+        #writer.writerow(["Code", 'Total per condition', 'Total'])
+        writer.writerow(["Code", 'Air', 'Shield', 'Opponent', 'Total'])
+        
+
+        writer.writerows(sums_p)
+
+            
+    with open(os.path.join(os.getcwd(), 'analysis', 'data_statistics', 
+                           'technique_statistics_total_technique.csv'), 'w', newline='') as file:
+        writer = csv.writer(file)
+        #writer.writerow(["Code", 'Total per condition', 'Total'])
+        writer.writerow(['Technique', 'Air', 'Shield', 'Opponent', 'Total'])
+
         total_condition_air = 0
         total_condition_shield = 0
         total_condition_opponent = 0
         for cls in technique_classes:
-            entry = ""
+            #last_row = ["Total"]
+            
+            #for cls in technique_classes:
+            row = [data_info.technique_class_to_name[cls]]
             nr_technique_d_air = len([t_d for t_d in data if t_d['technique_cls'] == cls
-                                     and t_d['condition'] == 'air'])
-            entry += f"{nr_technique_d_air}(A), "
+                                        and t_d['condition'] == 'air'])
+            row.append(f"{nr_technique_d_air}")
             total_condition_air += nr_technique_d_air
             nr_technique_d_shield = len([t_d for t_d in data if t_d['technique_cls'] == cls
-                                         and t_d['condition'] == 'shield'])
-            entry += f"{nr_technique_d_shield}(S), "
+                                            and t_d['condition'] == 'shield'])
+            row.append(f"{nr_technique_d_shield}")
             total_condition_shield += nr_technique_d_shield
             nr_technique_d_opponent = len([t_d for t_d in data if t_d['technique_cls'] == cls
-                                           and (t_d['condition'] == 'attacker' or t_d['condition'] == 'defender')])
-            entry += f"{nr_technique_d_opponent}(O)"
+                                            and (t_d['condition'] == 'attacker' or t_d['condition'] == 'defender')])
+            row.append(f"{nr_technique_d_opponent}")
             total_condition_opponent += nr_technique_d_opponent
-            last_row.append(entry)
-        last_row.append(f"{total_condition_air}(A), {total_condition_shield}(S), {total_condition_opponent}(O)")
-        last_row.append(f"{total_condition_air + total_condition_shield + total_condition_opponent}")
-        writer.writerow(last_row)
+            #last_row.append(entry)
 
+            #last_row.append(f"{total_condition_air}(A), {total_condition_shield}(S), {total_condition_opponent}(O)")
+            #last_row.append(f"{total_condition_air + total_condition_shield + total_condition_opponent}")
+            row.append(f"{nr_technique_d_air + nr_technique_d_shield + nr_technique_d_opponent}")
+            
+            writer.writerow(row)
+        last_row = [
+            'Total', 
+            str(total_condition_air),
+            str(total_condition_shield),
+            str(total_condition_opponent),
+            str(total_condition_air + total_condition_shield + total_condition_opponent),
+        ]
+        writer.writerow(last_row)
 
 
 

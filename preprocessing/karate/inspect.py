@@ -9,59 +9,27 @@ import json
 
 
 data_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
-data_file_path = os.path.join(data_dir, "karate_motion_unmodified.npy")
+data_file_path = os.path.join(data_dir, "karate_motion_modified.npy")
 data = np.load(data_file_path, allow_pickle=True)
 
-use_memory = True
-memory_file_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate')
-memory_file_path = os.path.join(memory_file_dir, 'check_idx.npy')
 
-if not os.path.exists(memory_file_path):
-    np.save(memory_file_path, np.array([0]))
-
-if use_memory:
-    start_point = np.load(memory_file_path, allow_pickle=True)[0]
-else: 
-    start_point = 0
-
-report_dir = os.path.join(os.getcwd(), 'preprocessing', 'karate', 'reports')
-report_file_path = os.path.join(report_dir, "outlier_report.json")
-if os.path.isfile(report_file_path):
-    report = json.load(open(report_file_path))
-else:
-    print('Warning: Report file not found.')
-    report = {}
-
-removed_duplicates_file_path = os.path.join(report_dir, "removed_duplicates.json")
-if os.path.isfile(removed_duplicates_file_path):
-    removed_duplicates = json.load(open(removed_duplicates_file_path))
-else:
-    print('Warning: No list of removed duplicates found.')
-    removed_duplicates = []
-
-check_indices = [idx for idx in list(range(start_point, data.shape[0]))
-                 if str(idx) not in report.keys() and idx not in removed_duplicates]
+data = [d for d in data if d['condition'] == 'defender']
 
 
-print(f'{len(check_indices)} samples remaining')
-
-for idx in check_indices:
-    print(f'Index: {idx}')
-    if use_memory:
-        np.save(memory_file_path, np.array([idx]))
-    
-    d = data['joint_positions'][idx]
-    technique_cls = data['technique_cls'][idx]
+for i, sample in enumerate(data):
+    d = sample['joint_positions']
+    technique_cls = sample['technique_cls']
     technique = data_info.technique_class_to_name[technique_cls]
-    condition = data['condition'][idx]
-    grade = data['grade'][idx]
+    condition = sample['condition']
+    grade = sample['grade']
 
-    print(f'Technique: {technique}')
-    print(f'Condition: {condition}')
-    print(f'Grade: {grade}')
-
-    from_array(d, mode='inspection')
-    print('------')
+    if condition == 'defender':
+        print(f'Index: {i} from {len(data) - 1}')
+        print(f'Technique: {technique}')
+        print(f'Condition: {condition}')
+        print(f'Grade: {grade}')
+        from_array(d, mode='inspection')
+        print('------')
 
 # Manually add indices of problematic recordings
 # found by this search. Later add these to the outlier modification

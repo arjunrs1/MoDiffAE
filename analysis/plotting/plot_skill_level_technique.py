@@ -31,6 +31,8 @@ for technique_cls in data_info.technique_class_to_name.keys():
 x = np.arange(len(labels))
 width = 0.15
 
+fs = 11
+
 fig, ax = plt.subplots()
 fig.set_size_inches(12, 5)
 position = x - 2 * width
@@ -44,11 +46,16 @@ for technique_cls, values in sums.items():
     s = len([d for d in data if d['grade'] == l and d['technique_cls'] == technique_cls]) 
     position += width
 
-ax.set_ylabel('Number of samples')
-ax.set_xlabel('Grade')
+ax.set_ylabel('Number of samples', fontsize=fs+2)
+ax.set_xlabel('Grade', fontsize=fs+2)
 ax.set_xticks(x)
 ax.set_xticklabels(labels)
-ax.legend()
+
+#fig.yticks(fontsize=fs)
+ax.tick_params(labelsize=fs+2)
+
+ax.legend(fontsize=fs)
+
 
 fig.tight_layout()
 
@@ -64,10 +71,10 @@ for i, l in enumerate(labels):
 
     nr_participants = len(list(set([d['attacker_code'] for d in data if d['grade'] == l]))) 
     
-    ax.annotate(f'{count}/{nr_participants}', xy=(middle_x, max_y + 2), xytext=(0, 15), textcoords="offset points", #fontsize=fs*1.5, 
+    ax.annotate(f'{count}/{nr_participants}', xy=(middle_x, max_y + 2), xytext=(0, 15), textcoords="offset points", fontsize=fs,
                 ha='center', va='bottom',
                 bbox=dict(boxstyle='square', fc='white', color='black'), #color='dimgray'),
-                arrowprops=dict(arrowstyle='-[, widthB=2.5, lengthB=1.5', lw=1.0, color='black')) #color='dimgray'))
+                arrowprops=dict(arrowstyle='-[, widthB=2.25, lengthB=1.25', lw=1.0, color='black')) #color='dimgray'))
 
 
 

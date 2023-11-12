@@ -405,9 +405,10 @@ def semantic_regressor_parser():
 
 
 # TODO: evaluation args for each of the three models
-def evaluation_parser():
+def evaluation_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
-    add_evaluation_options(parser)
-    return parse_and_load_from_model(parser)
+    #add_evaluation_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
+    return parser.parse_args() #parse_and_load_from_model(parser)

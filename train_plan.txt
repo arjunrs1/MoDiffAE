@@ -2,7 +2,8 @@
 
 Train modiffae:
 
-python -m training.train --model_type modiffae --save_dir ./save/testTrainAndLoad/ --overwrite
+#python -m training.train --model_type modiffae --save_dir ./save/testTrainAndLoad/ --overwrite
+python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/
 
 
 Train latentnet:

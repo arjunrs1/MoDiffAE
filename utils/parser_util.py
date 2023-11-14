@@ -125,10 +125,10 @@ def add_modiffae_model_options(parser):
 def add_semantic_generator_model_options(parser):
     group = parser.add_argument_group('semantic_generator')
     # TODO: in paper they used 10 layers
-    group.add_argument("--layers", default=8, type=int,
+    group.add_argument("--layers", default=10, type=int,  # previously 8
                        help="Number of layers.")
     # TODO: try 1024 or like in paper 2048
-    group.add_argument("--semantic_generator_latent_dim", default=512, type=int,
+    group.add_argument("--semantic_generator_latent_dim", default=2048, type=int,  # previously 512
                        help="Transformer width.")
     group.add_argument("--modiffae_latent_dim", default=512, type=int,
                        help="Transformer width.")
@@ -315,7 +315,9 @@ def add_model_path_option(parser, model_type):
 
 def add_evaluation_options(parser):
     group = parser.add_argument_group('eval')
-    group.add_argument("--model_path", required=True, type=str,
+    group.add_argument("--overwrite", action='store_true',
+                       help="If True, will enable to use an already existing save_dir.")
+    '''group.add_argument("--model_path", required=True, type=str,
                        help="Path to model####.pt file to be sampled.")
     group.add_argument("--eval_mode", default='wo_mm', choices=['wo_mm', 'mm_short', 'debug', 'full'], type=str,
                        help="wo_mm (t2m only) - 20 repetitions without multi-modality metric; "
@@ -324,7 +326,7 @@ def add_evaluation_options(parser):
                             "full (a2m only) - 20 repetitions.")
     group.add_argument("--guidance_param", default=2.5, type=float,
                        help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
-
+'''
 
 def modiffae_train_args():
     parser = ArgumentParser()
@@ -409,6 +411,6 @@ def evaluation_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
-    #add_evaluation_options(parser)
+    add_evaluation_options(parser)
     add_model_path_option(parser, model_type="modiffae")
     return parser.parse_args() #parse_and_load_from_model(parser)

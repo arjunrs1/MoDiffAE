@@ -11,9 +11,10 @@ class Rotation2xyz:
     def __init__(self, device='cpu'):
         self.device = device
         #self.dataset = dataset
-        self.smpl_model = SMPL().eval().to(device)
+        #self.smpl_model = SMPL().eval().to(device)
     def __call__(self, x, mask, pose_rep, translation, data_name='karate',
                  distance=None, **kwargs):
+
         if pose_rep == "xyz":
             #print("hi")
             return x

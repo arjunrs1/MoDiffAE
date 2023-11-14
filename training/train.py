@@ -100,7 +100,7 @@ def main():
 
     if model_type == "modiffae":
         model.to(dist_util.dev())
-        model.rot2xyz.smpl_model.eval()
+        #model.rot2xyz.smpl_model.eval()
         print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
         print("Training...")
         ModiffaeTrainLoop(modiffae_args, train_platform, model, diffusion, train_data, validation_data).run_loop()

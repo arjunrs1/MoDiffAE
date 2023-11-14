@@ -1,4 +1,4 @@
-name: mdm
+name: modiffae
 channels:
   - pytorch
   - anaconda
@@ -133,4 +133,8 @@ dependencies:
     - urllib3==1.26.12
     - wasabi==0.10.1
     - wcwidth==0.2.5
+    - pandas
+    - PyMocapViewer
+    - blobfile
+    - tensorboard
 prefix: /disk2/guytevet/anaconda3/envs/mdm-venv

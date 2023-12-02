@@ -344,7 +344,7 @@ def add_evaluation_options(parser):
 
 def add_generate_options(parser):
     group = parser.add_argument_group('generate')
-    group.add_argument("--ratio", default=0.2, type=float, help="Percentage of synthetic data to generate.")
+    group.add_argument("--ratio", default=0.25, type=float, help="Percentage of synthetic data to generate.")
     #group.add_argument("--data_save_dir", default="./datasets/karate/",
     #                   type=str, help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',

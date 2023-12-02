@@ -17,10 +17,10 @@ class KaratePoses(Dataset):
         self.data_name = "karate"
         self.xyz_reconstruction_mode = "geometry"
 
-        if split is not None:
-            data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
-        else:
-            data_file_path = os.path.join(data_path, 'karate_motion_modified.npy')
+        #if split is not None:
+        data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
+        #else:
+        #    data_file_path = os.path.join(data_path, 'karate_motion_modified.npy')
 
         data = np.load(data_file_path, allow_pickle=True)
 

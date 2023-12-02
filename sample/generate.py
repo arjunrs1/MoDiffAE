@@ -248,10 +248,12 @@ def main():
     fixseed(args.seed)
 
     modiffae_args = model_parser(model_type="modiffae", model_path=args.modiffae_model_path)
-    data = KaratePoses(test_participant=None, split=None, pose_rep=modiffae_args.pose_rep)
+    test_participant = modiffae_args.test_participant
+    data = KaratePoses(test_participant=test_participant, split='train', pose_rep=modiffae_args.pose_rep)
     joint_distances = [torch.Tensor(x) for x in data.get_joint_distances()]
 
-    data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out', 'generated_data.npy')
+    data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out',
+                             f'generated_data_{int(args.ratio * 100)}_percent.npy')
     if os.path.isfile(data_path):
         if not args.overwrite:
             message = 'The target file already exists. If the data should be '
@@ -269,6 +271,11 @@ def main():
     number_of_samples_to_generate_per_grade = \
         calc_number_of_samples_to_generate_per_grade(args.ratio, data)
 
+    total_nr_of_samples_to_generate = sum([nr for g, nr in number_of_samples_to_generate_per_grade.items()])
+    print(f'Total number of samples to generate: {total_nr_of_samples_to_generate}')
+
+    print(number_of_samples_to_generate_per_grade)
+
     for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
         number_of_samples_per_technique = round(number_of_samples / 5)
         for i in range(5):
@@ -282,11 +289,12 @@ def main():
                                                 modiffae_args.modiffae_latent_dim, data, joint_distances)
                 accepted_samples.append(sample)
                 print(f'Accepted a sample for grade {grade} and technique {i}')
+                print(f'Progress: {len(accepted_samples)}/{total_nr_of_samples_to_generate}')
                 generation_count += 1
 
-                break
+                '''break
             break
-        break
+        break'''
 
     nr_generated_samples = len(accepted_samples)
     j_dist_shape = (len(data_info.reconstruction_skeleton),)

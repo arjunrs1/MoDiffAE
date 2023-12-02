@@ -13,6 +13,99 @@ from visualize.vicon_visualization import from_array
 from model.semantic_regressor import SemanticRegressor
 import torch.nn.functional as F
 
+from utils.parser_util import model_parser
+from utils.model_util import create_semantic_regressor
+from load.tensors import collate, collate_tensors
+
+def load_models(modiffae_model_path, semantic_regressor_model_path):
+    modiffae_args = model_parser(model_type="modiffae", model_path=modiffae_model_path)
+    modiffae_train_data = get_dataset_loader(
+        name=modiffae_args.dataset,
+        batch_size=modiffae_args.batch_size,
+        num_frames=modiffae_args.num_frames,
+        test_participant=modiffae_args.test_participant,
+        pose_rep=modiffae_args.pose_rep,
+        split='train'
+    )
+    modiffae_model, modiffae_diffusion = create_modiffae_and_diffusion(modiffae_args, modiffae_train_data)
+    modiffae_state_dict = torch.load(modiffae_model_path, map_location='cpu')
+    load_model(modiffae_model, modiffae_state_dict)
+    modiffae_model.to(dist_util.dev())
+    modiffae_model.eval()
+
+    semantic_regressor_args = model_parser(model_type="semantic_regressor", model_path=semantic_regressor_model_path)
+    semantic_regressor_train_data = get_dataset_loader(
+        name=semantic_regressor_args.dataset,
+        batch_size=semantic_regressor_args.batch_size,
+        num_frames=semantic_regressor_args.num_frames,
+        test_participant=semantic_regressor_args.test_participant,
+        pose_rep=semantic_regressor_args.pose_rep,
+        split='train'
+    )
+    semantic_encoder = modiffae_model.semantic_encoder
+    semantic_regressor_model = (
+        create_semantic_regressor(semantic_regressor_args, semantic_regressor_train_data, semantic_encoder))
+    semantic_regressor_state_dict = torch.load(semantic_regressor_model_path, map_location='cpu')
+    load_model(semantic_regressor_model, semantic_regressor_state_dict)
+    semantic_regressor_model.to(dist_util.dev())
+    semantic_regressor_model.eval()
+
+    return (modiffae_model, modiffae_diffusion), semantic_regressor_model
+
+
+def generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data):
+    modiffae_model, modiffae_diffusion = models[0]
+    #semantic_generator_model, semantic_generator_diffusion = models[1]
+
+    #generator_sample_fn = semantic_generator_diffusion.ddim_sample_loop
+
+    collate_args = [{'inp': torch.zeros(n_frames), 'tokens': None, 'lengths': n_frames}] * batch_size
+    collate_args = [dict(arg, labels=l) for
+                    arg, l in zip(collate_args, one_hot_labels)]
+    _, model_kwargs = collate(collate_args)
+    model_kwargs['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val
+                         for key, val in model_kwargs['y'].items()}
+
+    with torch.no_grad():
+        # Using the diffused data from the encoder in the form of noise
+        generated_embeddings = generator_sample_fn(
+            semantic_generator_model,
+            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+            (batch_size, modiffae_latent_dim),
+            clip_denoised=False,
+            model_kwargs=model_kwargs,
+            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,  # causes the model to sample xT from a normal distribution
+            # noise=None,
+            const_noise=False,
+        )
+
+        model_kwargs['y']['semantic_emb'] = generated_embeddings
+
+        # sample_fn = diffusion.p_sample_loop
+        # Anthony: changed to use ddim sampling. Maybe use ddpm function instead
+        modiffae_sample_fn = modiffae_diffusion.ddim_sample_loop
+
+        # Using the diffused data from the encoder in the form of noise
+        samples = modiffae_sample_fn(
+            modiffae_model,
+            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+            (batch_size, data.num_joints, data.num_feats, n_frames),
+            clip_denoised=False,
+            model_kwargs=model_kwargs,
+            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,  # causes the model to sample xT from a normal distribution
+            # noise=None,
+            const_noise=False,
+        )
+    return samples, model_kwargs
+
 
 def normalize(cond):
     std, mean = torch.std_mean(cond)

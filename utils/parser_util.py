@@ -4,15 +4,21 @@ import os
 import json
 
 
-def parse_and_load_from_model(parser, model_type):
+def parse_and_load_from_model(parser, model_type, model_path):
+
+    group_names = ['dataset', model_type]
+
     # args according to the loaded model
     # do not try to specify them from cmd line since they will be overwritten
     add_data_options(parser)
-    add_diffusion_options(parser)
 
     if model_type == "modiffae":
+        add_diffusion_options(parser)
+        group_names.append('diffusion')
         add_modiffae_model_options(parser)
     elif model_type == "semantic_generator":
+        add_diffusion_options(parser)
+        group_names.append('diffusion')
         add_semantic_generator_model_options(parser)
     elif model_type == "semantic_regressor":
         add_semantic_regressor_model_options(parser)
@@ -22,11 +28,12 @@ def parse_and_load_from_model(parser, model_type):
     args, _ = parser.parse_known_args()
     #args = parser.parse_args()
     args_to_overwrite = []
-    for group_name in ['dataset', 'diffusion', model_type]:
+    for group_name in group_names: #['dataset', 'diffusion', model_type]:
         args_to_overwrite += get_args_per_group_name(parser, args, group_name)
 
     # load args from model
-    model_path = get_model_path_from_args(model_type)
+    if model_path is None:
+        model_path = get_model_path_from_args(model_type)
 
     args_path = os.path.join(os.path.dirname(model_path), 'args.json')
 
@@ -279,6 +286,12 @@ def add_model_path_option(parser, model_type):
     group.add_argument(f'--{model_type}_model_path', required=True, type=str,
                        help="Path to model####.pt file to be sampled.")
 
+
+def add_save_dir_path(parser):
+    group = parser.add_argument_group('save_directory')
+    group.add_argument("--save_dir", required=True, type=str,
+                       help="Path to save checkpoints and results.")
+
 """def add_generate_options(parser):
     group = parser.add_argument_group('generate')
     group.add_argument("--motion_length", default=6.0, type=float,
@@ -328,6 +341,15 @@ def add_evaluation_options(parser):
                        help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
 '''
 
+
+def add_generate_options(parser):
+    group = parser.add_argument_group('generate')
+    group.add_argument("--ratio", default=0.2, type=float, help="Percentage of synthetic data to generate.")
+    #group.add_argument("--data_save_dir", default="./datasets/karate/",
+    #                   type=str, help="Path to save checkpoints and results.")
+    group.add_argument("--overwrite", action='store_true',
+                       help="If True, will overwrite existing generated data.")
+
 def modiffae_train_args():
     parser = ArgumentParser()
     add_base_options(parser)
@@ -363,12 +385,22 @@ def semantic_regressor_train_args():
     return parser.parse_args()
 
 
-def generation_args():
+"""def generation_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
     add_sampling_options(parser)
     #add_generate_options(parser)
+    return parser.parse_args()  # parse_and_load_from_model(parser, model_type="")"""
+
+
+def generation_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_generate_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
+    add_model_path_option(parser, model_type="semantic_generator")
+    add_model_path_option(parser, model_type="semantic_regressor")
     return parser.parse_args()  # parse_and_load_from_model(parser, model_type="")
 
 
@@ -381,13 +413,13 @@ def editing_args():
     return parser.parse_args()  #parse_and_load_from_model(parser)
 
 
-def model_parser(model_type):
+def model_parser(model_type, model_path=None):
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
     #add_sampling_options(parser)
     #add_generate_options(parser)
-    return parse_and_load_from_model(parser, model_type=model_type)
+    return parse_and_load_from_model(parser, model_type, model_path)
 
 """def modiffae_parser():
     parser = ArgumentParser()
@@ -414,3 +446,13 @@ def evaluation_args():
     add_evaluation_options(parser)
     add_model_path_option(parser, model_type="modiffae")
     return parser.parse_args() #parse_and_load_from_model(parser)
+
+
+def modiffae_validation_args():
+    parser = ArgumentParser()
+    # args specified by the user: (all other will be loaded from the model)
+    add_base_options(parser)
+    add_save_dir_path(parser)
+    add_evaluation_options(parser)
+    #add_model_path_option(parser, model_type="modiffae")
+    return parser.parse_args()  # parse_and_load_from_model(parser)

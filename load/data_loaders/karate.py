@@ -12,9 +12,16 @@ class KaratePoses(Dataset):
         root_joint_idx = data_info.joint_to_index[root_joint_name]
         super().__init__(pose_rep=pose_rep, num_joints=num_joints, root_joint_idx=root_joint_idx, **kwargs)
 
+        self.data_path = data_path
+
         self.data_name = "karate"
         self.xyz_reconstruction_mode = "geometry"
-        data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
+
+        if split is not None:
+            data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
+        else:
+            data_file_path = os.path.join(data_path, 'karate_motion_modified.npy')
+
         data = np.load(data_file_path, allow_pickle=True)
 
         #data = np.where(data['condition'] == 'air', data)
@@ -74,6 +81,12 @@ class KaratePoses(Dataset):
         #print(one_hot_labels)
         #exit()
         return one_hot_labels
+
+    def get_grades(self):
+        return self._grades
+
+    def get_joint_distances(self):
+        return self._joint_distances
 
 
 """class KarateEmbeddings(torch.utils.data.Dataset):

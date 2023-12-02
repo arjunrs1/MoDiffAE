@@ -67,6 +67,10 @@ def main():
 
     colors = cycle(cm.tab10.colors)
 
+    f = plt.figure()
+    f.set_figwidth(20)
+    f.set_figheight(15)
+
     for i in technique_class_to_name.keys():
         color = next(colors)
 

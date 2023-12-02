@@ -1,39 +1,322 @@
-# This code is based on https://github.com/openai/guided-diffusion
 """
 Generate a large batch of image samples from a model and save them as a large
-numpy array. This can be used to produce samples for FID evaluation.
+numpy array.
 """
+import math
+
 from utils.fixseed import fixseed
 import os
 import numpy as np
 import torch
 from utils.parser_util import generation_args
 from utils.model_util import create_modiffae_and_diffusion, load_model, create_semantic_generator_and_diffusion
+from utils.model_util import create_semantic_regressor
 from utils import dist_util
-from model.cfg_sampler import ClassifierFreeSampleModel
 from load.get_data import get_dataset_loader
-#from data_loaders.humanml.scripts.motion_process import recover_from_ric
-#import data_loaders.humanml.utils.paramUtil as paramUtil
-#from data_loaders.humanml.utils.plot_script import plot_3d_motion
 import shutil
 from load.tensors import collate, collate_tensors
+from load.data_loaders.karate import KaratePoses
+from collections import Counter
+import torch.nn.functional as F
+from utils.karate import geometry
+from utils.karate import data_info
 
 # Karate visualization
 from visualize.vicon_visualization import from_array
 import random
 
+from utils.parser_util import model_parser
 
-# TODO:
-#  - create and load base model and generator
-#  - sample z conditionally from generator
-#  - decode with ddim_sample_loop, providing noise=None (causes sampling of xT from normal dist)
-#  and z in model_kwargs (z is the sample from generator)
-#  - visualize and store
+
+grade_number_to_name = {
+    0: '9 kyu',
+    1: '8 kyu',
+    2: '7 kyu',
+    3: '6 kyu',
+    4: '5 kyu',
+    5: '4 kyu',
+    6: '3 kyu',
+    7: '2 kyu',
+    8: '1 kyu',
+    9: '1 dan',
+    10: '2 dan',
+    11: '3 dan',
+    12: '4 dan'
+}
+
+
+def load_models(modiffae_model_path, semantic_generator_model_path, semantic_regressor_model_path):
+    modiffae_args = model_parser(model_type="modiffae", model_path=modiffae_model_path)
+    modiffae_train_data = get_dataset_loader(
+        name=modiffae_args.dataset,
+        batch_size=modiffae_args.batch_size,
+        num_frames=modiffae_args.num_frames,
+        test_participant=modiffae_args.test_participant,
+        pose_rep=modiffae_args.pose_rep,
+        split='train'
+    )
+    modiffae_model, modiffae_diffusion = create_modiffae_and_diffusion(modiffae_args, modiffae_train_data)
+    modiffae_state_dict = torch.load(modiffae_model_path, map_location='cpu')
+    load_model(modiffae_model, modiffae_state_dict)
+    modiffae_model.to(dist_util.dev())
+    modiffae_model.eval()
+
+    semantic_generator_args = model_parser(model_type="semantic_generator", model_path=semantic_generator_model_path)
+    semantic_generator_model, semantic_generator_diffusion = (
+        create_semantic_generator_and_diffusion(semantic_generator_args))
+    semantic_generator_state_dict = torch.load(semantic_generator_model_path, map_location='cpu')
+    load_model(semantic_generator_model, semantic_generator_state_dict)
+    semantic_generator_model.to(dist_util.dev())
+    semantic_generator_model.eval()
+
+    semantic_regressor_args = model_parser(model_type="semantic_regressor", model_path=semantic_regressor_model_path)
+    semantic_regressor_train_data = get_dataset_loader(
+        name=semantic_regressor_args.dataset,
+        batch_size=semantic_regressor_args.batch_size,
+        num_frames=semantic_regressor_args.num_frames,
+        test_participant=semantic_regressor_args.test_participant,
+        pose_rep=semantic_regressor_args.pose_rep,
+        split='train'
+    )
+    semantic_encoder = modiffae_model.semantic_encoder
+    semantic_regressor_model = (
+        create_semantic_regressor(semantic_regressor_args, semantic_regressor_train_data, semantic_encoder))
+    semantic_regressor_state_dict = torch.load(semantic_regressor_model_path, map_location='cpu')
+    load_model(semantic_regressor_model, semantic_regressor_state_dict)
+    semantic_regressor_model.to(dist_util.dev())
+    semantic_regressor_model.eval()
+
+    return (modiffae_model, modiffae_diffusion), \
+        (semantic_generator_model, semantic_generator_diffusion), \
+        semantic_regressor_model
+
+
+def calc_number_of_samples_to_generate_per_grade(ratio, data):
+    counts = Counter(data.get_grades())
+    number_of_samples_to_generate_per_grade = {}
+    for grade, count in counts.items():
+        number_of_samples_to_generate_per_grade[grade] = math.ceil(count * ratio)
+    return number_of_samples_to_generate_per_grade
+
+
+def create_attribute_labels(grade, technique_cls, batch_size):
+    skill_labels = np.array([[grade]] * batch_size)
+    labels = np.array([technique_cls] * batch_size)
+    one_hot_labels = np.eye(5)[labels]
+    one_hot_labels = np.append(one_hot_labels, skill_labels, axis=1)
+    return one_hot_labels
+
+
+def generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data):
+    modiffae_model, modiffae_diffusion = models[0]
+    semantic_generator_model, semantic_generator_diffusion = models[1]
+
+    generator_sample_fn = semantic_generator_diffusion.ddim_sample_loop
+
+    collate_args = [{'inp': torch.zeros(n_frames), 'tokens': None, 'lengths': n_frames}] * batch_size
+    collate_args = [dict(arg, labels=l) for
+                    arg, l in zip(collate_args, one_hot_labels)]
+    _, model_kwargs = collate(collate_args)
+    model_kwargs['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val
+                         for key, val in model_kwargs['y'].items()}
+
+    with torch.no_grad():
+        # Using the diffused data from the encoder in the form of noise
+        generated_embeddings = generator_sample_fn(
+            semantic_generator_model,
+            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+            (batch_size, modiffae_latent_dim),
+            clip_denoised=False,
+            model_kwargs=model_kwargs,
+            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,  # causes the model to sample xT from a normal distribution
+            # noise=None,
+            const_noise=False,
+        )
+
+        model_kwargs['y']['semantic_emb'] = generated_embeddings
+
+        # sample_fn = diffusion.p_sample_loop
+        # Anthony: changed to use ddim sampling. Maybe use ddpm function instead
+        modiffae_sample_fn = modiffae_diffusion.ddim_sample_loop
+
+        # Using the diffused data from the encoder in the form of noise
+        samples = modiffae_sample_fn(
+            modiffae_model,
+            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
+            (batch_size, data.num_joints, data.num_feats, n_frames),
+            clip_denoised=False,
+            model_kwargs=model_kwargs,
+            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            init_image=None,
+            progress=True,
+            dump_steps=None,
+            noise=None,  # causes the model to sample xT from a normal distribution
+            # noise=None,
+            const_noise=False,
+        )
+    return samples, model_kwargs
+
+
+def predict_attributes(semantic_regressor_model, generated_samples):
+    with torch.no_grad():
+        attribute_predictions = semantic_regressor_model(generated_samples)
+        action_predictions = attribute_predictions[:, :5]
+        action_predictions = F.softmax(action_predictions, dim=-1)
+        grade_predictions = attribute_predictions[:, 5]
+        grade_predictions = torch.sigmoid(grade_predictions)
+        predicted_attributes = torch.cat((action_predictions, grade_predictions.unsqueeze(1)), 1)
+    return predicted_attributes
+
+
+def check_if_prediction_is_correct(prediction, target):
+    technique_prediction = torch.argmax(prediction[:5]).item()
+    technique_target = torch.argmax(target[:5]).item()
+
+    grade_prediction = prediction[5].item()
+    grade_target = target[5].item()
+
+    num_of_grades = 13
+    half_distance_between_two_grades = 1 / ((num_of_grades - 1) * 2)
+
+    is_correct = (technique_prediction == technique_target and
+                  np.abs(grade_prediction - grade_target) < half_distance_between_two_grades)
+    return is_correct
+
+
+def rejection_sampling(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data, joint_distances):
+    generated_samples, model_kwargs = generate_samples(models, n_frames, batch_size,
+                                                       one_hot_labels, modiffae_latent_dim, data)
+
+    semantic_regressor_model = models[2]
+    predicted_attributes = predict_attributes(semantic_regressor_model, generated_samples)
+
+    target_label = torch.as_tensor(one_hot_labels[0], dtype=torch.float32).to(dist_util.dev())
+    prediction_distances = torch.abs(predicted_attributes - target_label)
+    # Weighing so that the influence of grade and technique is equal
+    prediction_distances[:, 5] *= 5
+    weighted_average_distance = torch.mean(prediction_distances, dim=1)
+    idx_of_closest = torch.argmin(weighted_average_distance)
+    closest_prediction = predicted_attributes[idx_of_closest]
+
+    if check_if_prediction_is_correct(closest_prediction, target_label):
+        modiffae_model = models[0][0]
+        rot2xyz_pose_rep = data.pose_rep
+        rot2xyz_mask = model_kwargs['y']['mask'].reshape(batch_size, n_frames).bool()
+
+        distances = random.choices(joint_distances, k=batch_size)
+        distances = collate_tensors(distances)
+        distances = distances.to(dist_util.dev())
+
+        generated_samples_xyz = modiffae_model.rot2xyz(x=generated_samples, mask=rot2xyz_mask,
+                                                       pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
+                                                       jointstype='karate', vertstrans=True,  betas=None, beta=0,
+                                                       glob_rot=None, get_rotations_back=False, distance=distances)
+        accepted_sample_xyz = generated_samples_xyz[idx_of_closest]
+        accepted_sample_xyz = torch.transpose(accepted_sample_xyz, 0, 1)
+        accepted_sample_xyz = torch.transpose(accepted_sample_xyz, 0, 2)
+
+        accepted_sample_joint_axis_angles, accepted_sample_distances = geometry.calc_axis_angles_and_distances(
+            points=accepted_sample_xyz
+        )
+
+        accepted_sample_xyz = accepted_sample_xyz.cpu().detach().numpy()
+        accepted_sample_joint_axis_angles = accepted_sample_joint_axis_angles.cpu().detach().numpy()
+        accepted_sample_distances = accepted_sample_distances.cpu().detach().numpy()
+
+        target_technique_cls = torch.argmax(target_label[:5]).item()
+        target_grade = round(target_label[5].item() * 12)
+        target_grade = grade_number_to_name[target_grade]
+
+        complete_sample = (
+            accepted_sample_xyz,
+            accepted_sample_joint_axis_angles,
+            accepted_sample_distances,
+            target_technique_cls,
+            target_grade
+        )
+        return complete_sample
+    else:
+        return None
+
 
 def main():
     args = generation_args()
-
     fixseed(args.seed)
+
+    modiffae_args = model_parser(model_type="modiffae", model_path=args.modiffae_model_path)
+    data = KaratePoses(test_participant=None, split=None, pose_rep=modiffae_args.pose_rep)
+    joint_distances = [torch.Tensor(x) for x in data.get_joint_distances()]
+
+    data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out', 'generated_data.npy')
+    if os.path.isfile(data_path):
+        if not args.overwrite:
+            message = 'The target file already exists. If the data should be '
+            message += 'replaced by new data, run this script with the --overwrite argument. Exiting...'
+            raise Exception(message)
+
+    models = load_models(
+        modiffae_model_path=args.modiffae_model_path,
+        semantic_generator_model_path=args.semantic_generator_model_path,
+        semantic_regressor_model_path=args.semantic_regressor_model_path
+    )
+
+    accepted_samples = []
+
+    number_of_samples_to_generate_per_grade = \
+        calc_number_of_samples_to_generate_per_grade(args.ratio, data)
+
+    for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
+        number_of_samples_per_technique = round(number_of_samples / 5)
+        for i in range(5):
+            one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
+
+            generation_count = 0
+            while generation_count < number_of_samples_per_technique:
+                sample = None
+                while sample is None:
+                    sample = rejection_sampling(models, args.num_frames, args.batch_size, one_hot_labels,
+                                                modiffae_args.modiffae_latent_dim, data, joint_distances)
+                accepted_samples.append(sample)
+                print(f'Accepted a sample for grade {grade} and technique {i}')
+                generation_count += 1
+
+                break
+            break
+        break
+
+    nr_generated_samples = len(accepted_samples)
+    j_dist_shape = (len(data_info.reconstruction_skeleton),)
+    accepted_samples = np.array(accepted_samples, dtype=[
+            ('joint_positions', 'O'),
+            ('joint_axis_angles', 'O'),
+            ('joint_distances', 'f4', j_dist_shape),
+            ('technique_cls', 'i4'),
+            ('grade', 'U10')
+        ]
+    )
+
+    np.save(data_path, accepted_samples)
+    print(f'Number of generated samples: {nr_generated_samples}')
+    print(f'Saved generated data at {data_path}')
+
+
+
+    #print(number_of_samples_to_generate_per_grade)
+
+    """load_models(
+        modiffae_model_path="./save/rot_6d_karate/modiffae_b0372/model000300000.pt",
+        semantic_generator_model_path="./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0372_model000300000/model000000000.pt",
+        semantic_regressor_model_path="./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000300000/model000000000.pt"
+    )"""
+    #exit()
+
+    #args = generation_args()
+
+    """fixseed(args.seed)
     out_path = args.output_dir
     name = os.path.basename(os.path.dirname(args.model_path))
     niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
@@ -245,7 +528,7 @@ def main():
         from_array(arr=motion, sampling_frequency=fps)  # , file_name=animation_save_path)
 
 
-    exit()
+    exit()"""
 
     ################
 
@@ -529,7 +812,7 @@ def construct_template_variables(unconstrained):
     return sample_print_template, row_print_template, all_print_template, \
            sample_file_template, row_file_template, all_file_template"""
 
-def load_dataset(args, max_frames, n_frames, split='test'):
+"""def load_dataset(args, max_frames, n_frames, split='test'):
     data = get_dataset_loader(name=args.dataset,
                               batch_size=args.batch_size,
                               num_frames=max_frames,
@@ -537,7 +820,7 @@ def load_dataset(args, max_frames, n_frames, split='test'):
                               #split='test')
                               split=split)
     data.fixed_length = n_frames
-    return data
+    return data"""
 
 """def load_dataset(args, max_frames, n_frames):
     data = get_dataset_loader(name=args.dataset,

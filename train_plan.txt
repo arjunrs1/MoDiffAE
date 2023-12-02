@@ -2,15 +2,31 @@
 
 Train modiffae:
 
-#python -m training.train --model_type modiffae --save_dir ./save/testTrainAndLoad/ --overwrite
-python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/
+- With xyz: 
+python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/ --test_participant b0372	[x]
+python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/ --test_participant b0401	[x] 
+
+- With rot_6d:
+python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ --test_participant b0372 --pose_rep rot_6d	[x] 
+python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ --test_participant b0401 --pose_rep rot_6d	[x] 
 
 
-Train latentnet:
 
- python -m training.train --model_type latentnet --modiffae_model_path ./save/testTrainAndLoad/modiffae/model000000000.pt --overwrite
- 
- 
+
+Train semantic regressor:
+
+
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt
+
+
+Train semantic generator:
+
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt
+
+
+Generate data:
+
+python -m sample.generate --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt --semantic_generator_model_path ./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0372_model000300000/model000000000.pt --semantic_regressor_model_path ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000300000/model000000000.pt
  
  
  

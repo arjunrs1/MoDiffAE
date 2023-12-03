@@ -7,6 +7,51 @@ from utils.model_util import create_modiffae_and_diffusion, load_model, calculat
 from utils import dist_util
 from load.get_data import get_dataset_loader
 import matplotlib.pyplot as plt
+#from torchmetrics import F1Score
+#from torcheval.metrics.functional import multiclass_f1_score
+from sklearn.metrics import f1_score, balanced_accuracy_score, confusion_matrix
+
+def determine_predictions_and_targets(train_embeddings, train_labels, validation_embedding, validation_label, k):
+    distances_to_train_embeddings_list = list(np.linalg.norm(train_embeddings - validation_embedding, axis=1))
+    train_labels_list = list(train_labels)
+
+    distances_and_labels = list(zip(distances_to_train_embeddings_list, train_labels_list))
+    distances_and_labels.sort(key=lambda x: x[0])
+
+    k_closest = distances_and_labels[:k]
+    k_closest_labels = np.array([e[1] for e in k_closest])
+
+    k_closest_technique_labels = k_closest_labels[:, :5]
+    k_closest_technique_labels_cls = [x for x in np.argmax(k_closest_technique_labels, axis=1)]
+
+    technique_prediction = max(k_closest_technique_labels_cls, key=k_closest_technique_labels_cls.count)
+    technique_target = np.argmax(validation_label[:5])
+
+    #print(technique_prediction, technique_target)
+
+    k_closest_average_label = np.mean(k_closest_labels, axis=0)
+    #k_closest_average_label = np.expand_dims(k_closest_average_label, axis=1)
+
+    #print(validation_label)
+
+    grade_prediction = round(k_closest_average_label[5] * 12)
+    grade_target_float = validation_label[5]
+    grade_target = round(grade_target_float * 12)
+    #print(grade_prediction, grade_target)
+    #exit()
+
+    #val_label = np.expand_dims(validation_label, axis=1)
+    #technique_target = np.argmax(val_label[])
+
+    #acc = k_closest_technique_labels_cls.count(val_label_cls) / len(k_closest_technique_labels_cls)
+
+    #label_distance = np.linalg.norm(k_closest_average_label - val_label, axis=1)
+    #skill_mae = label_distance[-1]
+
+    #errors = [(val_label_cls, acc), skill_mae]
+
+    #return errors
+    return (technique_prediction, technique_target), (grade_prediction, grade_target)
 
 
 def calc_distance_score(train_embeddings, train_labels, validation_embedding, validation_label, k):
@@ -25,17 +70,37 @@ def calc_distance_score(train_embeddings, train_labels, validation_embedding, va
     k_closest_average_label = np.mean(k_closest_labels, axis=0)
     k_closest_average_label = np.expand_dims(k_closest_average_label, axis=1)
 
+    technique_prediction = max(k_closest_technique_labels_cls, key=k_closest_technique_labels_cls.count)
+    technique_target = np.argmax(validation_label[:5])
+
     val_label = np.expand_dims(validation_label, axis=1)
-    val_label_cls = np.argmax(val_label)
+    #val_label_cls = np.argmax(val_label)
 
-    acc = k_closest_technique_labels_cls.count(val_label_cls) / len(k_closest_technique_labels_cls)
+    technique_acc = k_closest_technique_labels_cls.count(technique_target) / len(k_closest_technique_labels_cls)
 
-    label_distance = np.linalg.norm(k_closest_average_label - val_label, axis=1)
-    skill_mae = label_distance[-1]
+    #label_distance = np.linalg.norm(k_closest_average_label - val_label, axis=1)
+    #grade_mae = label_distance[-1]
+    grade_mae = np.linalg.norm(k_closest_average_label[5] - val_label[5])
+    #grade_mae = label_distance[-1]
+    #grade_target = validation_label[5]
 
-    errors = [(val_label_cls, acc), skill_mae]
+    grade_prediction = round(np.squeeze(k_closest_average_label[5]) * 12)
+    grade_target_float = validation_label[5]
+    grade_target = round(grade_target_float * 12)
 
-    return errors
+    # TODO: think about if acc or average stuff also for technique. This is currently not consistent
+    errors = [(technique_target, technique_acc), (grade_target, grade_mae)]
+
+    predictions_and_targets = (
+        (technique_prediction, technique_target),
+        (grade_prediction, grade_target)
+    )
+
+    return errors, predictions_and_targets
+
+
+def count_label_occurrences():
+    pass
 
 
 def calc_checkpoint_metrics(model_path):
@@ -78,12 +143,28 @@ def calc_checkpoint_metrics(model_path):
     validation_semantic_embeddings = validation_semantic_embeddings.cpu().detach().numpy()
     validation_labels = validation_labels.cpu().detach().numpy()
 
+    technique_predictions = []
+    technique_targets = []
+    grade_predictions = []
+    grade_targets = []
+
     error_scores = []
     for i in range(validation_semantic_embeddings.shape[0]):
         val_embedding = validation_semantic_embeddings[i]
         val_label = validation_labels[i]
-        error_score = calc_distance_score(train_semantic_embeddings, train_labels, val_embedding, val_label, k=50)
+        error_score, predictions_and_targets = (
+            calc_distance_score(train_semantic_embeddings, train_labels, val_embedding, val_label, k=10)) # 50
         error_scores.append(error_score)
+
+        technique_predictions.append(predictions_and_targets[0][0])
+        technique_targets.append(predictions_and_targets[0][1])
+        grade_predictions.append(predictions_and_targets[1][0])
+        grade_targets.append(predictions_and_targets[1][1])
+
+    predictions_and_targets_combined = (
+        (technique_predictions, technique_targets),
+        (grade_predictions, grade_targets)
+    )
 
     technique_accuracies = []
     for cls in range(5):
@@ -91,10 +172,99 @@ def calc_checkpoint_metrics(model_path):
         tech_scores_avg = np.mean(tech_scores)
         technique_accuracies.append(tech_scores_avg)
 
-    skill_mae = np.mean([err for _, err in error_scores])
+    grade_maes = []
+    for gr in range(13):
+        grade_scores = [mae for _, (g, mae) in error_scores if g == gr]
+        grade_scores_avg = np.mean(grade_scores)
+        grade_maes.append(grade_scores_avg)
+    #grade_mae = np.mean([err for _, err in error_scores])
 
-    metrics = np.append(technique_accuracies, skill_mae)
-    return metrics
+    #metrics = np.append(technique_accuracies, grade_maes)
+    #return metrics
+    return technique_accuracies, grade_maes, predictions_and_targets_combined
+
+'''def calc_checkpoint_metrics(model_path):
+    modiffae_args = model_parser(model_type="modiffae", model_path=model_path)
+
+    train_data = get_dataset_loader(
+        name=modiffae_args.dataset,
+        batch_size=modiffae_args.batch_size,
+        num_frames=modiffae_args.num_frames,
+        test_participant=modiffae_args.test_participant,
+        pose_rep=modiffae_args.pose_rep,
+        split='train'
+    )
+
+    validation_data = get_dataset_loader(
+        name=modiffae_args.dataset,
+        batch_size=modiffae_args.batch_size,
+        num_frames=modiffae_args.num_frames,
+        test_participant=modiffae_args.test_participant,
+        pose_rep=modiffae_args.pose_rep,
+        split='validation'
+    )
+
+    model, diffusion = create_modiffae_and_diffusion(modiffae_args, train_data)
+
+    print(f"Loading checkpoints from [{model_path}]...")
+    state_dict = torch.load(model_path, map_location='cpu')
+    load_model(model, state_dict)
+
+    model.to(dist_util.dev())
+    model.eval()
+
+    train_semantic_embeddings, train_labels = calculate_embeddings(train_data, model.semantic_encoder,
+                                                                   return_labels=True)
+    train_semantic_embeddings = train_semantic_embeddings.cpu().detach().numpy()
+    train_labels = train_labels.cpu().detach().numpy()
+
+    validation_semantic_embeddings, validation_labels = calculate_embeddings(validation_data, model.semantic_encoder,
+                                                                             return_labels=True)
+    validation_semantic_embeddings = validation_semantic_embeddings.cpu().detach().numpy()
+    validation_labels = validation_labels.cpu().detach().numpy()
+
+    #error_scores = []
+    technique_predictions = []
+    technique_targets = []
+    grade_predictions = []
+    grade_targets = []
+
+    for i in range(validation_semantic_embeddings.shape[0]):
+        val_embedding = validation_semantic_embeddings[i]
+        val_label = validation_labels[i]
+        t, g = determine_predictions_and_targets(
+            train_semantic_embeddings, train_labels, val_embedding, val_label, k=50) # 50
+        technique_predictions.append(t[0])
+        technique_targets.append(t[1])
+        grade_predictions.append(g[0])
+        grade_targets.append(g[1])
+        #error_scores.append(error_score)
+
+    technique_f1_score = f1_score(technique_targets, technique_predictions, average='macro')
+    grade_f1_score = f1_score(grade_targets, grade_predictions, average='macro')
+    avg_f1_score = (technique_f1_score + grade_f1_score) / 2
+
+    #technique_f1_score = balanced_accuracy_score(technique_targets, technique_predictions)
+    #grade_f1_score = balanced_accuracy_score(grade_targets, grade_predictions)
+    #avg_f1_score = (technique_f1_score + grade_f1_score) / 2
+
+    return technique_f1_score, grade_f1_score, avg_f1_score
+
+    #print(technique_f1_score, grade_f1_score)
+    #exit()'''
+
+'''technique_accuracies = []
+for cls in range(5):
+    tech_scores = [ac for (c, ac), _ in error_scores if c == cls]
+    tech_scores_avg = np.mean(tech_scores)
+    technique_accuracies.append(tech_scores_avg)
+
+skill_mae = np.mean([err for _, err in error_scores])
+
+metrics = np.append(technique_accuracies, skill_mae)
+return metrics'''
+
+
 
 
 def main():
@@ -104,33 +274,75 @@ def main():
 
     checkpoints = [p for p in sorted(os.listdir(args.save_dir)) if p.startswith('model') and p.endswith('.pt')]
 
-    checkpoint_metrics = []
+    #checkpoint_metrics = []
+
+    technique_accuracies_all = []
+    grade_maes_all = []
+    predictions_and_targets_all = []
     for ch in checkpoints:
         model_path = os.path.join(args.save_dir, ch)
-        checkpoint_metric = calc_checkpoint_metrics(model_path)
-        checkpoint_metrics.append(checkpoint_metric)
+        #checkpoint_metric = calc_checkpoint_metrics(model_path)
+        technique_accuracies, grade_maes, predictions_and_targets_combined = calc_checkpoint_metrics(model_path)
+        technique_accuracies_all.append(technique_accuracies)
+        grade_maes_all.append(grade_maes)
+        predictions_and_targets_all.append(predictions_and_targets_combined)
+        #print(technique_accuracies, grade_maes, predictions_and_targets_combined)
+        #exit()
+        #checkpoint_metrics.append(checkpoint_metric)
 
-    checkpoint_metrics = np.array(checkpoint_metrics)
+    #checkpoint_metrics = np.array(checkpoint_metrics)
+    technique_accuracies_all = np.array(technique_accuracies_all)
+    grade_maes_all = np.array(grade_maes_all)
+    #predictions_and_targets_all = np.array(predictions_and_targets_all)
 
     checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "k" for ch in checkpoints]
 
-    idx_to_name = {
-        0: "Acc: Reverse punch",
-        1: "Acc: Front kick",
-        2: "Acc: Low roundhouse kick",
-        3: "Acc: High roundhouse kick",
-        4: "Acc: Spinning back kick",
-        5: "Mae: Grade"
+    technique_idx_to_name = {
+        0: "Accuracy: Reverse punch",
+        1: "Accuracy: Front kick",
+        2: "Accuracy: Low roundhouse kick",
+        3: "Accuracy: High roundhouse kick",
+        4: "Accuracy: Spinning back kick"
+    }
+
+    grade_idx_to_name = {
+        0: 'Mae: 9 kyu',
+        1: '8 kyu',
+        2: '7 kyu',
+        3: '6 kyu',
+        4: '5 kyu',
+        5: '4 kyu',
+        6: '3 kyu',
+        7: '2 kyu',
+        8: '1 kyu',
+        9: '1 dan',
+        10: '2 dan',
+        11: '3 dan',
+        12: '4 dan'
     }
 
     f = plt.figure()
     f.set_figwidth(15)
     f.set_figheight(8)
 
+    #checkpoint_metrics_technique = checkpoint_metrics[:5, :]
+    #checkpoint_metrics_grade = checkpoint_metrics[5:]
+
     x = checkpoints
-    for idx in range(checkpoint_metrics.shape[1]):
-        y = checkpoint_metrics[:, idx]
-        plt.plot(x, y, label=f"{idx_to_name[idx]}")
+    for idx in range(technique_accuracies_all.shape[1]):
+        y = technique_accuracies_all[:, idx]
+        plt.plot(x, y, label=f"{technique_idx_to_name[idx]}")
+
+    technique_unweighted_average_recalls = []
+    for idx in range(technique_accuracies_all.shape[0]):
+        technique_unweighted_average_recalls.append(np.mean(technique_accuracies_all[idx, :]))
+    best_avg = np.argmax(technique_unweighted_average_recalls)
+    print(best_avg)
+
+    plt.plot(x, technique_unweighted_average_recalls, label=f"Unweighted average recall")
+
+    plt.vlines(x=[best_avg], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best unweighted average recall')
 
     # TODO: think about metric at which to stop. Some sort of weighted average
     #       maybe 1 - skill_dist averaged with accuracies but both equally weighted
@@ -145,6 +357,55 @@ def main():
 
     plt.savefig(fig_save_path)
 
+    plt.clf()
+
+    for idx in range(grade_maes_all.shape[1]):
+        y = grade_maes_all[:, idx]
+        plt.plot(x, y, label=f"{grade_idx_to_name[idx]}")
+
+    grade_unweighted_average_recalls = []
+    for idx in range(grade_maes_all.shape[0]):
+        grade_unweighted_average_recalls.append(np.mean(grade_maes_all[idx, :]))
+    best_avg = np.argmin(grade_unweighted_average_recalls)
+    print(best_avg)
+
+    plt.plot(x, grade_unweighted_average_recalls, label=f"Avg")
+
+    plt.vlines(x=[best_avg], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best unweighted average recall')
+
+    # TODO: think about metric at which to stop. Some sort of weighted average
+    #       maybe 1 - skill_dist averaged with accuracies but both equally weighted
+
+    plt.legend()
+    plt.show()
+
+    plt.clf()
+
+
+    # TODO: plot confusion matrics and own metric averga ebtween grade and tchnique
+
+
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_avg][0]
+    print(chosen_model_predictions_and_targets)
+
+    technique_confusion_matrix_values = confusion_matrix(
+        chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
+    )
+
+    print(technique_confusion_matrix_values)
+
+
+    #####
+
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_avg][1]
+    print(chosen_model_predictions_and_targets)
+
+    grade_confusion_matrix_values = confusion_matrix(
+        chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
+    )
+
+    print(grade_confusion_matrix_values)
 
 if __name__ == "__main__":
     main()

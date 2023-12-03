@@ -29,6 +29,7 @@ def main():
 
         _, model_name = os.path.split(get_model_path_from_args("modiffae"))
         model_name = model_name.split('.')[0]
+        #model_name = model_name.split('.')[-2]
         base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
         tmp_modiffae_args = model_parser(model_type="modiffae")
         test_participant = tmp_modiffae_args.test_participant

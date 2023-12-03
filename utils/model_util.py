@@ -144,6 +144,8 @@ def calculate_embeddings(data, semantic_encoder, return_labels=False):
         return embeddings
 
 
+#def calculate_embeddings_from_data
+
 def calculate_z_parameters(data, semantic_encoder, embeddings=None):
     if embeddings is None:
         embeddings = calculate_embeddings(data, semantic_encoder)

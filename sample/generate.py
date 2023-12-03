@@ -161,6 +161,65 @@ def generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_late
     return samples, model_kwargs
 
 
+def generate_samples_for_data_loader(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data):
+    generated_samples, model_kwargs = generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data)
+    modiffae_model = models[0][0]
+    rot2xyz_pose_rep = data.pose_rep
+    rot2xyz_mask = model_kwargs['y']['mask'].reshape(batch_size, n_frames).bool()
+
+    target_label = torch.as_tensor(one_hot_labels[0], dtype=torch.float32).to(dist_util.dev())
+
+    joint_distances = [torch.Tensor(x) for x in data.get_joint_distances()]
+    distances = random.choices(joint_distances, k=batch_size)
+    distances = collate_tensors(distances)
+    distances = distances.to(dist_util.dev())
+
+    generated_samples_xyz = modiffae_model.rot2xyz(x=generated_samples, mask=rot2xyz_mask,
+                                                   pose_rep=rot2xyz_pose_rep, glob=True, translation=True,
+                                                   jointstype='karate', vertstrans=True, betas=None, beta=0,
+                                                   glob_rot=None, get_rotations_back=False, distance=distances)
+
+    complete_samples = []
+
+    for i in range(generated_samples_xyz.shape[0]):
+        sample_xyz = generated_samples_xyz[i]
+
+        sample_xyz = torch.transpose(sample_xyz, 0, 1)
+        sample_xyz = torch.transpose(sample_xyz, 0, 2)
+
+        sample_joint_axis_angles, sample_distances = geometry.calc_axis_angles_and_distances(
+            points=sample_xyz
+        )
+
+        sample_xyz = sample_xyz.cpu().detach().numpy()
+        sample_joint_axis_angles = sample_joint_axis_angles.cpu().detach().numpy()
+        sample_distances = sample_distances.cpu().detach().numpy()
+
+        target_technique_cls = torch.argmax(target_label[:5]).item()
+        target_grade = round(target_label[5].item() * 12)
+        target_grade = grade_number_to_name[target_grade]
+
+        complete_sample = (
+            sample_xyz,
+            sample_joint_axis_angles,
+            sample_distances,
+            target_technique_cls,
+            target_grade
+        )
+        complete_samples.append(complete_sample)
+
+    j_dist_shape = (len(data_info.reconstruction_skeleton),)
+    complete_samples = np.array(complete_samples, dtype=[
+            ('joint_positions', 'O'),
+            ('joint_axis_angles', 'O'),
+            ('joint_distances', 'f4', j_dist_shape),
+            ('technique_cls', 'i4'),
+            ('grade', 'U10')
+        ]
+    )
+    return complete_samples
+
+
 def predict_attributes(semantic_regressor_model, generated_samples):
     with torch.no_grad():
         attribute_predictions = semantic_regressor_model(generated_samples)

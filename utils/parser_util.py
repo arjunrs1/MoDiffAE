@@ -448,6 +448,14 @@ def evaluation_args():
     return parser.parse_args() #parse_and_load_from_model(parser)
 
 
+def generation_evaluation_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
+    # TODO: add way and parameter to choose number of samples per combination and over multiple batches
+    return parser.parse_args()
+
+
 def modiffae_validation_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)

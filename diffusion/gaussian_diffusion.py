@@ -198,9 +198,17 @@ class GaussianDiffusion:
         )
 
         self.l2_loss = lambda a, b: (a - b) ** 2  # th.nn.MSELoss(reduction='none')  # must be None for handling mask later on.
+        self.l1_loss = lambda a, b: torch.abs(a - b)
 
     def l2(self, a, b):
         loss = self.l2_loss(a, b)
+        loss = sum_flat(loss)
+        n_entries = a.shape[1] # * a.shape[2]
+        mse_loss_val = loss / n_entries
+        return mse_loss_val
+
+    def l1(self, a, b):
+        loss = self.l1_loss(a, b)
         loss = sum_flat(loss)
         n_entries = a.shape[1] # * a.shape[2]
         mse_loss_val = loss / n_entries

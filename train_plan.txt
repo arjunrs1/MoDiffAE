@@ -28,8 +28,8 @@ Best models:
 
 Train semantic generator (on the best core before generation):
 
-python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ]
-python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ]
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ] runs on rechenknecht3
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ] runs on rechenknecht10
 
 
 ####

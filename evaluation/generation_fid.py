@@ -150,6 +150,8 @@ def calc_checkpoint_fid(semantic_generator_model_path, modiffae_model, modiffae_
 
 def main():
     args = generation_evaluation_args()
+    fixseed(args.seed)
+    dist_util.setup_dist(args.device)
 
     modiffae_model_path = args.modiffae_model_path
     modiffae_model, modiffae_diffusion, modiffae_args = load_modiffae(modiffae_model_path)

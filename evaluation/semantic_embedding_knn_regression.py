@@ -7,57 +7,12 @@ from utils.model_util import create_modiffae_and_diffusion, load_model, calculat
 from utils import dist_util
 from load.get_data import get_dataset_loader
 import matplotlib.pyplot as plt
-#from torchmetrics import F1Score
-#from torcheval.metrics.functional import multiclass_f1_score
-from sklearn.metrics import f1_score, balanced_accuracy_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 from collections import Counter
 import seaborn as sns
-from matplotlib.colors import ListedColormap
 import colorcet as cc
 import pandas as pd
 import json
-
-def determine_predictions_and_targets(train_embeddings, train_labels, validation_embedding, validation_label, k):
-    distances_to_train_embeddings_list = list(np.linalg.norm(train_embeddings - validation_embedding, axis=1))
-    train_labels_list = list(train_labels)
-
-    distances_and_labels = list(zip(distances_to_train_embeddings_list, train_labels_list))
-    distances_and_labels.sort(key=lambda x: x[0])
-
-    k_closest = distances_and_labels[:k]
-    k_closest_labels = np.array([e[1] for e in k_closest])
-
-    k_closest_technique_labels = k_closest_labels[:, :5]
-    k_closest_technique_labels_cls = [x for x in np.argmax(k_closest_technique_labels, axis=1)]
-
-    technique_prediction = max(k_closest_technique_labels_cls, key=k_closest_technique_labels_cls.count)
-    technique_target = np.argmax(validation_label[:5])
-
-    #print(technique_prediction, technique_target)
-
-    k_closest_average_label = np.mean(k_closest_labels, axis=0)
-    #k_closest_average_label = np.expand_dims(k_closest_average_label, axis=1)
-
-    #print(validation_label)
-
-    grade_prediction = round(k_closest_average_label[5] * 12)
-    grade_target_float = validation_label[5]
-    grade_target = round(grade_target_float * 12)
-    #print(grade_prediction, grade_target)
-    #exit()
-
-    #val_label = np.expand_dims(validation_label, axis=1)
-    #technique_target = np.argmax(val_label[])
-
-    #acc = k_closest_technique_labels_cls.count(val_label_cls) / len(k_closest_technique_labels_cls)
-
-    #label_distance = np.linalg.norm(k_closest_average_label - val_label, axis=1)
-    #skill_mae = label_distance[-1]
-
-    #errors = [(val_label_cls, acc), skill_mae]
-
-    #return errors
-    return (technique_prediction, technique_target), (grade_prediction, grade_target)
 
 
 def calc_distance_score(train_embeddings, train_labels, validation_embedding,
@@ -136,10 +91,6 @@ def calc_distance_score(train_embeddings, train_labels, validation_embedding,
     )
 
     return errors, predictions_and_targets
-
-
-def count_label_occurrences():
-    pass
 
 
 def calc_checkpoint_metrics(model_path):
@@ -221,94 +172,8 @@ def calc_checkpoint_metrics(model_path):
         grade_scores = [mae for _, (g, mae) in error_scores if g == gr]
         grade_scores_avg = np.mean(grade_scores)
         grade_maes.append(grade_scores_avg)
-    #grade_mae = np.mean([err for _, err in error_scores])
 
-    #metrics = np.append(technique_accuracies, grade_maes)
-    #return metrics
     return technique_accuracies, grade_maes, predictions_and_targets_combined
-
-'''def calc_checkpoint_metrics(model_path):
-    modiffae_args = model_parser(model_type="modiffae", model_path=model_path)
-
-    train_data = get_dataset_loader(
-        name=modiffae_args.dataset,
-        batch_size=modiffae_args.batch_size,
-        num_frames=modiffae_args.num_frames,
-        test_participant=modiffae_args.test_participant,
-        pose_rep=modiffae_args.pose_rep,
-        split='train'
-    )
-
-    validation_data = get_dataset_loader(
-        name=modiffae_args.dataset,
-        batch_size=modiffae_args.batch_size,
-        num_frames=modiffae_args.num_frames,
-        test_participant=modiffae_args.test_participant,
-        pose_rep=modiffae_args.pose_rep,
-        split='validation'
-    )
-
-    model, diffusion = create_modiffae_and_diffusion(modiffae_args, train_data)
-
-    print(f"Loading checkpoints from [{model_path}]...")
-    state_dict = torch.load(model_path, map_location='cpu')
-    load_model(model, state_dict)
-
-    model.to(dist_util.dev())
-    model.eval()
-
-    train_semantic_embeddings, train_labels = calculate_embeddings(train_data, model.semantic_encoder,
-                                                                   return_labels=True)
-    train_semantic_embeddings = train_semantic_embeddings.cpu().detach().numpy()
-    train_labels = train_labels.cpu().detach().numpy()
-
-    validation_semantic_embeddings, validation_labels = calculate_embeddings(validation_data, model.semantic_encoder,
-                                                                             return_labels=True)
-    validation_semantic_embeddings = validation_semantic_embeddings.cpu().detach().numpy()
-    validation_labels = validation_labels.cpu().detach().numpy()
-
-    #error_scores = []
-    technique_predictions = []
-    technique_targets = []
-    grade_predictions = []
-    grade_targets = []
-
-    for i in range(validation_semantic_embeddings.shape[0]):
-        val_embedding = validation_semantic_embeddings[i]
-        val_label = validation_labels[i]
-        t, g = determine_predictions_and_targets(
-            train_semantic_embeddings, train_labels, val_embedding, val_label, k=50) # 50
-        technique_predictions.append(t[0])
-        technique_targets.append(t[1])
-        grade_predictions.append(g[0])
-        grade_targets.append(g[1])
-        #error_scores.append(error_score)
-
-    technique_f1_score = f1_score(technique_targets, technique_predictions, average='macro')
-    grade_f1_score = f1_score(grade_targets, grade_predictions, average='macro')
-    avg_f1_score = (technique_f1_score + grade_f1_score) / 2
-
-    #technique_f1_score = balanced_accuracy_score(technique_targets, technique_predictions)
-    #grade_f1_score = balanced_accuracy_score(grade_targets, grade_predictions)
-    #avg_f1_score = (technique_f1_score + grade_f1_score) / 2
-
-    return technique_f1_score, grade_f1_score, avg_f1_score
-
-    #print(technique_f1_score, grade_f1_score)
-    #exit()'''
-
-'''technique_accuracies = []
-for cls in range(5):
-    tech_scores = [ac for (c, ac), _ in error_scores if c == cls]
-    tech_scores_avg = np.mean(tech_scores)
-    technique_accuracies.append(tech_scores_avg)
-
-skill_mae = np.mean([err for _, err in error_scores])
-
-metrics = np.append(technique_accuracies, skill_mae)
-return metrics'''
-
-
 
 
 def main():
@@ -405,7 +270,7 @@ def main():
     for idx in range(technique_accuracies_all.shape[0]):
         technique_unweighted_average_recalls.append(np.mean(technique_accuracies_all[idx, :]))
     best_technique_avg_idx = np.argmax(technique_unweighted_average_recalls)
-    print(best_technique_avg_idx)
+    #print(best_technique_avg_idx)
 
     plt.plot(x, technique_unweighted_average_recalls, label=f"UAR", color='black')
 
@@ -443,7 +308,7 @@ def main():
     for idx in range(grade_maes_all.shape[0]):
         grade_averages.append(np.mean(grade_maes_all[idx, :]))
     best_grade_avg_idx = np.argmin(grade_averages)
-    print(best_grade_avg_idx)
+    #print(best_grade_avg_idx)
 
     plt.plot(x, grade_averages, label=f"UMAE", color='black')
 
@@ -466,7 +331,7 @@ def main():
     grade_averages_acc = [1 - avg for avg in grade_averages]
     combined_metric = (np.array(grade_averages_acc) + np.array(technique_unweighted_average_recalls)) / 2
     best_combined_avg_idx = np.argmax(combined_metric)
-    print(best_combined_avg_idx)
+    #print(best_combined_avg_idx)
 
     plt.plot(x, technique_unweighted_average_recalls, label=f"UAR")
     plt.plot(x, grade_averages, label=f"UMAE")
@@ -485,13 +350,13 @@ def main():
 
 
     chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][0]
-    print(chosen_model_predictions_and_targets)
+    #print(chosen_model_predictions_and_targets)
 
     technique_confusion_matrix_values = confusion_matrix(
         chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
     )
 
-    print(technique_confusion_matrix_values)
+    #print(technique_confusion_matrix_values)
 
     df_cm = pd.DataFrame(technique_confusion_matrix_values,
                          index=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()],
@@ -508,13 +373,13 @@ def main():
     #####
 
     chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][1]
-    print(chosen_model_predictions_and_targets)
+    #print(chosen_model_predictions_and_targets)
 
     grade_confusion_matrix_values = confusion_matrix(
         chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
     )
 
-    print(grade_confusion_matrix_values)
+    #print(grade_confusion_matrix_values)
 
     df_cm = pd.DataFrame(grade_confusion_matrix_values,
                          index=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()],
@@ -536,10 +401,10 @@ def main():
         "best combined checkpoint": str(checkpoints[best_combined_avg_idx]),
         "UAR of best combined checkpoint": str(technique_unweighted_average_recalls[best_combined_avg_idx]),
         "UMAE of best combined checkpoint": str(grade_averages[best_combined_avg_idx]),
-        "Overall score of best combined checkpoint": str(combined_metric[best_combined_avg_idx])
+        "overall score of best combined checkpoint": str(combined_metric[best_combined_avg_idx])
     }
 
-    print(best_results)
+    #print(best_results)
 
     best_results_save_path = os.path.join(eval_dir, "best_results_overview.json")
     with open(best_results_save_path, 'w') as outfile:

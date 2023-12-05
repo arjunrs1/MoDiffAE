@@ -1,6 +1,6 @@
 
 
-Train modiffae:
+Train core:
 
 - With xyz: 
 python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/ --test_participant b0372	[x]
@@ -11,17 +11,31 @@ python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ 
 python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ --test_participant b0401 --pose_rep rot_6d	[x] 
 
 
+Best models pre-generation:
+rot_6d	b0372		ckpt: 700k
+rot_6d	b0401		ckpt: 750k
+
+####
+
+Train semantic regressor (on the best core before generation):
+
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ]
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ]
+
+Best models:
+
+####
+
+Train semantic generator (on the best core before generation):
+
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ]
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ]
 
 
-Train semantic regressor:
+####
 
 
-python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt
-
-
-Train semantic generator:
-
-python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt
+#######################
 
 
 Generate data:
@@ -29,6 +43,8 @@ Generate data:
 python -m sample.generate --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt --semantic_generator_model_path ./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0372_model000300000/model000000000.pt --semantic_regressor_model_path ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000300000/model000000000.pt
  
  
+ 
+#######################
  
 For humanact12 comparisson: 
 python -m training.train --model_type modiffae --save_dir ./save/testHumandAct/ --dataset humanact12 --pose_rep rot_6d --num_steps 750000

@@ -189,11 +189,68 @@ def calc_checkpoint_metrics(semantic_regressor_model_path,
 
 
 def run_validation(validation_data, model):
+    technique_accuracies_list = []
+    grade_maes_list = []
+    predictions_and_targets_combined = (([], []), ([], []))
+
+    #print(predictions_and_targets_combined[0][0])
+    #exit()
+
     for motion, cond in validation_data:
         cond['y'] = {key: val.to(dist_util.dev()) if torch.is_tensor(val) else val for key, val in
                      cond['y'].items()}
-        scores = forward(cond, model)
-        return scores
+        technique_accuracies_batch, grade_maes_batch, predictions_and_targets_batch = (
+            forward(cond, model)
+        )
+        technique_accuracies_list.extend(technique_accuracies_batch)
+        grade_maes_list.extend(grade_maes_batch)
+
+        predictions_and_targets_combined[0][0].extend(predictions_and_targets_batch[0][0])
+        predictions_and_targets_combined[0][1].extend(predictions_and_targets_batch[0][1])
+        predictions_and_targets_combined[1][0].extend(predictions_and_targets_batch[1][0])
+        predictions_and_targets_combined[1][1].extend(predictions_and_targets_batch[1][1])
+
+        #predictions_and_targets.extend(predictions_and_targets_batch)
+
+        #print()
+
+    #print(technique_accuracies_list)
+    #exit()
+
+    technique_accuracies = []
+    for cls in range(5):
+        tech_scores = [ac for (c, ac) in technique_accuracies_list if c == cls]
+        tech_scores_avg = np.mean(tech_scores)
+        technique_accuracies.append(tech_scores_avg)
+
+    grade_maes = []
+    for gr in range(13):
+        grade_scores = [mae for (g, mae) in grade_maes_list if g == gr]
+        grade_scores_avg = np.mean(grade_scores)
+        grade_maes.append(grade_scores_avg)
+
+    return technique_accuracies, grade_maes, predictions_and_targets_combined
+
+
+def calc_scores(technique_prediction, technique_target, grade_prediction_float, grade_target_float):
+    if technique_prediction == technique_target:
+        tech_acc = 1
+    else:
+        tech_acc = 0
+
+    grade_mae = np.linalg.norm(grade_prediction_float - grade_target_float)
+
+    grade_pred = round(grade_prediction_float * 12)
+    grade_targ = round(grade_target_float * 12)
+
+    pred_and_targ = (
+        (technique_prediction, technique_target),
+        (grade_pred, grade_targ)
+    )
+
+    #errors = [(technique_target, technique_acc), (grade_target, grade_mae)]
+
+    return (technique_target, tech_acc), (grade_targ, grade_mae), pred_and_targ
 
 
 def forward(cond, model):
@@ -207,7 +264,7 @@ def forward(cond, model):
 
     #loss = self.loss_fn(self.sigmoid_fn(output), target)
 
-    loss = F.binary_cross_entropy_with_logits(output, target)
+    #loss = F.binary_cross_entropy_with_logits(output, target)
 
     action_output = output[:, :5]
     #action_output = F.softmax(action_output)
@@ -224,8 +281,8 @@ def forward(cond, model):
 
     action_classifications = torch.argmax(action_output, dim=-1)
     action_labels_idxs = torch.argmax(action_target, dim=-1)
-    action_correct_predictions = sum(action_classifications == action_labels_idxs).item()
-    acc_technique = action_correct_predictions / len(og_motion)
+    #action_correct_predictions = sum(action_classifications == action_labels_idxs).item()
+    #acc_technique = action_correct_predictions / len(og_motion)
     #action_total_correct += action_correct_predictions
 
     '''skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
@@ -233,12 +290,63 @@ def forward(cond, model):
     skill_level_correct_predictions = sum(skill_level_classifications == skill_level_labels_idxs).item()
     acc_skill_level = skill_level_correct_predictions / len(og_motion)'''
 
-    mae_skill_level = F.l1_loss(skill_level_target, skill_level_output)
+    #mae_skill_level = F.l1_loss(skill_level_target, skill_level_output)
     #skill_level_total_correct += skill_level_correct_predictions
 
     #total_instances += len(og_motion)
 
-    print(acc_technique, mae_skill_level)
+    technique_predictions = list(action_classifications.cpu().detach().numpy())
+    technique_targets = list(action_labels_idxs.cpu().detach().numpy())
+
+    #grade_predictions = [round(gr * 12) for gr in list(skill_level_output.cpu().detach().numpy())]
+    #grade_targets = [round(gr * 12) for gr in list(skill_level_target.cpu().detach().numpy())]
+
+    grade_predictions_float = list(skill_level_output.cpu().detach().numpy())
+    grade_targets_float = list(skill_level_target.cpu().detach().numpy())
+
+    print(grade_predictions_float)
+    print(grade_targets_float)
+
+    print(technique_predictions)
+    print(technique_targets)
+
+    technique_accuracies_batch = []
+    grade_maes_batch = []
+
+    #technique_predictions_ = []
+    #technique_targets = []
+    grade_predictions = []
+    grade_targets = []
+
+
+    #predictions_and_targets_batch = []
+
+    for i in range(len(grade_predictions_float)):
+        tech_acc, grade_mae, pred_and_targ = calc_scores(
+            technique_predictions[i],
+            technique_targets[i],
+            grade_predictions_float[i],
+            grade_targets_float[i]
+        )
+        technique_accuracies_batch.append(tech_acc)
+        grade_maes_batch.append(grade_mae)
+        grade_predictions.append(pred_and_targ[1][0])
+        grade_targets.append(pred_and_targ[1][1])
+        #predictions_and_targets_batch.append(pred_and_targ)
+
+    predictions_and_targets_combined = (
+        (technique_predictions, technique_targets),
+        (grade_predictions, grade_targets)
+    )
+
+    #print(technique_accuracies_batch)
+    #print(grade_maes_batch)
+    #print(predictions_and_targets_batch)
+
+    #exit()
+    #exit()
+
+    #print(acc_technique, mae_skill_level)
 
 
     #print(loss)
@@ -254,8 +362,9 @@ def forward(cond, model):
         },
         split
     )'''
+    # TODO: calculate a list for each batch
 
-    return None, None, None
+    return technique_accuracies_batch, grade_maes_batch, predictions_and_targets_combined
 
 
 def main():
@@ -344,13 +453,15 @@ def main():
         )'''
         technique_accuracies_all.append(technique_accuracies)
         print(technique_accuracies)
+
+
         grade_maes_all.append(grade_maes)
         predictions_and_targets_all.append(predictions_and_targets_combined)
         #print(technique_accuracies, grade_maes, predictions_and_targets_combined)
         #exit()
         #checkpoint_metrics.append(checkpoint_metric)
 
-    exit()
+    #exit()
 
     #checkpoint_metrics = np.array(checkpoint_metrics)
     technique_accuracies_all = np.array(technique_accuracies_all)
@@ -501,6 +612,9 @@ def main():
 
     # TODO: plot confusion matrics and own metric averga ebtween grade and tchnique
 
+    #print(predictions_and_targets_all)
+
+    #exit()
 
     chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][0]
     #print(chosen_model_predictions_and_targets)
@@ -510,6 +624,7 @@ def main():
     )
 
     #print(technique_confusion_matrix_values)
+    #exit()
 
     df_cm = pd.DataFrame(technique_confusion_matrix_values,
                          index=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()],

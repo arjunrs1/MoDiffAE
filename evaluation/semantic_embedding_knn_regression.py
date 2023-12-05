@@ -11,6 +11,11 @@ import matplotlib.pyplot as plt
 #from torcheval.metrics.functional import multiclass_f1_score
 from sklearn.metrics import f1_score, balanced_accuracy_score, confusion_matrix
 from collections import Counter
+import seaborn as sns
+from matplotlib.colors import ListedColormap
+import colorcet as cc
+import pandas as pd
+import json
 
 def determine_predictions_and_targets(train_embeddings, train_labels, validation_embedding, validation_label, k):
     distances_to_train_embeddings_list = list(np.linalg.norm(train_embeddings - validation_embedding, axis=1))
@@ -337,15 +342,39 @@ def main():
     checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "k" for ch in checkpoints]
 
     technique_idx_to_name = {
-        0: "Accuracy: Reverse punch",
-        1: "Accuracy: Front kick",
-        2: "Accuracy: Low roundhouse kick",
-        3: "Accuracy: High roundhouse kick",
-        4: "Accuracy: Spinning back kick"
+        0: "ACC: Reverse punch",
+        1: "ACC: Front kick",
+        2: "ACC: Low roundhouse kick",
+        3: "ACC: High roundhouse kick",
+        4: "ACC: Spinning back kick"
+    }
+
+    technique_idx_to_name_short = {
+        0: "RP",
+        1: "FK",
+        2: "LRK",
+        3: "HRK",
+        4: "SBK"
     }
 
     grade_idx_to_name = {
-        0: 'Mae: 9 kyu',
+        0: 'MAE: 9 kyu',
+        1: 'MAE: 8 kyu',
+        2: 'MAE: 7 kyu',
+        3: 'MAE: 6 kyu',
+        4: 'MAE: 5 kyu',
+        5: 'MAE: 4 kyu',
+        6: 'MAE: 3 kyu',
+        7: 'MAE: 2 kyu',
+        8: 'MAE: 1 kyu',
+        9: 'MAE: 1 dan',
+        10: 'MAE: 2 dan',
+        11: 'MAE: 3 dan',
+        12: 'MAE: 4 dan'
+    }
+
+    grade_idx_to_name_short = {
+        0: '9 kyu',
         1: '8 kyu',
         2: '7 kyu',
         3: '6 kyu',
@@ -375,17 +404,16 @@ def main():
     technique_unweighted_average_recalls = []
     for idx in range(technique_accuracies_all.shape[0]):
         technique_unweighted_average_recalls.append(np.mean(technique_accuracies_all[idx, :]))
-    best_technique_avg = np.argmax(technique_unweighted_average_recalls)
-    print(best_technique_avg)
+    best_technique_avg_idx = np.argmax(technique_unweighted_average_recalls)
+    print(best_technique_avg_idx)
 
-    plt.plot(x, technique_unweighted_average_recalls, label=f"Unweighted average recall")
+    plt.plot(x, technique_unweighted_average_recalls, label=f"UAR", color='black')
 
-    plt.vlines(x=[best_technique_avg], ymin=0, ymax=1, colors='black', ls='--', lw=2,
-               label='Best unweighted average recall')
+    plt.vlines(x=[best_technique_avg_idx], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best UAR')
 
     # TODO: store metrics of best ie chosen ckpt in json, store all plots including confusion matrices for the best
     #   adjust legend position and number and letter size according to how it looks in thesis
-    #   adjust colors in grade plot
 
     # TODO: for regressor its the same code, only add model loading for regressor and use it for classification
     #   instead of knn
@@ -396,32 +424,38 @@ def main():
     if not os.path.exists(eval_dir):
         os.makedirs(eval_dir)
 
-    fig_save_path = os.path.join(eval_dir, "knn_metrics")
-
+    fig_save_path = os.path.join(eval_dir, "knn_technique_uar")
     plt.savefig(fig_save_path)
 
     plt.clf()
 
-    for idx in range(grade_maes_all.shape[1]):
-        y = grade_maes_all[:, idx]
-        plt.plot(x, y, label=f"{grade_idx_to_name[idx]}")
+    #my_cmap = ListedColormap(sns.color_palette("Spectral", 14))
+    #plt.rcParams["axes.prop_cycle"] = plt.cycler("color", my_cmap)
+    #plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.tab20c.colors)
+
+    #with sns.color_palette("Paired", n_colors=14):
+    with sns.color_palette(cc.glasbey, n_colors=14):
+        for idx in range(grade_maes_all.shape[1]):
+            y = grade_maes_all[:, idx]
+            plt.plot(x, y, label=f"{grade_idx_to_name[idx]}")
 
     grade_averages = []
     for idx in range(grade_maes_all.shape[0]):
         grade_averages.append(np.mean(grade_maes_all[idx, :]))
-    best_grade_avg = np.argmin(grade_averages)
-    print(best_grade_avg)
+    best_grade_avg_idx = np.argmin(grade_averages)
+    print(best_grade_avg_idx)
 
-    plt.plot(x, grade_averages, label=f"Avg")
+    plt.plot(x, grade_averages, label=f"UMAE", color='black')
 
-    plt.vlines(x=[best_grade_avg], ymin=0, ymax=1, colors='black', ls='--', lw=2,
-               label='Best unweighted average recall')
-
-    # TODO: think about metric at which to stop. Some sort of weighted average
-    #       maybe 1 - skill_dist averaged with accuracies but both equally weighted
+    plt.vlines(x=[best_grade_avg_idx], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best UMAE')
 
     plt.legend()
-    plt.show()
+
+    #plt.show()
+
+    fig_save_path = os.path.join(eval_dir, "knn_grade_umae")
+    plt.savefig(fig_save_path)
 
     plt.clf()
 
@@ -431,23 +465,26 @@ def main():
 
     grade_averages_acc = [1 - avg for avg in grade_averages]
     combined_metric = (np.array(grade_averages_acc) + np.array(technique_unweighted_average_recalls)) / 2
-    best_combined_avg = np.argmax(combined_metric)
-    print(best_combined_avg)
+    best_combined_avg_idx = np.argmax(combined_metric)
+    print(best_combined_avg_idx)
 
-    plt.plot(x, technique_unweighted_average_recalls, label=f"Unweighted average recall")
-    plt.plot(x, grade_averages, label=f"Avg")
-    plt.plot(x, combined_metric, label=f"combined")
+    plt.plot(x, technique_unweighted_average_recalls, label=f"UAR")
+    plt.plot(x, grade_averages, label=f"UMAE")
+    plt.plot(x, combined_metric, label=f"Combined score", color='black')
 
-    plt.vlines(x=[best_combined_avg], ymin=0, ymax=1, colors='black', ls='--', lw=2,
-               label='Best combined')
+    plt.vlines(x=[best_combined_avg_idx], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best combined score')
 
     plt.legend()
-    plt.show()
+    #plt.show()
+
+    fig_save_path = os.path.join(eval_dir, "knn_combined")
+    plt.savefig(fig_save_path)
 
     # TODO: plot confusion matrics and own metric averga ebtween grade and tchnique
 
 
-    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg][0]
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][0]
     print(chosen_model_predictions_and_targets)
 
     technique_confusion_matrix_values = confusion_matrix(
@@ -456,10 +493,21 @@ def main():
 
     print(technique_confusion_matrix_values)
 
+    df_cm = pd.DataFrame(technique_confusion_matrix_values,
+                         index=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()],
+                         columns=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()])
 
+    plt.figure(figsize=(10, 7))
+    s = sns.heatmap(df_cm, annot=True, cmap='Blues')
+    s.set_xlabel('Predicted technique')#, fontsize=10)
+    s.set_ylabel('True technique')#, fontsize=10)
+    #plt.show()
+
+    fig_save_path = os.path.join(eval_dir, "best_combined_technique_confusion_matrix")
+    plt.savefig(fig_save_path)
     #####
 
-    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg][1]
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][1]
     print(chosen_model_predictions_and_targets)
 
     grade_confusion_matrix_values = confusion_matrix(
@@ -467,6 +515,36 @@ def main():
     )
 
     print(grade_confusion_matrix_values)
+
+    df_cm = pd.DataFrame(grade_confusion_matrix_values,
+                         index=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()],
+                         columns=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()])
+
+    plt.figure(figsize=(10, 7))
+    s = sns.heatmap(df_cm, annot=True, cmap='Blues')
+    s.set_xlabel('Predicted grade')  # , fontsize=10)
+    s.set_ylabel('True grade')  # , fontsize=10)
+    #plt.show()
+    fig_save_path = os.path.join(eval_dir, "best_combined_grade_confusion_matrix")
+    plt.savefig(fig_save_path)
+
+    best_results = {
+        "best technique checkpoint": str(checkpoints[best_technique_avg_idx]),
+        "UAR of best technique checkpoint": str(technique_unweighted_average_recalls[best_technique_avg_idx]),
+        "best grade checkpoint": str(checkpoints[best_grade_avg_idx]),
+        "UMAE of best grade checkpoint": str(grade_averages[best_grade_avg_idx]),
+        "best combined checkpoint": str(checkpoints[best_combined_avg_idx]),
+        "UAR of best combined checkpoint": str(technique_unweighted_average_recalls[best_combined_avg_idx]),
+        "UMAE of best combined checkpoint": str(grade_averages[best_combined_avg_idx]),
+        "Overall score of best combined checkpoint": str(combined_metric[best_combined_avg_idx])
+    }
+
+    print(best_results)
+
+    best_results_save_path = os.path.join(eval_dir, "best_results_overview.json")
+    with open(best_results_save_path, 'w') as outfile:
+        json.dump(best_results, outfile)
+
 
 if __name__ == "__main__":
     main()

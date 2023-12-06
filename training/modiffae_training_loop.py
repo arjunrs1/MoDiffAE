@@ -193,7 +193,9 @@ class ModiffaeTrainLoop:
 
                     if self.validation_data is not None:
                         self.model.eval()
-                        self.run_validation()
+                        # Added this so that the memory is no issue
+                        with torch.no_grad():
+                            self.run_validation()
                         self.model.train()
 
                     for k, v in logger.get_current().name2val.items():

@@ -9,6 +9,8 @@ from utils import dist_util
 
 def load_model(model, state_dict):
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+    #print(unexpected_keys)
+    #print()
     assert len(unexpected_keys) == 0
 
 

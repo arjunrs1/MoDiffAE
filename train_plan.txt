@@ -22,6 +22,10 @@ Train semantic regressor (on the best core before generation):
 python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ] runs on rechenknecht3
 python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ] runs on rechenknecht10
 
+Evaluate semantic regressor
+python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000700000/	[ ]
+python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0401_model000750000/	[ ]
+
 Best models:
 
 ####
@@ -35,6 +39,10 @@ Evaluate semantic generator
 python -m evaluation.generation_fid --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[x]
 python -m evaluation.generation_fid --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[x]
 
+Best models pre-generation:
+rot_6d	b0372		ckpt: 5k
+rot_6d	b0401		ckpt: 5k
+
 ####
 
 
@@ -43,8 +51,9 @@ python -m evaluation.generation_fid --modiffae_model_path ./save/rot_6d_karate/m
 
 Generate data:
 
-python -m sample.generate --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000300000.pt --semantic_generator_model_path ./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0372_model000300000/model000000000.pt --semantic_regressor_model_path ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000300000/model000000000.pt
- 
+python -m sample.generate --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt --semantic_generator_model_path ./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0372_model000700000/model000005000.pt --semantic_regressor_model_path ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000700000/model000100000.pt 
+
+python -m sample.generate --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt --semantic_generator_model_path ./save/rot_6d_karate/semantic_generator_based_on_modiffae_b0401_model000750000/model000005000.pt --semantic_regressor_model_path ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0401_model000750000/model000100000.pt 
  
  
 #######################

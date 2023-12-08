@@ -9,7 +9,7 @@ import json
 
 
 data_dir = os.path.join(os.getcwd(), 'datasets', 'karate', 'leave_b0372_out')
-data_file_path = os.path.join(data_dir, "generated_data_25_percent_interrupted.npy")
+data_file_path = os.path.join(data_dir, "generated_data_33_percent_interrupted.npy")
 data = np.load(data_file_path, allow_pickle=True)
 
 print(data.shape)

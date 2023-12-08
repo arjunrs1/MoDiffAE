@@ -404,6 +404,8 @@ def main():
 
     accepted_samples = []
 
+    print(f"Ratio: {args.ratio}")
+
     number_of_samples_to_generate_per_grade = \
         calc_number_of_samples_to_generate_per_grade(args.ratio, data)
 
@@ -416,28 +418,28 @@ def main():
         for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
             number_of_samples_per_technique = round(number_of_samples / 5)
 
-            if number_of_samples > 100:
-                for i in range(5):
-                    one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
+            #if number_of_samples > 100:
+            for i in range(5):
+                one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
 
-                    samples_per_combination = []
+                samples_per_combination = []
 
-                    #generation_count = 0
-                    while len(samples_per_combination) < number_of_samples_per_technique:
-                        samples = None
-                        while samples is None:
-                            samples = rejection_sampling(models, args.num_frames, args.batch_size, one_hot_labels,
-                                                         modiffae_args.modiffae_latent_dim, data, joint_distances)
+                #generation_count = 0
+                while len(samples_per_combination) < number_of_samples_per_technique:
+                    samples = None
+                    while samples is None:
+                        samples = rejection_sampling(models, args.num_frames, args.batch_size, one_hot_labels,
+                                                     modiffae_args.modiffae_latent_dim, data, joint_distances)
 
-                        samples_per_combination.extend(samples)
-                        #accepted_samples.append(samples)
-                        print(f'Accepted sample(s) for grade {grade} and technique {i}')
-                        print(f'Progress: {len(accepted_samples) + len(samples_per_combination)}/'
-                              f'{total_nr_of_samples_to_generate}')
-                        #generation_count += 1
+                    samples_per_combination.extend(samples)
+                    #accepted_samples.append(samples)
+                    print(f'Accepted sample(s) for grade {grade} and technique {i}')
+                    print(f'Progress: {len(accepted_samples) + len(samples_per_combination)}/'
+                          f'{total_nr_of_samples_to_generate}')
+                    #generation_count += 1
 
-                    samples_per_combination = samples_per_combination[:number_of_samples_per_technique]
-                    accepted_samples.extend(samples_per_combination)
+                #samples_per_combination = samples_per_combination[:number_of_samples_per_technique]
+                accepted_samples.extend(samples_per_combination[:number_of_samples_per_technique])
     except KeyboardInterrupt:
         data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out',
                                  f'generated_data_{int(args.ratio * 100)}_percent_interrupted.npy')

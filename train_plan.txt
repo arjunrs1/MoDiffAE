@@ -19,8 +19,8 @@ rot_6d	b0401		ckpt: 750k
 
 Train semantic regressor (on the best core before generation):
 
-python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ]
-python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ]
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ] runs on rechenknecht3
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ] runs on rechenknecht10
 
 Best models:
 
@@ -28,9 +28,12 @@ Best models:
 
 Train semantic generator (on the best core before generation):
 
-python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ] runs on rechenknecht3
-python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ] runs on rechenknecht10
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[x]
+python -m training.train --model_type semantic_generator --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[x]
 
+Evaluate semantic generator
+python -m evaluation.generation_fid --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[x]
+python -m evaluation.generation_fid --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[x]
 
 ####
 

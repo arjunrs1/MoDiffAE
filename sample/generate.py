@@ -335,25 +335,29 @@ def main():
 
     print(number_of_samples_to_generate_per_grade)
 
-    for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
-        number_of_samples_per_technique = round(number_of_samples / 5)
-        for i in range(5):
-            one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
+    try:
+        for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
+            number_of_samples_per_technique = round(number_of_samples / 5)
+            for i in range(5):
+                one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
 
-            generation_count = 0
-            while generation_count < number_of_samples_per_technique:
-                sample = None
-                while sample is None:
-                    sample = rejection_sampling(models, args.num_frames, args.batch_size, one_hot_labels,
-                                                modiffae_args.modiffae_latent_dim, data, joint_distances)
-                accepted_samples.append(sample)
-                print(f'Accepted a sample for grade {grade} and technique {i}')
-                print(f'Progress: {len(accepted_samples)}/{total_nr_of_samples_to_generate}')
-                generation_count += 1
+                generation_count = 0
+                while generation_count < number_of_samples_per_technique:
+                    sample = None
+                    while sample is None:
+                        sample = rejection_sampling(models, args.num_frames, args.batch_size, one_hot_labels,
+                                                    modiffae_args.modiffae_latent_dim, data, joint_distances)
+                    accepted_samples.append(sample)
+                    print(f'Accepted a sample for grade {grade} and technique {i}')
+                    print(f'Progress: {len(accepted_samples)}/{total_nr_of_samples_to_generate}')
+                    generation_count += 1
 
-                '''break
-            break
-        break'''
+                    '''break
+                break
+            break'''
+    except KeyboardInterrupt:
+        data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out',
+                                 f'generated_data_{int(args.ratio * 100)}_percent_interrupted.npy')
 
     nr_generated_samples = len(accepted_samples)
     j_dist_shape = (len(data_info.reconstruction_skeleton),)

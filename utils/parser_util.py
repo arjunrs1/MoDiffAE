@@ -272,7 +272,7 @@ def add_semantic_regressor_training_options(parser):
                        help="Save checkpoints and run evaluation each N steps")
     #group.add_argument("--num_steps", default=600_000, type=int,
     #                   help="Training will stop after the specified number of steps.")
-    group.add_argument("--num_steps", default=100_000, type=int,
+    group.add_argument("--num_steps", default=200_000, type=int,
                        help="Training will stop after the specified number of steps.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")

@@ -468,7 +468,7 @@ def main():
     grade_maes_all = np.array(grade_maes_all)
     #predictions_and_targets_all = np.array(predictions_and_targets_all)
 
-    checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "k" for ch in checkpoints]
+    checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "K" for ch in checkpoints]
 
     technique_idx_to_name = {
         0: "ACC: Reverse punch",
@@ -519,6 +519,250 @@ def main():
     }
 
     f = plt.figure()
+    f.set_figwidth(18)
+    f.set_figheight(8)
+
+    plt.rc('font', size=20)
+    plt.rc('legend', fontsize=16)
+
+    #plt.rc('legend', fontsize=14)
+
+    # checkpoint_metrics_technique = checkpoint_metrics[:5, :]
+    # checkpoint_metrics_grade = checkpoint_metrics[5:]
+
+    #ax = f.add_subplot(221)
+    #ax = f.add_subplot()
+
+    x = [int(ch[:-1]) * 1000 for ch in checkpoints]
+    print(x)
+
+    #x[-1] = "1M"
+
+    # x = [x if i % 2 != 1 else '' for i, x in enumerate(x)]
+    for idx in range(technique_accuracies_all.shape[1]):
+        y = technique_accuracies_all[:, idx]
+        plt.plot(x, y, label=f"{technique_idx_to_name[idx]}")
+
+    technique_unweighted_average_recalls = []
+    for idx in range(technique_accuracies_all.shape[0]):
+        technique_unweighted_average_recalls.append(np.mean(technique_accuracies_all[idx, :]))
+    best_technique_avg_idx = np.argmax(technique_unweighted_average_recalls)
+    best_technique_avg_x = best_technique_avg_idx * 5000
+    # print(best_technique_avg_idx)
+
+    plt.plot(x, technique_unweighted_average_recalls, label=f"UAR", color='black')
+
+    plt.vlines(x=[best_technique_avg_x], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best UAR')
+
+    # TODO: store metrics of best ie chosen ckpt in json, store all plots including confusion matrices for the best
+    #   adjust legend position and number and letter size according to how it looks in thesis
+
+    # TODO: for regressor its the same code, only add model loading for regressor and use it for classification
+    #   instead of knn
+
+    #leg = plt.legend()
+    plt.legend(loc='lower center', bbox_to_anchor=(.73, .02))
+    #plt.legend(loc='lower right')
+
+    #plt.draw()  # Draw the figure so you can find the positon of the legend.
+
+    # Get the bounding box of the original legend
+    #bb = leg.get_bbox_to_anchor().inverse_transformed(ax.transAxes)
+    #bb = leg.get_bbox_to_anchor()
+
+    # Change to location of the legend.
+    #xOffset = 5.0
+    #bb.x0 -= xOffset
+    #bb.x1 -= xOffset
+    #leg.set_bbox_to_anchor(bb, transform=ax.transAxes)
+    #leg.set_bbox_to_anchor(bb)
+
+    #plt.draw()
+
+    plt.xlabel('Training steps')
+
+    #plt.xticks([x if i % 20 == 0 else '' for i, x in enumerate(x)])
+    ##plt.xticks([x if int(x[:-1]) % 50 == 0 or x == '1M' else '' for i, x in enumerate(x)])
+
+    ####
+    desired_x_ticks = [l * 50000 for l in list(range(11))]
+    desired_labels = [str(int(ch / 1000)) + 'K' for ch in desired_x_ticks]
+    # desired_labels[-1] = "1M"
+    # print(desired_labels)
+    # print(current_x_ticks)
+    # exit()
+    # ax.set_yticklabels(desired_labels)
+    plt.xticks(ticks=desired_x_ticks, labels=desired_labels)
+    ####
+
+    eval_dir = os.path.join(args.save_dir, "evaluation")
+    if not os.path.exists(eval_dir):
+        os.makedirs(eval_dir)
+
+    fig_save_path = os.path.join(eval_dir, f"regression_technique_uar_{test_participant}")
+    plt.savefig(fig_save_path)
+
+    plt.clf()
+
+    plt.rc('legend', fontsize=12)
+
+    # my_cmap = ListedColormap(sns.color_palette("Spectral", 14))
+    # plt.rcParams["axes.prop_cycle"] = plt.cycler("color", my_cmap)
+    # plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.cm.tab20c.colors)
+
+    # with sns.color_palette("Paired", n_colors=14):
+    with sns.color_palette(cc.glasbey, n_colors=14):
+        # for idx in range(grade_maes_all.shape[1]):
+        for idx in reversed(list(range(grade_maes_all.shape[1]))):
+            y = grade_maes_all[:, idx]
+            plt.plot(x, y, label=f"{grade_idx_to_name[idx]}")
+
+    grade_averages = []
+    for idx in range(grade_maes_all.shape[0]):
+        grade_averages.append(np.mean(grade_maes_all[idx, :]))
+    best_grade_avg_idx = np.argmin(grade_averages)
+    best_grade_avg_x = best_grade_avg_idx * 5000
+    # print(best_grade_avg_idx)
+
+    plt.plot(x, grade_averages, label=f"UMAE", color='black')
+
+    plt.vlines(x=[best_grade_avg_x], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best UMAE')
+
+    plt.legend(loc='lower center', bbox_to_anchor=(.87, .38))
+    #plt.legend(loc='upper right')
+
+    ##plt.xticks([x if int(x[:-1]) % 50 == 0 or x == '1M' else '' for i, x in enumerate(x)])
+
+    ####
+    desired_x_ticks = [l * 50000 for l in list(range(11))]
+    desired_labels = [str(int(ch / 1000)) + 'K' for ch in desired_x_ticks]
+    # desired_labels[-1] = "1M"
+    # print(desired_labels)
+    # print(current_x_ticks)
+    # exit()
+    # ax.set_yticklabels(desired_labels)
+    plt.xticks(ticks=desired_x_ticks, labels=desired_labels)
+    ####
+
+    plt.xlabel('Training steps')
+
+    # plt.show()
+
+    fig_save_path = os.path.join(eval_dir, f"regression_grade_umae_{test_participant}")
+    plt.savefig(fig_save_path)
+
+    plt.clf()
+
+    f = plt.figure()
+    f.set_figwidth(18)
+    f.set_figheight(8)
+
+    plt.rc('legend', fontsize=16)
+
+    grade_averages_acc = [1 - avg for avg in grade_averages]
+    combined_metric = (np.array(grade_averages_acc) + np.array(technique_unweighted_average_recalls)) / 2
+    best_combined_avg_idx = np.argmax(combined_metric)
+    best_combined_avg_x = best_combined_avg_idx * 5000
+    # print(best_combined_avg_idx)
+
+    plt.plot(x, technique_unweighted_average_recalls, label=f"UAR")
+    plt.plot(x, grade_averages, label=f"UMAE")
+    plt.plot(x, combined_metric, label=f"Combined score", color='black')
+
+    plt.vlines(x=[best_combined_avg_x], ymin=0, ymax=1, colors='black', ls='--', lw=2,
+               label='Best combined score')
+
+    #plt.legend(loc='center right')
+    plt.legend(loc='lower center', bbox_to_anchor=(.81, .4))
+    #plt.legend(loc='center right')
+    # plt.show()
+    plt.xlabel('Training steps')
+
+    ##plt.xticks([x if int(x[:-1]) % 50 == 0 or x == '1M' else '' for i, x in enumerate(x)])
+
+    ####
+    desired_x_ticks = [l * 50000 for l in list(range(11))]
+    desired_labels = [str(int(ch / 1000)) + 'K' for ch in desired_x_ticks]
+    # desired_labels[-1] = "1M"
+    # print(desired_labels)
+    # print(current_x_ticks)
+    # exit()
+    # ax.set_yticklabels(desired_labels)
+    plt.xticks(ticks=desired_x_ticks, labels=desired_labels)
+    ####
+
+    fig_save_path = os.path.join(eval_dir, f"regression_combined_{test_participant}")
+    plt.savefig(fig_save_path)
+
+    plt.rc('font', size=10)
+
+    sns.set(font_scale=1.0)
+
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][0]
+    # print(chosen_model_predictions_and_targets)
+
+    technique_confusion_matrix_values = confusion_matrix(
+        chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
+    )
+
+    # print(technique_confusion_matrix_values)
+
+    df_cm = pd.DataFrame(technique_confusion_matrix_values,
+                         index=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()],
+                         columns=[technique_idx_to_name_short[i] for i in technique_idx_to_name_short.keys()])
+
+    plt.figure(figsize=(10, 7))
+    s = sns.heatmap(df_cm, annot=True, cmap='Blues')
+    s.set_xlabel('Predicted technique')  # , fontsize=10)
+    s.set_ylabel('True technique')  # , fontsize=10)
+    # plt.show()
+
+    fig_save_path = os.path.join(eval_dir, f"regression_best_combined_technique_confusion_matrix_{test_participant}")
+    plt.savefig(fig_save_path)
+    #####
+
+    chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][1]
+    # print(chosen_model_predictions_and_targets)
+
+    grade_confusion_matrix_values = confusion_matrix(
+        chosen_model_predictions_and_targets[1], chosen_model_predictions_and_targets[0]
+    )
+
+    # print(grade_confusion_matrix_values)
+
+    df_cm = pd.DataFrame(grade_confusion_matrix_values,
+                         index=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()],
+                         columns=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()])
+
+    plt.figure(figsize=(10, 7))
+    # sns.set(font_scale=0.8)
+    s = sns.heatmap(df_cm, annot=True, cmap='Blues')
+    s.set_xlabel('Predicted grade')  # , fontsize=10)
+    s.set_ylabel('True grade')  # , fontsize=10)
+    # plt.show()
+    fig_save_path = os.path.join(eval_dir, f"regression_best_combined_grade_confusion_matrix_{test_participant}")
+    plt.savefig(fig_save_path)
+
+    best_results = {
+        "best technique checkpoint": str(checkpoints[best_technique_avg_idx]),
+        "UAR of best technique checkpoint": str(technique_unweighted_average_recalls[best_technique_avg_idx]),
+        "best grade checkpoint": str(checkpoints[best_grade_avg_idx]),
+        "UMAE of best grade checkpoint": str(grade_averages[best_grade_avg_idx]),
+        "best combined checkpoint": str(checkpoints[best_combined_avg_idx]),
+        "UAR of best combined checkpoint": str(technique_unweighted_average_recalls[best_combined_avg_idx]),
+        "UMAE of best combined checkpoint": str(grade_averages[best_combined_avg_idx]),
+        "overall score of best combined checkpoint": str(combined_metric[best_combined_avg_idx])
+    }
+
+    # print(best_results)
+
+    best_results_save_path = os.path.join(eval_dir, f"regression_best_results_overview_{test_participant}.json")
+    with open(best_results_save_path, 'w') as outfile:
+        json.dump(best_results, outfile)
+
+    '''f = plt.figure()
     f.set_figwidth(15)
     f.set_figheight(8)
 
@@ -676,7 +920,7 @@ def main():
 
     best_results_save_path = os.path.join(eval_dir, "best_results_overview.json")
     with open(best_results_save_path, 'w') as outfile:
-        json.dump(best_results, outfile)
+        json.dump(best_results, outfile)'''
 
 
 if __name__ == "__main__":

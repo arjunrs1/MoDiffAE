@@ -183,6 +183,8 @@ def main():
 
     checkpoints = [p for p in sorted(os.listdir(args.save_dir)) if p.startswith('model') and p.endswith('.pt')]
 
+    test_participant = '_b0' + args.save_dir.split('b0')[-1].split('/')[0]
+
     #checkpoint_metrics = []
 
     technique_accuracies_all = []
@@ -202,9 +204,12 @@ def main():
     #checkpoint_metrics = np.array(checkpoint_metrics)
     technique_accuracies_all = np.array(technique_accuracies_all)
     grade_maes_all = np.array(grade_maes_all)
+
+    #grade_maes_all = np.flip(grade_maes_all, axis=1)
+
     #predictions_and_targets_all = np.array(predictions_and_targets_all)
 
-    checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "k" for ch in checkpoints]
+    checkpoints = [str(int(int(ch.strip("model").strip(".pt")) / 1000)) + "K" for ch in checkpoints]
 
     technique_idx_to_name = {
         0: "ACC: Reverse punch",
@@ -255,13 +260,22 @@ def main():
     }
 
     f = plt.figure()
-    f.set_figwidth(15)
+    f.set_figwidth(18)
     f.set_figheight(8)
+
+    plt.rc('font', size=20)
+    plt.rc('legend', fontsize=16)
+
+    plt.rc('legend', fontsize=14)
 
     #checkpoint_metrics_technique = checkpoint_metrics[:5, :]
     #checkpoint_metrics_grade = checkpoint_metrics[5:]
 
     x = checkpoints
+
+    x[-1] = "1M"
+
+    #x = [x if i % 2 != 1 else '' for i, x in enumerate(x)]
     for idx in range(technique_accuracies_all.shape[1]):
         y = technique_accuracies_all[:, idx]
         plt.plot(x, y, label=f"{technique_idx_to_name[idx]}")
@@ -284,15 +298,21 @@ def main():
     #   instead of knn
 
     plt.legend()
+    plt.xlabel('Training steps')
+
+    plt.xticks([x if i % 2 != 1 else '' for i, x in enumerate(x)])
 
     eval_dir = os.path.join(args.save_dir, "evaluation")
     if not os.path.exists(eval_dir):
         os.makedirs(eval_dir)
 
-    fig_save_path = os.path.join(eval_dir, "knn_technique_uar")
+    fig_save_path = os.path.join(eval_dir, f"knn_technique_uar_{test_participant}")
     plt.savefig(fig_save_path)
 
     plt.clf()
+
+
+    plt.rc('legend', fontsize=12)
 
     #my_cmap = ListedColormap(sns.color_palette("Spectral", 14))
     #plt.rcParams["axes.prop_cycle"] = plt.cycler("color", my_cmap)
@@ -300,9 +320,11 @@ def main():
 
     #with sns.color_palette("Paired", n_colors=14):
     with sns.color_palette(cc.glasbey, n_colors=14):
-        for idx in range(grade_maes_all.shape[1]):
+        #for idx in range(grade_maes_all.shape[1]):
+        for idx in reversed(list(range(grade_maes_all.shape[1]))):
             y = grade_maes_all[:, idx]
             plt.plot(x, y, label=f"{grade_idx_to_name[idx]}")
+
 
     grade_averages = []
     for idx in range(grade_maes_all.shape[0]):
@@ -317,16 +339,22 @@ def main():
 
     plt.legend()
 
+    plt.xticks([x if i % 2 != 1 else '' for i, x in enumerate(x)])
+    plt.xlabel('Training steps')
+
     #plt.show()
 
-    fig_save_path = os.path.join(eval_dir, "knn_grade_umae")
+    fig_save_path = os.path.join(eval_dir, f"knn_grade_umae_{test_participant}")
     plt.savefig(fig_save_path)
 
     plt.clf()
 
+
     f = plt.figure()
-    f.set_figwidth(15)
+    f.set_figwidth(18)
     f.set_figheight(8)
+
+    plt.rc('legend', fontsize=16)
 
     grade_averages_acc = [1 - avg for avg in grade_averages]
     combined_metric = (np.array(grade_averages_acc) + np.array(technique_unweighted_average_recalls)) / 2
@@ -340,14 +368,18 @@ def main():
     plt.vlines(x=[best_combined_avg_idx], ymin=0, ymax=1, colors='black', ls='--', lw=2,
                label='Best combined score')
 
-    plt.legend()
+    plt.legend(loc='center right')
     #plt.show()
+    plt.xlabel('Training steps')
 
-    fig_save_path = os.path.join(eval_dir, "knn_combined")
+    plt.xticks([x if i % 2 != 1 else '' for i, x in enumerate(x)])
+
+    fig_save_path = os.path.join(eval_dir, f"knn_combined_{test_participant}")
     plt.savefig(fig_save_path)
 
-    # TODO: plot confusion matrics and own metric averga ebtween grade and tchnique
+    plt.rc('font', size=10)
 
+    sns.set(font_scale=1.0)
 
     chosen_model_predictions_and_targets = predictions_and_targets_all[best_combined_avg_idx][0]
     #print(chosen_model_predictions_and_targets)
@@ -368,7 +400,7 @@ def main():
     s.set_ylabel('True technique')#, fontsize=10)
     #plt.show()
 
-    fig_save_path = os.path.join(eval_dir, "best_combined_technique_confusion_matrix")
+    fig_save_path = os.path.join(eval_dir, f"knn_best_combined_technique_confusion_matrix_{test_participant}")
     plt.savefig(fig_save_path)
     #####
 
@@ -386,11 +418,12 @@ def main():
                          columns=[grade_idx_to_name_short[i] for i in grade_idx_to_name_short.keys()])
 
     plt.figure(figsize=(10, 7))
+    #sns.set(font_scale=0.8)
     s = sns.heatmap(df_cm, annot=True, cmap='Blues')
     s.set_xlabel('Predicted grade')  # , fontsize=10)
     s.set_ylabel('True grade')  # , fontsize=10)
     #plt.show()
-    fig_save_path = os.path.join(eval_dir, "best_combined_grade_confusion_matrix")
+    fig_save_path = os.path.join(eval_dir, f"knn_best_combined_grade_confusion_matrix_{test_participant}")
     plt.savefig(fig_save_path)
 
     best_results = {
@@ -406,7 +439,7 @@ def main():
 
     #print(best_results)
 
-    best_results_save_path = os.path.join(eval_dir, "best_results_overview.json")
+    best_results_save_path = os.path.join(eval_dir, f"knn_best_results_overview_{test_participant}.json")
     with open(best_results_save_path, 'w') as outfile:
         json.dump(best_results, outfile)
 

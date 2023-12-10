@@ -10,6 +10,15 @@ python -m training.train --model_type modiffae --save_dir ./save/xyz_karate/ --t
 python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ --test_participant b0372 --pose_rep rot_6d	[x] 
 python -m training.train --model_type modiffae --save_dir ./save/rot_6d_karate/ --test_participant b0401 --pose_rep rot_6d	[x] 
 
+KNN evaluation:
+python -m evaluation.semantic_embedding_knn_regression --save_dir ./save/rot_6d_karate/modiffae_b0372/
+python -m evaluation.semantic_embedding_knn_regression --save_dir ./save/rot_6d_karate/modiffae_b0401/
+
+
+Visualize embedding:
+python -m evaluation.visualize_semantic_embedding --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt 
+python -m evaluation.visualize_semantic_embedding --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt
+
 
 Best models pre-generation:
 rot_6d	b0372		ckpt: 700k
@@ -19,12 +28,12 @@ rot_6d	b0401		ckpt: 750k
 
 Train semantic regressor (on the best core before generation):
 
-python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[ ] runs on rechenknecht3
-python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[ ] runs on rechenknecht10
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt	[x]
+python -m training.train --model_type semantic_regressor --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt	[x]
 
 Evaluate semantic regressor
-python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000700000/	[ ]
-python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0401_model000750000/	[ ]
+python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0372/model000700000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0372_model000700000/	[x]
+python -m evaluation.semantic_regressor_eval_test_why_wrong --modiffae_model_path ./save/rot_6d_karate/modiffae_b0401/model000750000.pt --save_dir ./save/rot_6d_karate/semantic_regressor_based_on_modiffae_b0401_model000750000/	[x]
 
 Best models:
 

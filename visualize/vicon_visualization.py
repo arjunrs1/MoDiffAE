@@ -111,8 +111,12 @@ def prepare_for_static_mode(df):
         keyframes.append(idx_counter)
     keyframes.append(last_keyframe_idx)
     
-    print(pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end, nr_frames)
-    print(keyframes)
+    #print(pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end, nr_frames)
+    #print(keyframes)
+
+    # The very first frame usually does not contain the whole skeleton. 
+    if keyframes[0] == 0:
+        keyframes[0] = 1
     
     for frame in range(df.shape[0]):
 
@@ -195,7 +199,7 @@ def create_collage(file_name, keyframes,
         new_number_count += 1
     os.system(f'ffmpeg -i {tmp_folder_name}/out%dts.png -filter_complex tile=10x1 {dir_name}/{base_name_without_extension}.png')
     
-    #shutil.rmtree(tmp_folder_name)
+    shutil.rmtree(tmp_folder_name)
 
 
 def visualize(df, sampling_frequency, file_name, replace, mode):

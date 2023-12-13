@@ -142,17 +142,60 @@ class SemanticRegressorTrainLoop:
 
         loss = F.binary_cross_entropy_with_logits(output, target)
 
+        #print(output.shape)
+
         action_output = output[:, :5]
         #action_output = F.softmax(action_output)
         action_output = F.softmax(action_output, dim=-1)
 
         skill_level_output = output[:, 5]
-        skill_level_output = torch.sigmoid(skill_level_output)
+        skill_level_output = torch.sigmoid(skill_level_output)#.unsqueeze(dim=-1)
         #skill_level_output = output[:, 5:]
         #skill_level_output = F.softmax(skill_level_output)
 
+        #print(skill_level_output.shape)
+
+        ##prediction = torch.cat((action_output, skill_level_output), dim=-1)
+
+        #print(prediction.shape)
+        #exit()
+
+
         action_target = target[:, :5]
-        skill_level_target = target[:, 5]
+        skill_level_target = target[:, 5]#.unsqueeze(dim=-1)
+
+        #technique_loss = torch.nn.CrossEntropyLoss()(action_output, torch.argmax(action_target, dim=-1))
+
+        #skill_loss = F.binary_cross_entropy_with_logits(skill_level_output, skill_level_target)
+
+        #loss = torch.mean(torch.stack((technique_loss, skill_loss)))
+
+        #print(technique_loss)
+        #print(skill_loss)
+        #print(loss)
+        #exit()
+
+        ######
+
+
+
+        #loss = (torch.mul(target, torch.log(prediction)) +
+        #        torch.mul(1 - target, torch.log(1 - prediction)))
+
+        #loss = -torch.mean(loss)
+
+        #skill_loss = None
+
+        #print(loss)
+
+        #exit()
+
+
+        #loss = None
+
+
+
+        ######
         #skill_level_target = target[:, 5:]
 
         action_classifications = torch.argmax(action_output, dim=-1)

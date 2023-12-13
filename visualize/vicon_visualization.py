@@ -293,7 +293,8 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
 def from_array(arr, sampling_frequency=25, file_name=None, replace=False, mode='collage'):
     if len(arr.shape) != 2:
         arr = arr.reshape(-1, arr.shape[1] * arr.shape[2])
-        labels, _ = get_labels()
+        #labels, _ = get_labels()
+    labels, _ = get_labels()
     df = pd.DataFrame(arr, columns=labels)
     visualize(df, sampling_frequency, file_name, replace, mode)
 

@@ -345,7 +345,9 @@ def main():
         print(f'### Sampling [repetitions #{rep_i}]')
 
         # sample_fn = diffusion.p_sample_loop
-        # Anthony: changed to use ddim sampling
+        # Anthony: changed to use ddim sampling.
+        # TODO: think about or try out if this is good or not.
+        #  and see again how diffae did it exactly
         sample_fn = diffusion.ddim_sample_loop
 
         # Using the diffused data from the encoder in the form of noise

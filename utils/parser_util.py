@@ -468,6 +468,13 @@ def generation_evaluation_args():
     # TODO: add way and parameter to choose number of samples per combination and over multiple batches
     return parser.parse_args()
 
+def manipulation_qualitative_evaluation_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
+    add_model_path_option(parser, model_type="semantic_regressor")
+    return parser.parse_args()
+
 
 def regression_evaluation_args():
     parser = ArgumentParser()

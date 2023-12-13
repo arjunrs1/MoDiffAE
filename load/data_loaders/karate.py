@@ -6,16 +6,28 @@ import torch
 
 class KaratePoses(Dataset):
     def __init__(self, test_participant, data_path="datasets/karate", split="train",
-                 pose_rep="xyz", num_joints=39, root_joint_name='T10', **kwargs):
+                 pose_rep="xyz", num_joints=39, root_joint_name='T10', data_array=None, **kwargs):
                 #pose_rep="rot_6d", num_joints=39, root_joint_name='T10', **kwargs):
 
         root_joint_idx = data_info.joint_to_index[root_joint_name]
         super().__init__(pose_rep=pose_rep, num_joints=num_joints, root_joint_idx=root_joint_idx, **kwargs)
 
+        self.data_path = data_path
+
         self.data_name = "karate"
         self.xyz_reconstruction_mode = "geometry"
-        data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
-        data = np.load(data_file_path, allow_pickle=True)
+
+        #if split is not None:
+
+        if data_array is None:
+            data_file_path = os.path.join(data_path, f'leave_{test_participant}_out', f'{split}.npy')
+            #else:
+            #    data_file_path = os.path.join(data_path, 'karate_motion_modified.npy')
+            data = np.load(data_file_path, allow_pickle=True)
+        else:
+            data = data_array
+
+        self.data = data
 
         #data = np.where(data['condition'] == 'air', data)
         #data = data[data['condition'] == 'air']
@@ -35,8 +47,8 @@ class KaratePoses(Dataset):
         self._joint_distances = [x for x in data["joint_distances"]]
 
         num_of_grades = len(karate_grade_enumerator.keys())
-        grade_to_label = lambda grade: (1 / (num_of_grades - 1)) * karate_grade_enumerator[grade]
-        self._grades = [grade_to_label(x) for x in data['grade']]
+        self.grade_to_label = lambda grade: (1 / (num_of_grades - 1)) * karate_grade_enumerator[grade]
+        self._grades = [self.grade_to_label(x) for x in data['grade']]
         #self._grades = [karate_grade_enumerator[x] for x in data['grade']]
         #self._grades = [np.array([1.0, 0.0]) if grade_to_label(x) > 0.5 else np.array([0.0, 1.0]) for x in data['grade']]
 
@@ -53,6 +65,26 @@ class KaratePoses(Dataset):
         self._label_to_action = {i: x for i, x in enumerate(keep_actions)}
 
         self._action_classes = karate_action_enumerator
+
+    def reduce_to_data_for_labels(self, technique_cls, grade_name):
+
+        #print(technique_cls, grade_name)
+        #print(self.data[0]['technique_cls'], self.data[0]['grade'])
+
+        cond = lambda x: x['technique_cls'] == technique_cls and x['grade'] == grade_name
+
+        self._pose = [x["joint_axis_angles"] for x in self.data if cond(x)]
+        self._num_frames_in_video = [p.shape[0] for p in self._pose]
+
+        self._joints = [x["joint_positions"] for x in self.data if cond(x)]
+
+        self._actions = [x["technique_cls"] for x in self.data if cond(x)]
+
+        self._joint_distances = [x["joint_distances"] for x in self.data if cond(x)]
+
+        self._grades = [self.grade_to_label(x['grade']) for x in self.data if cond(x)]
+
+        self._train = list(range(len(self._pose)))
 
     def _load_joints(self, ind, frame_ix):
         return self._joints[ind][frame_ix].reshape(-1, 39, 3)
@@ -74,6 +106,12 @@ class KaratePoses(Dataset):
         #print(one_hot_labels)
         #exit()
         return one_hot_labels
+
+    def get_grades(self):
+        return self._grades
+
+    def get_joint_distances(self):
+        return self._joint_distances
 
 
 """class KarateEmbeddings(torch.utils.data.Dataset):

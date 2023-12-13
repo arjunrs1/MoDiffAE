@@ -73,6 +73,8 @@ class MoDiffAE(nn.Module):
             dropout=dropout
         )
 
+        # TODO: remove device parameter and cpu stuff. This is automatically
+        #  executed on the device of the tensor anyways.
         self.rot2xyz = Rotation2xyz(device='cpu')
 
     def forward(self, x, timesteps, y=None):

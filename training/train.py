@@ -25,8 +25,11 @@ def main():
         args = modiffae_train_args()
         args.save_dir = os.path.join(args.save_dir, f"modiffae_{args.test_participant}")
     else:
+        tmp_modiffae_args = model_parser(model_type="modiffae")
+
         _, model_name = os.path.split(get_model_path_from_args("modiffae"))
         model_name = model_name.split('.')[0]
+        #model_name = model_name.split('.')[-2]
         base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
         tmp_modiffae_args = model_parser(model_type="modiffae")
         test_participant = tmp_modiffae_args.test_participant
@@ -49,6 +52,8 @@ def main():
         else:
             raise Exception('Model type not supported. Options: modiffae, semantic_regressor, semantic_generator')
 
+        args.pose_rep = tmp_modiffae_args.pose_rep
+
     fixseed(args.seed)
 
     if args.save_dir is None:
@@ -67,6 +72,8 @@ def main():
 
     dist_util.setup_dist(args.device)
     print(f"Device: {dist_util.dev()}")
+
+    #if model_type != "modiffae":
 
     print("creating train data loader...")
     train_data = get_dataset_loader(
@@ -94,20 +101,32 @@ def main():
     print("creating model and diffusion...")
     if model_type != "modiffae":
         modiffae_args = model_parser(model_type="modiffae")
+        modiffae_train_data = get_dataset_loader(
+            name=modiffae_args.dataset,
+            batch_size=modiffae_args.batch_size,
+            num_frames=modiffae_args.num_frames,
+            test_participant=modiffae_args.test_participant,
+            pose_rep=modiffae_args.pose_rep,
+            split='train'
+        )
     else:
         modiffae_args = args
-    model, diffusion = create_modiffae_and_diffusion(modiffae_args, train_data)
+        modiffae_train_data = train_data
+    #model, diffusion = create_modiffae_and_diffusion(modiffae_args, train_data)
+    model, diffusion = create_modiffae_and_diffusion(modiffae_args, modiffae_train_data)
 
     if model_type == "modiffae":
         model.to(dist_util.dev())
-        model.rot2xyz.smpl_model.eval()
+        #model.rot2xyz.smpl_model.eval()
         print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
         print("Training...")
         ModiffaeTrainLoop(modiffae_args, train_platform, model, diffusion, train_data, validation_data).run_loop()
     else:
 
         print(f"Loading checkpoints from [{args.modiffae_model_path}]...")
+        #state_dict = torch.load(args.modiffae_model_path, map_location='cpu')
         state_dict = torch.load(args.modiffae_model_path, map_location='cpu')
+        #print(args.modiffae_model_path)
         load_model(model, state_dict)
 
         semantic_encoder = model.semantic_encoder

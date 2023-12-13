@@ -9,6 +9,8 @@ from utils import dist_util
 
 def load_model(model, state_dict):
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+    #print(unexpected_keys)
+    #print()
     assert len(unexpected_keys) == 0
 
 
@@ -143,6 +145,8 @@ def calculate_embeddings(data, semantic_encoder, return_labels=False):
     else:
         return embeddings
 
+
+#def calculate_embeddings_from_data
 
 def calculate_z_parameters(data, semantic_encoder, embeddings=None):
     if embeddings is None:

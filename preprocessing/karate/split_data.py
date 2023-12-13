@@ -50,11 +50,10 @@ def create_split(test_participant_code):
             validation_amount = 2
             # Participant B0370 does not have any samples for the Ushiro-Mawashi-Geri.
             # Therefore, we can not extract any validation samples. To compensate
-            # (and still have a balanced validation set), we take twice as many from participant B0392,
-            # which is similar (same grade) and has the most samples for that technique.
-            # This also keeps the ratio of male to female for this grade and technique balanced (4 vs. 4).
-            if p == 'B0392' and technique_cls == 4:  # Ushiro-Mawashi-Geri
-                validation_amount = 4
+            # (and still have a balanced validation set), we take one more from participant B0392,
+            # and one more from B0405 which have the same grade and the most samples for that technique in that grade.
+            if (p == 'B0392' or p == 'B0405') and technique_cls == 4:  # Ushiro-Mawashi-Geri
+                validation_amount = 3
 
             data_p_technique_validation, data_p_technique_train = np.split(data_p_technique, [validation_amount])
             validation_data = np.append(validation_data, data_p_technique_validation)

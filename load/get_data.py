@@ -17,22 +17,27 @@ def get_collate_fn():
     return all_collate
 
 
-def get_dataset(name, num_frames, test_participant, pose_rep, split='train'):
+def get_dataset(name, num_frames, test_participant, pose_rep, split='train', data_array=None):
     data = get_dataset_class(name)
     dataset = data(
         test_participant=test_participant,
         split=split,
         num_frames=num_frames,
-        pose_rep=pose_rep
+        pose_rep=pose_rep,
+        data_array=data_array
     )
     return dataset
 
 
-def get_dataset_loader(name, batch_size, num_frames, test_participant, pose_rep, split='train'):
-    dataset = get_dataset(name, num_frames, test_participant, pose_rep, split)
+def get_dataset_loader(name, batch_size, num_frames, test_participant, pose_rep, split='train', data_array=None):
+    dataset = get_dataset(name, num_frames, test_participant, pose_rep, split, data_array)
     collate = get_collate_fn()
-    loader = DataLoader(
+    '''loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=True,
         num_workers=8, drop_last=True, collate_fn=collate
+    )'''
+    loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True,
+        num_workers=8, drop_last=False, collate_fn=collate
     )
     return loader

@@ -15,7 +15,7 @@ from diffusion.resample import LossAwareSampler, UniformSampler
 from tqdm import tqdm
 from diffusion.resample import create_named_schedule_sampler
 #from data_loaders.humanml.networks.evaluator_wrapper import EvaluatorMDMWrapper
-from eval import eval_humanml, eval_humanact12_uestc
+#from eval import eval_humanml, eval_humanact12_uestc
 #from data_loaders.get_data import get_dataset_loader
 
 
@@ -193,7 +193,9 @@ class ModiffaeTrainLoop:
 
                     if self.validation_data is not None:
                         self.model.eval()
-                        self.run_validation()
+                        # Added this so that the memory is no issue
+                        with torch.no_grad():
+                            self.run_validation()
                         self.model.train()
 
                     for k, v in logger.get_current().name2val.items():

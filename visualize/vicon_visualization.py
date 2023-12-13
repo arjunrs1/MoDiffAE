@@ -89,6 +89,22 @@ def fade_pointclouds(colors):
     return colors
 
 
+def determine_keyframes(nr_frames):
+    pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end = \
+        determine_nr_of_pcd_frames(nr_frames)
+
+    first_keyframe_idx = pcd_nr_frames_start
+    last_keyframe_idx = nr_frames - 1
+    idx_counter = first_keyframe_idx
+    keyframes = [first_keyframe_idx]
+    while len(keyframes) < 9:
+        idx_counter += pcd_nr_frames_middle + 1
+        keyframes.append(idx_counter)
+    keyframes.append(last_keyframe_idx)
+
+    return keyframes, (pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end)
+
+
 def prepare_for_static_mode(df):
     df_copy = df.copy()
     
@@ -99,7 +115,7 @@ def prepare_for_static_mode(df):
 
     nr_frames = df.shape[0]
 
-    pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end = \
+    '''pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end = \
         determine_nr_of_pcd_frames(nr_frames)
 
     first_keyframe_idx = pcd_nr_frames_start
@@ -109,10 +125,12 @@ def prepare_for_static_mode(df):
     while len(keyframes) < 9:
         idx_counter += pcd_nr_frames_middle + 1
         keyframes.append(idx_counter)
-    keyframes.append(last_keyframe_idx)
+    keyframes.append(last_keyframe_idx)'''
+
+    keyframes, (pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end) = determine_keyframes(nr_frames)
     
-    #print(pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end, nr_frames)
-    #print(keyframes)
+    print(pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end, nr_frames)
+    print(keyframes)
 
     # The very first frame usually does not contain the whole skeleton. 
     if keyframes[0] == 0:
@@ -173,9 +191,31 @@ def create_collage(file_name, keyframes,
     top_left_x = int(og_width / 2 - collage_frame_width / 2 + og_width * 0.025)
     top_left_y = int(og_height / 2 - collage_frame_height / 2 - og_height * 0.1125)
 
-    os.system(f'ffmpeg -i {file_name} -filter:v "crop={collage_frame_width}:{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
+    #os.system(f'ffmpeg -i {file_name} -filter:v "crop={collage_frame_width}:{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
+    os.system(f'ffmpeg -i {file_name} -vf "fps=25,crop={collage_frame_width}:{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
     os.system(f'ffmpeg -i {tmp_folder_name}/cropped.mp4 -vf fps={sampling_frequency} {tmp_folder_name}/out%d.png')
-    
+
+    # TODO: determine number of actually saved frames
+
+    actually_stored_frames = [f for f in os.listdir(tmp_folder_name) if f.endswith('.png')]
+    nr_actually_stored_frames = len(actually_stored_frames)
+
+    # Movie writer does not store the padded frames of the recording
+    # because of automatic variable framerate mode. Therefore, it needs to
+    # be determined how many frames are actually extracted.
+    keyframes, _ = determine_keyframes(nr_actually_stored_frames)
+
+    #exit()
+
+    #time.sleep(5)
+
+    #os.system(f'ffmpeg -i {tmp_folder_name}/cropped.mp4 -vf fps={sampling_frequency} {tmp_folder_name}/out%d.png')
+
+    #time.sleep(5)
+
+
+    #exit()
+
     ts_top_left_x = int((collage_frame_width / 2) * 0.45)
     ts_top_left_y = int(collage_frame_height * 0.9)        
     for i in range(1, keyframes[-1] + 2):

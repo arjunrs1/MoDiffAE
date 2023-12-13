@@ -17,6 +17,8 @@ import open3d as o3d
 import vtk
 import logging
 
+import utils.karate.data_info as data_info
+
 COLORS = ["red", "green", "blue"]
 
 units = {
@@ -182,8 +184,13 @@ class MoCapViewer(object):
         else:
             color = COLORS[len(self.__skeleton_objects) % len(COLORS)]
 
+        #print(self.__colors.GetColorNames())
+
         # Create all instances for all markers
         for marker in range(n_markers):
+
+            #print(marker)
+        
             sphere = vtk.vtkSphereSource()
             sphere.SetPhiResolution(100)
             sphere.SetThetaResolution(100)
@@ -193,6 +200,17 @@ class MoCapViewer(object):
             mapper.AddInputConnection(sphere.GetOutputPort())
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
+
+            #right_labels = [
+            #    'RFHD', 'RBHD', 'RSHO', 'RUPA', 'RELB', 'RFRM', 'RWRA', 'RWRB', 'RFIN',
+            #    'RASI', 'RPSI', 'RTHI', 'RKNE', 'RTIB', 'RANK', 'RHEE', 'RTOE'
+            #]
+            #right_indices = [data_info.joint_to_index[j] for j in right_labels]
+            #if marker in [17,19,33,35,10,12,27,29,8]:
+            #if marker in right_indices:
+            #if marker in [7]:
+            #    actor.GetProperty().SetColor(self.__colors.GetColor3d('yellow'))
+            #else:
             actor.GetProperty().SetColor(self.__colors.GetColor3d(color))
             self.__renderer.AddActor(actor)
             actors_markers.append(actor)

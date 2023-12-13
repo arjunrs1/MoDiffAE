@@ -10,6 +10,7 @@ import numpy as np
 import math
 import os
 import shutil
+import time 
 
 import vtk
 import open3d as o3d
@@ -79,8 +80,8 @@ def fade_pointclouds(colors):
         if nr_of_pcd_frames == 1:
             colors[0, :] = 0.2
         else:
-            fade_min = 0.2
-            fade_max = 0.8
+            fade_min = 0.3 # 0.2
+            fade_max = 0.95
             step_size = (fade_max - fade_min) / (nr_of_pcd_frames - 1)
             for i in range(nr_of_pcd_frames):
                 colors[i, :] = fade_min + (nr_of_pcd_frames - i - 1) * step_size
@@ -194,7 +195,7 @@ def create_collage(file_name, keyframes,
         new_number_count += 1
     os.system(f'ffmpeg -i {tmp_folder_name}/out%dts.png -filter_complex tile=10x1 {dir_name}/{base_name_without_extension}.png')
     
-    shutil.rmtree(tmp_folder_name)
+    #shutil.rmtree(tmp_folder_name)
 
 
 def visualize(df, sampling_frequency, file_name, replace, mode):
@@ -211,7 +212,8 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
             bg_color = 'white',
             draw_axis = False,
             width = width,
-            height = height
+            height = height,
+            point_size=4.5
         )
         render.add_point_cloud_animation(point_cloud_list=pcd_list)
     elif mode == 'video':
@@ -230,12 +232,22 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
         render = MoCapViewer(
             sampling_frequency=sampling_frequency,
             grid_color = "lightslategray",
-            grid_dimensions = 5,
+            grid_dimensions = 3, #5,
             bg_color = 'white',
             draw_axis = True,
             width = width,
             height = height
         )
+        '''render = MoCapViewer(
+            sampling_frequency=sampling_frequency,
+            #grid_color = "lightslategray",
+            #grid_dimensions = 5,
+            grid_axis=None,
+            bg_color = 'white',
+            draw_axis = False,
+            width = width,
+            height = height
+        )'''
     else: 
         raise Exception('Mode not supported')
 
@@ -243,6 +255,20 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
 
     render._MoCapViewer__renderer.GetActiveCamera().SetPosition(-10.0, 0.0, 3.0)
     render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(1.0, 0.0, 0.0)
+
+    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 3.0)
+    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 2.0)
+    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.0)
+    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.2)
+    #render._MoCapViewer__renderer.GetActiveCamera().Zoom(2.0)
+
+
+    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 3.0)
+    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.0)
+    #render._MoCapViewer__renderer.GetActiveCamera().SetViewAngle(10.0)
+    
+
+
 
     if not file_name and (mode == 'collage' or mode == 'video'):
         raise Exception(f'Mode {mode} requires a file name')
@@ -274,6 +300,8 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
             if render._MoCapViewer__cur_frame >= render._MoCapViewer__max_frames:
                 movie_writer.End()
                 render._MoCapViewer__render_window_interactor.RemoveObserver(observer_tag)
+                # App termination
+                render._MoCapViewer__render_window_interactor.TerminateApp()
             else:
                 image_filter.Modified()
                 movie_writer.Write()
@@ -282,10 +310,15 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
         render._MoCapViewer__render_window_interactor.SetDesiredUpdateRate(sampling_frequency)
         render._MoCapViewer__render_window_interactor.SetNumberOfFlyFrames(sampling_frequency)
         observer_tag = render._MoCapViewer__render_window_interactor.AddObserver('TimerEvent', export_frame)    
-    
+
+        
+
     render.show_window()
+    if file_name:
+        movie_writer.End()
 
     if mode == 'collage':
+        time.sleep(5)
         create_collage(file_name, keyframes,
                        sampling_frequency, width, height)
 

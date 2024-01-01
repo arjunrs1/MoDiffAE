@@ -12,10 +12,6 @@ data_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
 data_file_path = os.path.join(data_dir, "karate_motion_modified.npy")
 data = np.load(data_file_path, allow_pickle=True)
 
-
-data = [d for d in data if d['condition'] == 'defender']
-
-
 for i, sample in enumerate(data):
     d = sample['joint_positions']
     technique_cls = sample['technique_cls']
@@ -23,15 +19,9 @@ for i, sample in enumerate(data):
     condition = sample['condition']
     grade = sample['grade']
 
-    if condition == 'defender':
-        print(f'Index: {i} from {len(data) - 1}')
-        print(f'Technique: {technique}')
-        print(f'Condition: {condition}')
-        print(f'Grade: {grade}')
-        from_array(d, mode='inspection')
-        print('------')
-
-# Manually add indices of problematic recordings
-# found by this search. Later add these to the outlier modification
-# and repeat it on the modified dataset.
-found_outliers = []
+    print(f'Index: {i} from {len(data) - 1}')
+    print(f'Technique: {technique}')
+    print(f'Condition: {condition}')
+    print(f'Grade: {grade}')
+    from_array(d, mode='inspection')
+    print('------')

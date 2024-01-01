@@ -92,6 +92,8 @@ def main():
     cwd = os.getcwd()
     base_dir = os.path.join(cwd, 'evaluation', 'test_manipulations', modiffae_args.test_participant)
 
+    counter = 0
+
     # Grade manipulations
     for b, (motion, cond) in enumerate(test_data):
         motion = motion.to(dist_util.dev())
@@ -108,6 +110,8 @@ def main():
         print(cond['y'].keys())'''
 
         for i in range(motion.shape[0]):
+
+            counter += 1
 
             single_model_kwargs = copy.deepcopy(cond)
             single_model_kwargs['y'].update({'mask': cond['y']['mask'][i].unsqueeze(dim=0)})
@@ -140,7 +144,7 @@ def main():
             og_path = os.path.join(samples_save_dir, f'og_xyz_motion_{(i + 1) * (b + 1)}.npy')
             manipulated_path = os.path.join(samples_save_dir, f'manipulated_xyz_motion_{(i + 1) * (b + 1)}.npy')
             if not os.path.isfile(manipulated_path):
-
+            #if True:
                 if current_grade_nr == 9:
                     target_grade_nr = 1
                 elif current_grade_nr == 1:
@@ -158,8 +162,8 @@ def main():
                     manipulated_attribute_idx=5, is_negative=lower_grade, batch_size=args.batch_size
                 )
 
-                np.save(og_path, og_xyz_motion)
-                np.save(manipulated_path, manipulated_xyz_motion)
+                #np.save(og_path, og_xyz_motion)
+                #np.save(manipulated_path, manipulated_xyz_motion)
                 print(f'Saved files in {samples_save_dir}')
 
     ###################
@@ -184,8 +188,7 @@ def main():
             single_model_kwargs = copy.deepcopy(cond)
             single_model_kwargs['y'].update({'mask': cond['y']['mask'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'lengths': cond['y']['lengths'][i].unsqueeze(dim=0)})
-            single_model_kwargs['y'].update(
-                {'original_motion': cond['y']['original_motion'][i].unsqueeze(dim=0)})
+            single_model_kwargs['y'].update({'original_motion': cond['y']['original_motion'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'distance': cond['y']['distance'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'labels': cond['y']['labels'][i].unsqueeze(dim=0)})
 
@@ -210,6 +213,8 @@ def main():
 
             for t in technique_class_to_name.keys():
                 if t != current_technique_idx:
+
+                    counter += 1
 
                     samples_save_dir = os.path.join(base_dir, 'technique',
                                                     f'from_{technique_class_to_name[current_technique_idx.item()]}',
@@ -239,8 +244,8 @@ def main():
                             manipulated_attribute_idx=t, is_negative=False, batch_size=args.batch_size
                         )
 
-                        np.save(og_path, og_xyz_motion)
-                        np.save(manipulated_path, manipulated_xyz_motion)
+                        #np.save(og_path, og_xyz_motion)
+                        #np.save(manipulated_path, manipulated_xyz_motion)
                         print(f'Saved files in {samples_save_dir}')
 
 
@@ -269,6 +274,8 @@ def main():
 
         #with torch.no_grad():
         #    og_motion = cond['y']['original_motion']
+
+    print(counter)
 
 
 if __name__ == "__main__":

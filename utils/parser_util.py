@@ -476,6 +476,14 @@ def manipulation_qualitative_evaluation_args():
     return parser.parse_args()
 
 
+def manipulation_quantitative_evaluation_args():
+    parser = ArgumentParser()
+    add_base_options(parser)
+    add_model_path_option(parser, model_type="modiffae")
+    add_model_path_option(parser, model_type="semantic_regressor")
+    return parser.parse_args()
+
+
 def regression_evaluation_args():
     parser = ArgumentParser()
     add_base_options(parser)

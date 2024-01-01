@@ -66,12 +66,21 @@ class KaratePoses(Dataset):
 
         self._action_classes = karate_action_enumerator
 
-    def reduce_to_data_for_labels(self, technique_cls, grade_name):
+    def reduce_to_data_for_labels(self, technique_cls=None, grade_name=None):
 
         #print(technique_cls, grade_name)
         #print(self.data[0]['technique_cls'], self.data[0]['grade'])
 
-        cond = lambda x: x['technique_cls'] == technique_cls and x['grade'] == grade_name
+        if technique_cls is None and grade_name is None:
+            raise ValueError("Technique and grade should not both be none")
+        elif technique_cls is None:
+            cond = lambda x: x['grade'] == grade_name
+        elif grade_name is None:
+            cond = lambda x: x['technique_cls'] == technique_cls
+        else:
+            cond = lambda x: x['technique_cls'] == technique_cls and x['grade'] == grade_name
+
+        #cond = lambda x: x['technique_cls'] == technique_cls and x['grade'] == grade_name
 
         self._pose = [x["joint_axis_angles"] for x in self.data if cond(x)]
         self._num_frames_in_video = [p.shape[0] for p in self._pose]

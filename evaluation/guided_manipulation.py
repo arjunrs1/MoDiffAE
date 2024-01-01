@@ -101,7 +101,8 @@ def calc_candidate_score(candidate_technique_prediction, candidate_grade_predict
     return candidate_score
 
 def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiffae_diffusion, semantic_regressor_model,
-                             target_technique_idx, target_grade, manipulated_attribute_idx, is_negative, batch_size):
+                             target_technique_idx, target_grade, manipulated_attribute_idx,
+                             is_negative, batch_size, return_rot_sample=False):
 
     # TODO:
     #  - extract weight of manipulated_attribute_idx
@@ -139,6 +140,48 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
         model_kwargs=single_model_kwargs
     )
 
+
+    ######
+
+    '''sample_fn = modiffae_diffusion.p_sample_loop
+
+    noi = sample_fn(
+        modiffae_model,
+        # (args.batch_size, model.njoints, model.nfeats, n_frames),  # BUG FIX - this one caused a mismatch between training and inference
+        (1, 39, 6, 100),  # BUG FIX
+        clip_denoised=False,
+        model_kwargs=single_model_kwargs,
+        skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+        init_image=None,
+        progress=True,
+        dump_steps=None,
+        noise=None,
+        const_noise=False,
+    )'''
+
+    #noi = torch.randn(*(1, 39, 6, 100), device=dist_util.dev())
+
+    #print(noi)
+    #exit()
+
+    #print(noi["sample"].shape)
+
+    #print(noi["sample"])
+
+    '''rot2xyz_mask = single_model_kwargs['y']['mask'].reshape(1, 100).bool()
+
+    xyz = modiffae_model.rot2xyz(x=noi, mask=rot2xyz_mask, pose_rep=modiffae_model.pose_rep, glob=True,
+                                    translation=True, jointstype='karate', vertstrans=True, betas=None,
+                                    beta=0, glob_rot=None, get_rotations_back=False,
+                                    distance=single_model_kwargs['y']['distance'])
+    xyz = xyz.cpu().detach().numpy()[0]
+    xyz = xyz.transpose(2, 0, 1)
+    t, j, ax = xyz.shape
+    xyz_motion = np.reshape(xyz, (t, j * ax))
+    from_array(arr=xyz_motion, mode='inspection', file_name='./randomMotion')
+
+    exit()'''
+
     #print(single_noise["sample"].shape)
 
     original_motion = single_model_kwargs['y']['original_motion']
@@ -170,8 +213,13 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
         candidate_prediction = torch.sigmoid(candidate_prediction)
         candidate_technique_prediction = candidate_prediction[:5]
         candidate_technique_prediction = F.softmax(candidate_technique_prediction, dim=-1)
+
+        #print(candidate_technique_prediction)
+
         candidate_technique_prediction = candidate_technique_prediction[target_technique_idx]
         candidate_grade_prediction = candidate_prediction[5]
+
+        #print(candidate_grade_prediction)
         #candidate_grade_prediction = torch.sigmoid(candidate_grade_prediction)
 
         #print(candidate_technique_prediction, candidate_grade_prediction)
@@ -271,4 +319,7 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
     manipulated_xyz_motion = np.reshape(manipulated_xyz, (t, j * ax))
     #from_array(arr=manipulated_xyz_motion, mode='inspection')
 
-    return og_xyz_motion, manipulated_xyz_motion
+    if return_rot_sample:
+        return og_xyz_motion, manipulated_xyz_motion, manipulated_single_sample
+    else:
+        return og_xyz_motion, manipulated_xyz_motion

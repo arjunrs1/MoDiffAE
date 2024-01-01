@@ -12,41 +12,9 @@ class MoDiffAE(nn.Module):
                  semantic_pool_type, dataset):
         super().__init__()
 
-        #self.legacy = legacy
-        #self.modeltype = modeltype
-        #self.njoints = njoints
-        #self.nfeats = nfeats
-        #self.num_actions = num_actions
-        ##self.data_rep = data_rep
         self.dataset = dataset
-
         self.pose_rep = pose_rep
-        #self.glob = glob
-        #self.glob_rot = glob_rot
         self.translation = translation
-
-        ##self.latent_dim = latent_dim
-        # self.semantic_dim = semantic_dim
-        #self.num_frames = num_frames
-
-        ##self.ff_size = ff_size
-        ##self.num_layers = num_layers
-        ##self.num_heads = num_heads
-        ##self.dropout = dropout
-
-        #self.ablation = ablation
-        ##self.activation = activation
-        #self.clip_dim = clip_dim
-        #self.action_emb = kargs.get('action_emb', None)
-
-        ##self.input_feats = njoints * nfeats
-
-        #self.normalize_output = kwargs.get('normalize_encoder_output', False)
-
-        #self.cond_mode = kwargs.get('cond_mode', 'no_cond') # kwargs.get('cond_mode', 'no_cond')
-        #self.cond_mask_prob = 0.  # kwargs.get('cond_mask_prob', 0.)
-        #self.arch = arch
-        #self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
 
         self.semantic_encoder = SemanticEncoder(
             pose_rep=pose_rep,
@@ -56,7 +24,6 @@ class MoDiffAE(nn.Module):
             num_heads=num_heads,
             transformer_feedforward_dim=transformer_feedforward_dim,
             dropout=dropout,
-            #activation=activation,
             num_layers=num_layers,
             semantic_pool_type=semantic_pool_type
         )
@@ -78,15 +45,10 @@ class MoDiffAE(nn.Module):
         self.rot2xyz = Rotation2xyz(device='cpu')
 
     def forward(self, x, timesteps, y=None):
-
-        #print(y.keys(), 'hi')
-
-
         og_motion = y['original_motion']
         # For the manipulation, the new semantic embedding
         # is passed in y.
         if 'semantic_emb' in y.keys():
-            #print('using new emb')
             semantic_emb = y['semantic_emb']
         else:
             semantic_emb = self.semantic_encoder(og_motion)
@@ -112,12 +74,7 @@ class Decoder(nn.Module):
 
         self.num_joints = num_joints
         self.num_feats = num_feats
-        #self.num_actions = num_actions
         self.pose_rep = pose_rep
-        #self.dataset = dataset
-
-        #self.pose_rep = pose_rep
-        #self.translation = translation
 
         self.latent_dim = latent_dim
         self.num_frames = num_frames
@@ -126,22 +83,11 @@ class Decoder(nn.Module):
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.dropout = dropout
-        #self.activation = activation
 
         self.input_feats = self.num_joints * self.num_feats
-
-        #self.normalize_output = kargs.get('normalize_encoder_output', False)
-
-        # self.cond_mode = kargs.get('cond_mode', 'no_cond')
-        #self.cond_mask_prob = 0.  # kargs.get('cond_mask_prob', 0.)
-
         self.input_process = InputProcess(self.pose_rep, self.input_feats, self.latent_dim)
 
         self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
-
-        # Other considerations:
-        # - GRU (not as good as transformers according to literature I think)
-        # - Transformer decoder: encoder is better suited for this task because ... (see BERT)
 
         seq_trans_encoder_layer = nn.TransformerEncoderLayer(d_model=self.latent_dim,
                                                              nhead=self.num_heads,
@@ -157,16 +103,6 @@ class Decoder(nn.Module):
         self.output_process = OutputProcess(self.pose_rep, self.input_feats, self.latent_dim, self.num_joints,
                                             self.num_feats)
 
-    '''def mask_cond(self, cond, force_mask=False):
-        bs, d = cond.shape
-        if force_mask:
-            return torch.zeros_like(cond)
-        elif self.training and self.cond_mask_prob > 0.:
-            mask = torch.bernoulli(torch.ones(bs, device=cond.device) * self.cond_mask_prob).view(bs, 1)  # 1-> use null_cond, 0-> use real cond
-            return cond * (1. - mask)
-        else:
-            return cond'''
-
     def forward(self, x, semantic_emb, timesteps, y=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
@@ -175,9 +111,7 @@ class Decoder(nn.Module):
 
         emb = self.embed_timestep(timesteps)  # [1, bs, d]
 
-        #force_mask = y.get('uncond', False)
-
-        emb += semantic_emb  # self.mask_cond(semantic_emb, force_mask=force_mask)
+        emb += semantic_emb
 
         x = self.input_process(x)
 
@@ -185,7 +119,7 @@ class Decoder(nn.Module):
         xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
         xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
 
-        output = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+        output = self.seqTransEncoder(xseq)[1:]  # [seqlen, bs, d]
 
         output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
         return output
@@ -220,7 +154,6 @@ class TimestepEmbedder(nn.Module):
         time_embed_dim = self.latent_dim
         self.time_embed = nn.Sequential(
             nn.Linear(self.latent_dim, time_embed_dim),
-            #nn.SiLU(),
             nn.GELU(),
             nn.Linear(time_embed_dim, time_embed_dim),
         )
@@ -242,29 +175,8 @@ class InputProcess(nn.Module):
     def forward(self, x):
         bs, njoints, nfeats, nframes = x.shape
         x = x.permute((3, 0, 1, 2)).reshape(nframes, bs, njoints*nfeats)
-
-        #if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
-        #print(x.shape)
-        #print(self.input_feats)
-
-
-        #print(next(self.poseEmbedding.parameters()).device)
-        #print(x.device)
-        #exit()
-
         x = self.poseEmbedding(x)  # [seqlen, bs, d]
-
-
-
         return x
-        #elif self.data_rep == 'rot_vel':
-        #    first_pose = x[[0]]  # [1, bs, 150]
-        #    first_pose = self.poseEmbedding(first_pose)  # [1, bs, d]
-        #    vel = x[1:]  # [seqlen-1, bs, 150]
-        #    vel = self.velEmbedding(vel)  # [seqlen-1, bs, d]
-        #    return torch.cat((first_pose, vel), axis=0)  # [seqlen, bs, d]
-        #else:
-        #    raise ValueError
 
 
 class OutputProcess(nn.Module):
@@ -281,18 +193,7 @@ class OutputProcess(nn.Module):
 
     def forward(self, output):
         nframes, bs, d = output.shape
-
-        #if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
         output = self.poseFinal(output)  # [seqlen, bs, 150]
-        #elif self.data_rep == 'rot_vel':
-        #    first_pose = output[[0]]  # [1, bs, d]
-        #    first_pose = self.poseFinal(first_pose)  # [1, bs, 150]
-        #    vel = output[1:]  # [seqlen-1, bs, d]
-        #    vel = self.velFinal(vel)  # [seqlen-1, bs, 150]
-        #    output = torch.cat((first_pose, vel), axis=0)  # [seqlen, bs, 150]
-        #else:
-        #    raise ValueError
-
         output = output.reshape(nframes, bs, self.njoints, self.nfeats)
         output = output.permute(1, 2, 3, 0)  # [bs, njoints, nfeats, nframes]
         return output
@@ -318,7 +219,6 @@ class SemanticEncoder(nn.Module):
         self.num_heads = num_heads
         self.transformer_feedforward_dim = transformer_feedforward_dim
         self.dropout = dropout
-        #self.activation = activation
         self.num_layers = num_layers
         self.num_frames = num_frames
 
@@ -344,12 +244,6 @@ class SemanticEncoder(nn.Module):
                 in_features=self.num_frames,
                 out_features=1
             )
-        #elif self.semantic_pool_type == 'multi_head_attention_pooling':
-        #    self.multi_head_attention = torch.nn.MultiheadAttention(
-        #        embed_dim=self.num_frames,
-        #        num_heads=10,
-        #        dropout=0.1
-        #    )
 
     def forward(self, x):
 
@@ -368,31 +262,9 @@ class SemanticEncoder(nn.Module):
         elif self.semantic_pool_type == 'linear_time_layer':
             output = self.linear_time(output).squeeze().transpose(1, 0)
         elif self.semantic_pool_type == 'gated_multi_head_attention_pooling':
-            # This could be very interesting
+            # This could be interesting
             raise Exception("Not implemented.")
         else:
             raise Exception("Pool type not implemented.")
 
         return output
-
-
-'''class MultiHeadAttentionPooling(nn.Module):
-      mlp_dim: Optional[int] = None  # Defaults to 4x input dim
-      num_heads: int = 12
-
-      @nn.compact
-      def __call__(self, x):
-        # TODO
-        n, l, d = x.shape  # pylint: disable=unused-variable
-        probe = self.param("probe", nn.initializers.xavier_uniform(),
-                           (1, 1, d), x.dtype)
-        probe = jnp.tile(probe, [n, 1, 1])
-
-        x = nn.MultiHeadDotProductAttention(
-            num_heads=self.num_heads,
-            kernel_init=nn.initializers.xavier_uniform())(probe, x)
-
-        # TODO: dropout on head?
-        y = nn.LayerNorm()(x)
-        x = x + MlpBlock(mlp_dim=self.mlp_dim)(y)
-        return x[:, 0]'''

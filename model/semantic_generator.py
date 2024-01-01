@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from utils import dist_util
 
 
 class SemanticGenerator(nn.Module):
@@ -9,8 +8,6 @@ class SemanticGenerator(nn.Module):
             attribute_dim,
             modiffae_latent_dim,
             latent_dim,
-            #embedding_dim,
-            #condition_dim,
             num_layers,
             dropout):
 
@@ -43,7 +40,6 @@ class AdaLNBlock(nn.Module):
     def __init__(
             self,
             latent_dim,
-            #condition_dim,
             dropout):
 
         super().__init__()

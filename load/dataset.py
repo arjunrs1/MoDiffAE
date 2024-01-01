@@ -2,12 +2,8 @@ import random
 
 import numpy as np
 import torch
-# from utils.action_label_to_idx import action_label_to_idx
-#from data_loaders.tensors import collate
-from load.tensors import collate
 from utils.misc import to_torch
 import utils.rotation_conversions as geometry
-from model.rotation2xyz import Rotation2xyz
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -64,52 +60,14 @@ class Dataset(torch.utils.data.Dataset):
         pose = self._load(data_index, frame_ix)
         output['inp'] = pose
 
-        ####
-        '''print(pose.shape)
-        pose_batch = pose.unsqueeze(dim=0)
-        rot2xyz = Rotation2xyz(device='cpu')
-        get_xyz = lambda sample: rot2xyz(sample, mask=None, pose_rep='rot_6d', translation=True,
-                                             # glob=enc.glob,
-                                             # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
-                                             # jointstype='smpl',  # 3.4 iter/sec
-                                             data_name='humanact12',  # for karate data
-                                             # vertstrans=False,
-                                             distance=None)
-
-        xyz = get_xyz(pose_batch)
-        xyz = xyz.to(device='cpu')
-        print(xyz.shape)
-
-        #print(xyz)
-
-        actual_pose = torch.tensor(np.transpose(self._load_joints(data_index, frame_ix), (1, 2, 0)), device='cpu').unsqueeze(dim=0)
-
-        #print(actual_pose)
-        print(actual_pose.shape)
-
-        print(xyz - actual_pose)
-
-
-
-        exit()'''
-
-
-        ####
-
-        #action = self.get_label(data_index)
-        # Added for karate
-        #distances = None
         if getattr(self, "data_name", None) is not None and self.data_name == "karate": 
             distances = self._joint_distances[data_index]
             distances = torch.as_tensor(distances)
             output['dist'] = distances
 
-        #labels = None
         if getattr(self, "_load_labels", None) is not None:
             labels = self._load_labels(data_index)
             output['labels'] = labels
-
-        #output = {'inp': pose, 'dist': distances, 'labels': labels}
 
         return output
 
@@ -184,10 +142,6 @@ class Dataset(torch.utils.data.Dataset):
     def _get_item_data_index(self, data_index):
         nframes = self._num_frames_in_video[data_index]
 
-        #print(self.num_frames)
-
-        #frame_ix = None
-
         if self.num_frames == -1 and (self.max_len == -1 or nframes <= self.max_len):
             frame_ix = np.arange(nframes)
         else:
@@ -203,30 +157,14 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 num_frames = self.num_frames if self.num_frames != -1 else self.max_len
 
-            #print(num_frames, nframes)
             if num_frames > nframes:
-                '''fair = False  # True
-                if fair:
-                    # distills redundancy everywhere
-                    choices = np.random.choice(range(nframes),
-                                               num_frames,
-                                               replace=True)
-                    frame_ix = sorted(choices)'''
-                #else:
                 # adding the last frame until done
                 ntoadd = max(0, num_frames - nframes)
                 lastframe = nframes - 1
                 padding = lastframe * np.ones(ntoadd, dtype=int)
                 frame_ix = np.concatenate((np.arange(0, nframes),
                                            padding))
-
-                #print('hi')
-
             elif self.sampling in ["conseq", "random_conseq"]:
-
-                #print('happening')
-
-                #print(nframes, num_frames)
                 step_max = (nframes - 1) // (num_frames - 1)
                 if self.sampling == "conseq":
                     if self.sampling_step == -1 or self.sampling_step * (num_frames - 1) >= nframes:
@@ -251,13 +189,6 @@ class Dataset(torch.utils.data.Dataset):
                 raise ValueError("Sampling not recognized.")
 
         output = self.get_data_dict(data_index, frame_ix)
-
-        #output = {'inp': inp, 'action': action, 'dist': distances, 'labels': labels}
-
-        #output = {'inp': inp, 'dist': distances, 'labels': labels}
-
-        #if hasattr(self, '_actions') and hasattr(self, '_action_classes'):
-        #    output['action_text'] = self.action_to_action_name(self.get_action(data_index))
 
         return output
 

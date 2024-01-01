@@ -989,11 +989,6 @@ class GaussianDiffusion:
 
         indices = list(range(self.num_timesteps - skip_timesteps))[::-1]
 
-        # I think this is wrong by them. 
-        # If wanting an ininitial image one should use the ddim_reverse_sample.
-        # I suspect this is a copy paste error due to copying from p_sample_loop_progressive. 
-        # It uses the model and the formula from the paper.
-        # I do not use init_image. 
         if init_image is not None:
             my_t = th.ones([shape[0]], device=device, dtype=th.long) * indices[0]
             img = self.q_sample(init_image, my_t, img)

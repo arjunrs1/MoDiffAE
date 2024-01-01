@@ -32,10 +32,6 @@ def get_dataset(name, num_frames, test_participant, pose_rep, split='train', dat
 def get_dataset_loader(name, batch_size, num_frames, test_participant, pose_rep, split='train', data_array=None):
     dataset = get_dataset(name, num_frames, test_participant, pose_rep, split, data_array)
     collate = get_collate_fn()
-    '''loader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=True,
-        num_workers=8, drop_last=True, collate_fn=collate
-    )'''
     loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=True,
         num_workers=8, drop_last=False, collate_fn=collate

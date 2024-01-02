@@ -120,11 +120,6 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
     df = pd.read_csv(StringIO(','.join(data)), sep=',', header=[0, 1])
     df.columns = cols
 
-    #print(df)
-
-    #print('hi')
-    #exit()
-
     if n_frames != df.shape[0]:
         issues['n_frames_mismatch'] = True
         print(f'Warning: Number of frames {n_frames} in header does not match actual frame number {df.shape[0]}')
@@ -162,13 +157,8 @@ def extract_attacker_data(csv_file, n_frames, condition, participant_code, file_
             else: 
                 lthi_marker_name = 'LTHI'
 
-            #rthi_marker_name = lthi_marker_name.replace('LTHI', 'RTHI')
-
             # Placeholder values to create the lthi columns. 
-            # Will be replaced later in the code. 
-            #df.loc[:, (lthi_marker_name, 'x')] = df.loc[:, (rthi_marker_name, 'x')].copy().to_numpy()
-            #df.loc[:, (lthi_marker_name, 'y')] = df.loc[:, (rthi_marker_name, 'y')].copy().to_numpy()
-            #df.loc[:, (lthi_marker_name, 'z')] = df.loc[:, (rthi_marker_name, 'z')].copy().to_numpy()
+            # Will be replaced later in the code.
             df.loc[:, (lthi_marker_name, 'x')] = 0
             df.loc[:, (lthi_marker_name, 'y')] = 0
             df.loc[:, (lthi_marker_name, 'z')] = 0
@@ -267,110 +257,9 @@ def add_to_sample_list(sample_list, event_dfs, attacker_code, technique_cls, con
         ))
 
 
-'''def evaluate_lthi_approximation(joint_positions, avg_lthi_lkne_dist):
-    lthi_idx = data_info.joint_to_index['LTHI']
-    lasi_idx = data_info.joint_to_index['LASI']
-    lkne_idx = data_info.joint_to_index['LKNE']
-
-    positions = np.array(joint_positions[0])
-    count = 1
-    for p in joint_positions[1:]:
-        positions = np.append(positions, p, axis=0)
-        count += 1
-
-    print(f"Used {count} samples for the evaluation of the approximation of the lthi columns")
-
-    lthi_pos_target = positions[:, lthi_idx, :]
-    lasi_pos = positions[:, lasi_idx, :]
-    lkne_pos = positions[:, lkne_idx, :]
-
-    lasi_pos = np.expand_dims(lasi_pos, axis=0)
-    lasi_pos = np.expand_dims(lasi_pos, axis=2)
-    lkne_pos = np.expand_dims(lkne_pos, axis=0)
-    lkne_pos = np.expand_dims(lkne_pos, axis=2)
-
-    avg_lthi_lkne_dist = np.expand_dims(np.array([avg_lthi_lkne_dist]), axis=0)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    lasi_pos_tensor = torch.as_tensor(lasi_pos, device=device)
-    lkne_pos_tensor = torch.as_tensor(lkne_pos, device=device)
-    avg_lthi_lkne_dist = torch.as_tensor(avg_lthi_lkne_dist, device=device)
-
-    lasi_lkne_axis_angles, _ = geometry.points_to_axis_angles_and_distances(
-        start_points=lkne_pos_tensor,
-        end_points=lasi_pos_tensor
-    )
-
-    lthi_pos_approx = geometry.axis_angles_and_distances_to_points(
-        start_points=lkne_pos_tensor,
-        axis_angles=lasi_lkne_axis_angles,
-        distances=avg_lthi_lkne_dist
-    )
-
-    lthi_pos_target = torch.as_tensor(lthi_pos_target, device=device).squeeze()
-    lthi_pos_approx = lthi_pos_approx.squeeze()
-
-    approx_distances = torch.linalg.norm(lthi_pos_target - lthi_pos_approx, dim=-1)
-    mean_distance = torch.mean(approx_distances)
-    print(f"Expected error of approximation of lthi markers: {mean_distance}mm")
-'''
-
-'''def compute_avg_lthi_lkne_dist(joint_positions):
-
-    lthi_idx = data_info.joint_to_index['LTHI']
-    lkne_idx = data_info.joint_to_index['LKNE']
-
-    positions = np.array(joint_positions[0])
-    for p in joint_positions[1:]:
-        positions = np.append(positions, p, axis=0)
-
-    lthi_pos = positions[:, lthi_idx, :]
-    lkne_pos = positions[:, lkne_idx, :]
-
-    diff = lthi_pos - lkne_pos
-    distances = np.linalg.norm(diff, axis=-1)
-    avg_distance = np.average(distances)
-    return avg_distance'''
-
-
-'''def add_lthi_column(df, avg_lthi_lkne_dist):
-    lasi_pos = df.loc[:, 'LASI'].to_numpy()
-    lkne_pos = df.loc[:, 'LKNE'].to_numpy()
-
-    lasi_pos = np.expand_dims(lasi_pos, axis=0)
-    lasi_pos = np.expand_dims(lasi_pos, axis=2)
-    lkne_pos = np.expand_dims(lkne_pos, axis=0)
-    lkne_pos = np.expand_dims(lkne_pos, axis=2)
-    avg_lthi_lkne_dist = np.expand_dims(np.array([avg_lthi_lkne_dist]), axis=0)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    lasi_pos_tensor = torch.as_tensor(lasi_pos, device=device)
-    lkne_pos_tensor = torch.as_tensor(lkne_pos, device=device)
-    avg_lthi_lkne_dist = torch.as_tensor(avg_lthi_lkne_dist, device=device)
-
-    lasi_lkne_axis_angles, _ = geometry.points_to_axis_angles_and_distances(
-        start_points=lkne_pos_tensor,
-        end_points=lasi_pos_tensor
-    )
-
-    lthi_pos = geometry.axis_angles_and_distances_to_points(
-        start_points=lkne_pos_tensor,
-        axis_angles=lasi_lkne_axis_angles,
-        distances=avg_lthi_lkne_dist
-    )
-    lthi_pos = lthi_pos.cpu().detach().numpy().squeeze()
-
-    df.loc[:, ('LTHI', 'x')] = lthi_pos[:, 0]
-    df.loc[:, ('LTHI', 'y')] = lthi_pos[:, 1]
-    df.loc[:, ('LTHI', 'z')] = lthi_pos[:, 2]
-    return df'''
-
-
 def center_initial_position(e_df):
     e_df = e_df.copy()
     # Sternum seems like the most centered joint
-    #print(list(e_df.columns))
-    #print(e_df.loc[:, 'STRN'].to_numpy())
     offset = e_df.loc[0, 'STRN'].to_numpy()
     for j in data_info.joint_to_index.keys():
         e_df.loc[:, (j, 'x')] = e_df.loc[:, (j, 'x')] - offset[0]
@@ -406,7 +295,7 @@ def make_skeleton_symmetrical(joint_positions):
 
 def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     report = {}
-    npy_name = 'karate_motion_prepared.npy' #'karate_motion_unmodified.npy'
+    npy_name = 'karate_motion_prepared.npy'  # 'karate_motion_unmodified.npy'
     file_path = os.path.join(target_dir, npy_name)
 
     if not os.path.exists(target_dir):
@@ -426,7 +315,6 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
     number_of_files = len(file_names)
 
     sample_list = []
-    #missing_lthi_sample_list = []
 
     for _, file_name in zip(tqdm(range(number_of_files), desc='Processing motion data'), file_names):
         full_path = os.path.join(data_dir, file_name)
@@ -455,11 +343,6 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
         df = resample_df(df, data_frequency, desired_frequency)
         event_dfs = split_events(df, events)
 
-        #if issues['missing_lthi']:
-        #    missing_lthi_sample_list.append(
-        #        (event_dfs, attacker_code, technique_cls, condition, issues, file_name)
-        #    )
-        #else:
         event_dfs = center_initial_position_events(event_dfs)
         add_to_sample_list(
             sample_list,
@@ -471,33 +354,6 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
             report,
             file_name
         )
-
-    
-
-    '''if len(missing_lthi_sample_list) > 0:
-        joint_positions_400_s05_e03 = [s[0] for s in sample_list if
-                                       s[3] == 'B0400' and s[4] == 4 and s[5] == 'attacker']
-        avg_lthi_lkne_dist = compute_avg_lthi_lkne_dist(joint_positions_400_s05_e03)
-
-        evaluate_lthi_approximation(joint_positions_400_s05_e03, avg_lthi_lkne_dist)
-
-        for _, (e_dfs, a_code, tech_cls, cond, issues, file_name) in zip(tqdm(range(len(missing_lthi_sample_list)),
-                    desc='Completing samples with missing LTHI marker'), missing_lthi_sample_list):
-            completed_dfs = []
-            for e_df in e_dfs:
-                complete_e_df = add_lthi_column(e_df.copy(), avg_lthi_lkne_dist)
-                completed_dfs.append(complete_e_df)
-            event_dfs = center_initial_position_events(completed_dfs)
-            add_to_sample_list(
-                sample_list,
-                event_dfs,
-                a_code,
-                tech_cls,
-                cond,
-                issues,
-                report,
-                file_name
-            )'''
 
     j_dist_shape = (len(data_info.reconstruction_skeleton),)
     samples = np.array(sample_list, dtype=[
@@ -515,10 +371,6 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
             ('grade', 'U10')
         ]
     )
-
-    #vicon_visualization.from_array(samples['joint_positions'][0])
-    #vicon_visualization.from_array(samples['joint_positions'][1])
-    #exit()
 
     print(f'Saving processed data at {file_path} ...')
     np.save(file_path, samples)
@@ -565,7 +417,6 @@ def main(desired_frequency, data_dir, target_dir, replace, view_problematic):
 
 def get_args():
     dataset_dir = os.path.join(os.getcwd(), 'datasets', 'karate')
-    #dataset_dir = os.path.join("/home/anthony/pCloudDrive/storage/data/public/motion_diffusion_autoencoder")
 
     parser = argparse.ArgumentParser(description='Preparation of the karate motion data.')
     parser.add_argument('--data_dir', '-d', dest='data_dir', type=str, default=os.path.join(dataset_dir, 'karate_csv'),

@@ -108,10 +108,8 @@ if __name__ == '__main__':
     train_data_1, validation_data_1, b0372_first_dan_test_data = create_split(test_participant_code='B0372')
     train_data_2, validation_data_2, b0401_eighth_kyu_test_data = create_split(test_participant_code='B0401')
 
-    print(len(train_data_1), len(validation_data_1), len(b0372_first_dan_test_data))
-    print(len(train_data_2), len(validation_data_2), len(b0401_eighth_kyu_test_data))
-
-    exit()
+    # print(len(train_data_1), len(validation_data_1), len(b0372_first_dan_test_data))
+    # print(len(train_data_2), len(validation_data_2), len(b0401_eighth_kyu_test_data))
 
     save_split(train_data_1, validation_data_1, b0372_first_dan_test_data, 'B0372')
     save_split(train_data_2, validation_data_2, b0401_eighth_kyu_test_data, 'B0401')

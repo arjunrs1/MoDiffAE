@@ -75,18 +75,9 @@ def load_semantic_regressor_ckpt(semantic_regressor_model_path, semantic_encoder
 def calc_candidate_score(candidate_technique_prediction, candidate_grade_prediction,
                          target_grade, mode, is_negative):
 
-    #if mode == 'grade':
     technique_distance = 1 - candidate_technique_prediction
     grade_distance = torch.abs(target_grade - candidate_grade_prediction)
     candidate_score = (technique_distance + grade_distance) / 2
-    #else:
-    #    technique_distance = 1 - candidate_technique_prediction
-        #grade_distance = torch.abs(target_grade - candidate_grade_prediction)
-        #candidate_score = (technique_distance + grade_distance) / 2
-    #    candidate_score = technique_distance
-
-    #print(candidate_technique_prediction, candidate_grade_prediction)
-
 
     if mode == 'grade':
         if is_negative and candidate_grade_prediction < target_grade:
@@ -94,24 +85,12 @@ def calc_candidate_score(candidate_technique_prediction, candidate_grade_predict
         elif not is_negative and candidate_grade_prediction > target_grade:
             return None
 
-    #print(candidate_prediction, target_technique_idx, target_grade)
-
-    #print(technique_distance, grade_distance, candidate_score)
-    #exit()
     return candidate_score
+
 
 def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiffae_diffusion, semantic_regressor_model,
                              target_technique_idx, target_grade, manipulated_attribute_idx,
                              is_negative, batch_size, return_rot_sample=False):
-
-    # TODO:
-    #  - extract weight of manipulated_attribute_idx
-    #  - create many manipulation with weights between 0 and lambda max (maybe smaller lambda max for
-    #  grade and larger for technique? But then again, we also want to hit the right garde in the technique)
-    #  Try first with the same lambda amx and see how the results are.
-    #  - create the samples, predict their labels and take the one which is closest (with regard to the target
-    #  technique distance and the target grade distance)
-    #  - if lower_grade is true, the target grade attribute has the label 0, if false then 1
 
     if is_negative:
         manipulation_sign = -1
@@ -120,14 +99,10 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
 
     if manipulated_attribute_idx == 5:
         mode = 'grade'
-        # see if this is enough
         lambda_max = 0.008
     else:
         mode = 'technique'
-        # TODO: try out and find good value
         lambda_max = 0.1
-
-    #print(f'idx {manipulated_attribute_idx}')
 
     lambda_steps = [(lambda_max / (batch_size - 1)) * i for i in range(batch_size)]
 
@@ -139,50 +114,6 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
         clip_denoised=False,
         model_kwargs=single_model_kwargs
     )
-
-
-    ######
-
-    '''sample_fn = modiffae_diffusion.p_sample_loop
-
-    noi = sample_fn(
-        modiffae_model,
-        # (args.batch_size, model.njoints, model.nfeats, n_frames),  # BUG FIX - this one caused a mismatch between training and inference
-        (1, 39, 6, 100),  # BUG FIX
-        clip_denoised=False,
-        model_kwargs=single_model_kwargs,
-        skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
-        init_image=None,
-        progress=True,
-        dump_steps=None,
-        noise=None,
-        const_noise=False,
-    )'''
-
-    #noi = torch.randn(*(1, 39, 6, 100), device=dist_util.dev())
-
-    #print(noi)
-    #exit()
-
-    #print(noi["sample"].shape)
-
-    #print(noi["sample"])
-
-    '''rot2xyz_mask = single_model_kwargs['y']['mask'].reshape(1, 100).bool()
-
-    xyz = modiffae_model.rot2xyz(x=noi, mask=rot2xyz_mask, pose_rep=modiffae_model.pose_rep, glob=True,
-                                    translation=True, jointstype='karate', vertstrans=True, betas=None,
-                                    beta=0, glob_rot=None, get_rotations_back=False,
-                                    distance=single_model_kwargs['y']['distance'])
-    xyz = xyz.cpu().detach().numpy()[0]
-    xyz = xyz.transpose(2, 0, 1)
-    t, j, ax = xyz.shape
-    xyz_motion = np.reshape(xyz, (t, j * ax))
-    from_array(arr=xyz_motion, mode='inspection', file_name='./randomMotion')
-
-    exit()'''
-
-    #print(single_noise["sample"].shape)
 
     original_motion = single_model_kwargs['y']['original_motion']
     with torch.no_grad():
@@ -207,22 +138,12 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
 
         candidate = semantic_regressor_model.denormalize(candidate)
 
-        #candidate_technique_prediction = F.sigmoid(class_after)
-        #candidate_grade_prediction =
-
         candidate_prediction = torch.sigmoid(candidate_prediction)
         candidate_technique_prediction = candidate_prediction[:5]
         candidate_technique_prediction = F.softmax(candidate_technique_prediction, dim=-1)
 
-        #print(candidate_technique_prediction)
-
         candidate_technique_prediction = candidate_technique_prediction[target_technique_idx]
         candidate_grade_prediction = candidate_prediction[5]
-
-        #print(candidate_grade_prediction)
-        #candidate_grade_prediction = torch.sigmoid(candidate_grade_prediction)
-
-        #print(candidate_technique_prediction, candidate_grade_prediction)
 
         '''class_after = F.sigmoid(class_after)
         class_after_technique = F.softmax(class_after[:, :5])
@@ -236,11 +157,6 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
             candidate_embeddings_with_scores.append((candidate_score, candidate, step))
 
     # Choose candidate with best score
-    ####
-    #print(candidate_embeddings_with_scores[:, 1])
-    #for sc in candidate_embeddings_with_scores:
-    #    print(sc[0], sc[2])
-
     try:
         best_candidate = min(candidate_embeddings_with_scores, key=lambda x: x[0])[1]
     except ValueError:
@@ -248,18 +164,6 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
               "if the grade is manipulated but the original motion is already beyond the goal.")
         denormalized_og_semantic_embedding = semantic_regressor_model.denormalize(normalized_semantic_embedding)
         best_candidate = denormalized_og_semantic_embedding
-
-    #print(best_candidate.shape)
-
-    #exit()
-
-
-    #candidate_embeddings.append(candidate)
-
-    #candidate_predictions = semantic_regressor_model.regressor(torch.as_tensor(candidate_embeddings,
-    #                                                                           device=dist_util.dev()))
-    #print(candidate_predictions.shape)
-    #exit()
 
     '''class_after = semantic_regressor_model.regressor(semantic_regressor_model.normalize(best_candidate))
     class_after = F.sigmoid(class_after)
@@ -269,10 +173,6 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
     class_after_skill_level = class_after[:, 5]
     print(class_after_skill_level)'''
 
-    #exit()
-
-    #########
-
     single_model_kwargs['y']['semantic_emb'] = best_candidate
 
     sample_fn = modiffae_diffusion.ddim_sample_loop
@@ -280,22 +180,16 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
     # Using the diffused data from the encoder in the form of noise
     manipulated_single_sample = sample_fn(
         modiffae_model,
-        # (args.batch_size, model.num_joints, model.num_feats, n_frames),
-        #(args.batch_size, data.dataset.num_joints, data.dataset.num_feats, n_frames),
         (1, 39, 6, 100),
         clip_denoised=False,
         model_kwargs=single_model_kwargs,
-        skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+        skip_timesteps=0,  # don't skip any step
         init_image=None,
         progress=True,
         dump_steps=None,
-        # 'sample' should be xT.
         noise=single_noise['sample'],
-        # noise=None,
         const_noise=False,
     )
-
-    #print(manipulated_single_sample.shape)
 
     rot2xyz_mask = single_model_kwargs['y']['mask'].reshape(1, 100).bool()
 
@@ -307,7 +201,7 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
     og_xyz = og_xyz.transpose(2, 0, 1)
     t, j, ax = og_xyz.shape
     og_xyz_motion = np.reshape(og_xyz, (t, j * ax))
-    #from_array(arr=og_xyz_motion, mode='inspection')
+    # from_array(arr=og_xyz_motion, mode='inspection')
 
     manipulated_xyz = modiffae_model.rot2xyz(x=manipulated_single_sample, mask=rot2xyz_mask, pose_rep=modiffae_model.pose_rep, glob=True,
                                         translation=True, jointstype='karate', vertstrans=True, betas=None,
@@ -317,7 +211,7 @@ def manipulate_single_sample(sample, single_model_kwargs, modiffae_model, modiff
     manipulated_xyz = manipulated_xyz.transpose(2, 0, 1)
     t, j, ax = manipulated_xyz.shape
     manipulated_xyz_motion = np.reshape(manipulated_xyz, (t, j * ax))
-    #from_array(arr=manipulated_xyz_motion, mode='inspection')
+    # from_array(arr=manipulated_xyz_motion, mode='inspection')
 
     if return_rot_sample:
         return og_xyz_motion, manipulated_xyz_motion, manipulated_single_sample

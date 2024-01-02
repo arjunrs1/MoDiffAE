@@ -15,7 +15,7 @@ from utils.parser_util import generation_args, evaluation_args, generation_evalu
 from utils.parser_util import model_parser, get_model_path_from_args
 import torch
 from evaluation.fid import calculate_fid
-from sample.generate import generate_samples_for_data_loader, create_attribute_labels
+from sample.rejection_generation import generate_samples_for_data_loader, create_attribute_labels
 import copy
 import matplotlib.pyplot as plt
 

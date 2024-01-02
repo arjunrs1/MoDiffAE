@@ -38,13 +38,13 @@ def get_labels():
 def determine_nr_of_pcd_frames(nr_frames):
     if nr_frames % 10 == 0:
         # Every keyframe gets the same number of point clouds
-        pcd_nr_frames_middle = int((nr_frames / 10.0) - 1) #10
+        pcd_nr_frames_middle = int((nr_frames / 10.0) - 1)
         pcd_nr_frames_start = int(pcd_nr_frames_middle)
         pcd_nr_frames_end = int(pcd_nr_frames_middle)
     else:
         # Spread as much as possible among the middle 8 and 
         # then redistribute in case of the existence of more even splits,
-        # while putting more importance on the middle.
+        # while putting more importance in the middle.
         pcd_nr_frames_middle = math.floor(nr_frames / 8.0) - 1
         rest = nr_frames % 8
         pcd_nr_frames_start = math.floor(rest / 2) - 1
@@ -55,7 +55,7 @@ def determine_nr_of_pcd_frames(nr_frames):
             pcd_nr_frames_start = 0
             pcd_nr_frames_end = 0
 
-        if (pcd_nr_frames_start < 0 or pcd_nr_frames_end < 0):
+        if pcd_nr_frames_start < 0 or pcd_nr_frames_end < 0:
             if pcd_nr_frames_middle > 1:
                 pcd_nr_frames_middle -= 1
                 pcd_nr_frames_start += 4
@@ -114,18 +114,6 @@ def prepare_for_static_mode(df):
     pcd_list = []
 
     nr_frames = df.shape[0]
-
-    '''pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end = \
-        determine_nr_of_pcd_frames(nr_frames)
-
-    first_keyframe_idx = pcd_nr_frames_start
-    last_keyframe_idx = df.shape[0] - 1
-    idx_counter = first_keyframe_idx
-    keyframes = [first_keyframe_idx]
-    while len(keyframes) < 9:
-        idx_counter += pcd_nr_frames_middle + 1
-        keyframes.append(idx_counter)
-    keyframes.append(last_keyframe_idx)'''
 
     keyframes, (pcd_nr_frames_start, pcd_nr_frames_middle, pcd_nr_frames_end) = determine_keyframes(nr_frames)
     
@@ -191,12 +179,11 @@ def create_collage(file_name, keyframes,
     top_left_x = int(og_width / 2 - collage_frame_width / 2 + og_width * 0.025)
     top_left_y = int(og_height / 2 - collage_frame_height / 2 - og_height * 0.1125)
 
-    #os.system(f'ffmpeg -i {file_name} -filter:v "crop={collage_frame_width}:{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
-    os.system(f'ffmpeg -i {file_name} -vf "fps=25,crop={collage_frame_width}:{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
+    os.system(f'ffmpeg -i {file_name} -vf "fps=25,crop={collage_frame_width}:'
+              f'{collage_frame_height}:{top_left_x}:{top_left_y}" {tmp_folder_name}/cropped.mp4')
     os.system(f'ffmpeg -i {tmp_folder_name}/cropped.mp4 -vf fps={sampling_frequency} {tmp_folder_name}/out%d.png')
 
-    # TODO: determine number of actually saved frames
-
+    # Determine number of actually saved frames
     actually_stored_frames = [f for f in os.listdir(tmp_folder_name) if f.endswith('.png')]
     nr_actually_stored_frames = len(actually_stored_frames)
 
@@ -204,17 +191,6 @@ def create_collage(file_name, keyframes,
     # because of automatic variable framerate mode. Therefore, it needs to
     # be determined how many frames are actually extracted.
     keyframes, _ = determine_keyframes(nr_actually_stored_frames)
-
-    #exit()
-
-    #time.sleep(5)
-
-    #os.system(f'ffmpeg -i {tmp_folder_name}/cropped.mp4 -vf fps={sampling_frequency} {tmp_folder_name}/out%d.png')
-
-    #time.sleep(5)
-
-
-    #exit()
 
     ts_top_left_x = int((collage_frame_width / 2) * 0.45)
     ts_top_left_y = int(collage_frame_height * 0.9)        
@@ -227,8 +203,9 @@ def create_collage(file_name, keyframes,
             # Add time stamp to the image
             keyframe_file_name = os.path.join(tmp_folder_name, f'out{i}.png')
             ts_keyframe_file_name = os.path.join(tmp_folder_name, f'out{i}ts.png')
-            ts_text =  "%0.2f s" % (i * (1 / sampling_frequency))
-            os.system(f'ffmpeg -i {keyframe_file_name} -vf "drawtext=text={ts_text}:fontcolor=black:fontsize=50:x={ts_top_left_x}:y={ts_top_left_y}:" {ts_keyframe_file_name}')
+            ts_text = "%0.2f s" % (i * (1 / sampling_frequency))
+            os.system(f'ffmpeg -i {keyframe_file_name} -vf "drawtext=text={ts_text}:'
+                      f'fontcolor=black:fontsize=50:x={ts_top_left_x}:y={ts_top_left_y}:" {ts_keyframe_file_name}')
 
     new_number_count = 1
     for f in keyframes:
@@ -237,7 +214,8 @@ def create_collage(file_name, keyframes,
         new_keyframe_file_name = os.path.join(tmp_folder_name, f'out{new_number_count}ts.png')
         os.rename(f'{keyframe_file_name}', f'{new_keyframe_file_name}')
         new_number_count += 1
-    os.system(f'ffmpeg -i {tmp_folder_name}/out%dts.png -filter_complex tile=10x1 {dir_name}/{base_name_without_extension}.png')
+    os.system(f'ffmpeg -i {tmp_folder_name}/out%dts.png '
+              f'-filter_complex tile=10x1 {dir_name}/{base_name_without_extension}.png')
     
     shutil.rmtree(tmp_folder_name)
 
@@ -252,46 +230,36 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
         df_viz, pcd_list, keyframes = prepare_for_static_mode(df)
         render = MoCapViewer(
             sampling_frequency=sampling_frequency, 
-            grid_axis = None,
-            bg_color = 'white',
-            draw_axis = False,
-            width = width,
-            height = height,
+            grid_axis=None,
+            bg_color='white',
+            draw_axis=False,
+            width=width,
+            height=height,
             point_size=4.5
         )
         render.add_point_cloud_animation(point_cloud_list=pcd_list)
     elif mode == 'video':
         render = MoCapViewer(
             sampling_frequency=sampling_frequency,
-            grid_color = "lightslategray",
-            grid_dimensions = 7,
-            bg_color = 'white',
-            draw_axis = True,
-            width = width,
-            height = height
+            grid_color="lightslategray",
+            grid_dimensions=7,
+            bg_color='white',
+            draw_axis=True,
+            width=width,
+            height=height
         )
     elif mode == 'inspection':
         # Only differences to video mode are the decreased grid dimensions 
         # and that no file name is required.
         render = MoCapViewer(
             sampling_frequency=sampling_frequency,
-            grid_color = "lightslategray",
-            grid_dimensions = 3, #5,
-            bg_color = 'white',
-            draw_axis = True,
-            width = width,
-            height = height
+            grid_color="lightslategray",
+            grid_dimensions=3,
+            bg_color='white',
+            draw_axis=True,
+            width=width,
+            height=height
         )
-        '''render = MoCapViewer(
-            sampling_frequency=sampling_frequency,
-            #grid_color = "lightslategray",
-            #grid_dimensions = 5,
-            grid_axis=None,
-            bg_color = 'white',
-            draw_axis = False,
-            width = width,
-            height = height
-        )'''
     else: 
         raise Exception('Mode not supported')
 
@@ -299,20 +267,6 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
 
     render._MoCapViewer__renderer.GetActiveCamera().SetPosition(-10.0, 0.0, 3.0)
     render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(1.0, 0.0, 0.0)
-
-    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 3.0)
-    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 2.0)
-    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.0)
-    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.2)
-    #render._MoCapViewer__renderer.GetActiveCamera().Zoom(2.0)
-
-
-    #render._MoCapViewer__renderer.GetActiveCamera().SetPosition(0.0, -10.0, 3.0)
-    #render._MoCapViewer__renderer.GetActiveCamera().SetViewUp(0.0, 1.0, 0.0)
-    #render._MoCapViewer__renderer.GetActiveCamera().SetViewAngle(10.0)
-    
-
-
 
     if not file_name and (mode == 'collage' or mode == 'video'):
         raise Exception(f'Mode {mode} requires a file name')
@@ -355,8 +309,6 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
         render._MoCapViewer__render_window_interactor.SetNumberOfFlyFrames(sampling_frequency)
         observer_tag = render._MoCapViewer__render_window_interactor.AddObserver('TimerEvent', export_frame)    
 
-        
-
     render.show_window()
     if file_name:
         movie_writer.End()
@@ -370,7 +322,6 @@ def visualize(df, sampling_frequency, file_name, replace, mode):
 def from_array(arr, sampling_frequency=25, file_name=None, replace=False, mode='collage'):
     if len(arr.shape) != 2:
         arr = arr.reshape(-1, arr.shape[1] * arr.shape[2])
-        #labels, _ = get_labels()
     labels, _ = get_labels()
     df = pd.DataFrame(arr, columns=labels)
     visualize(df, sampling_frequency, file_name, replace, mode)

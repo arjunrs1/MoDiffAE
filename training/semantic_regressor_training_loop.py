@@ -22,49 +22,24 @@ INITIAL_LOG_LOSS_SCALE = 20.0
 
 class SemanticRegressorTrainLoop:
     def __init__(self, args, train_platform, model, train_data, validation_data):
-
-
         self.args = args
-        #self.dataset = args.dataset
         self.train_platform = train_platform
         self.model = model
-        #self.diffusion = diffusion
-        #self.cond_mode = model.cond_mode
         self.train_data = train_data
         self.validation_data = validation_data
         self.batch_size = args.batch_size
-        #self.microbatch = args.batch_size  # deprecating this option
         self.lr = args.lr
-
-        #print(self.lr)
-        self.lr = args.lr #0.005
-        #print(self.lr)
-
         self.log_interval = args.log_interval
-        self.save_interval = args.save_interval  # 10_000 #args.save_interval
-        #self.resume_checkpoint = args.resume_checkpoint
-        #self.use_fp16 = False  # deprecating this option
-        #self.fp16_scale_growth = 1e-3  # deprecating this option
+        self.save_interval = args.save_interval
         self.weight_decay = args.weight_decay
-        #self.lr_anneal_steps = args.lr_anneal_steps
-
         self.step = 0
         self.resume_step = 0
-        #self.global_batch = self.batch_size # * dist.get_world_size()
         self.num_steps = args.num_steps
-
-        #print(self.num_steps, len(self.data))
-        #self.num_epochs = args.num_epochs #self.num_steps // len(self.train_data) + 1
         self.num_epochs = self.num_steps // len(self.train_data) + 1
-
-        #self.num_epochs = 100
         print(f"Number of epochs: {self.num_epochs}")
-        #self.sync_cuda = torch.cuda.is_available()
-
         self.save_dir = args.save_dir
         self.overwrite = args.overwrite
 
-        # lr=0.005
         self.opt = AdamW(
             self.model.regressor.parameters(),
             lr=self.lr,
@@ -74,11 +49,6 @@ class SemanticRegressorTrainLoop:
         self.device = torch.device("cpu")
         if torch.cuda.is_available() and dist_util.dev() != 'cpu':
             self.device = torch.device(dist_util.dev())
-
-        #self.sigmoid_fn = torch.nn.Sigmoid()
-        #self.loss_fn = torch.nn.BCELoss()
-
-
 
     def run_loop(self):
         for epoch in range(self.num_epochs):
@@ -127,7 +97,6 @@ class SemanticRegressorTrainLoop:
         loss = self.forward(cond, split='train')
         loss.backward()
         self.opt.step()
-        # self._anneal_lr()
         self.log_step()
 
     def forward(self, cond, split):
@@ -138,108 +107,34 @@ class SemanticRegressorTrainLoop:
 
         output = self.model(og_motion)
 
-        #loss = self.loss_fn(self.sigmoid_fn(output), target)
-
         loss = F.binary_cross_entropy_with_logits(output, target)
 
-        #print(output.shape)
-
         action_output = output[:, :5]
-        #action_output = F.softmax(action_output)
         action_output = F.softmax(action_output, dim=-1)
 
         skill_level_output = output[:, 5]
-        skill_level_output = torch.sigmoid(skill_level_output)#.unsqueeze(dim=-1)
-        #skill_level_output = output[:, 5:]
-        #skill_level_output = F.softmax(skill_level_output)
-
-        #print(skill_level_output.shape)
-
-        ##prediction = torch.cat((action_output, skill_level_output), dim=-1)
-
-        #print(prediction.shape)
-        #exit()
-
+        skill_level_output = torch.sigmoid(skill_level_output)
 
         action_target = target[:, :5]
-        skill_level_target = target[:, 5]#.unsqueeze(dim=-1)
-
-        #technique_loss = torch.nn.CrossEntropyLoss()(action_output, torch.argmax(action_target, dim=-1))
-
-        #skill_loss = F.binary_cross_entropy_with_logits(skill_level_output, skill_level_target)
-
-        #loss = torch.mean(torch.stack((technique_loss, skill_loss)))
-
-        #print(technique_loss)
-        #print(skill_loss)
-        #print(loss)
-        #exit()
-
-        ######
-
-
-
-        #loss = (torch.mul(target, torch.log(prediction)) +
-        #        torch.mul(1 - target, torch.log(1 - prediction)))
-
-        #loss = -torch.mean(loss)
-
-        #skill_loss = None
-
-        #print(loss)
-
-        #exit()
-
-
-        #loss = None
-
-
-
-        ######
-        #skill_level_target = target[:, 5:]
+        skill_level_target = target[:, 5]
 
         action_classifications = torch.argmax(action_output, dim=-1)
         action_labels_idxs = torch.argmax(action_target, dim=-1)
         action_correct_predictions = sum(action_classifications == action_labels_idxs).item()
         acc_technique = action_correct_predictions / len(og_motion)
-        #action_total_correct += action_correct_predictions
-
-        '''skill_level_classifications = torch.argmax(skill_level_output, dim=-1)
-        skill_level_labels_idxs = torch.argmax(skill_level_target, dim=-1)
-        skill_level_correct_predictions = sum(skill_level_classifications == skill_level_labels_idxs).item()
-        acc_skill_level = skill_level_correct_predictions / len(og_motion)'''
 
         mae_skill_level = F.l1_loss(skill_level_target, skill_level_output)
-        #skill_level_total_correct += skill_level_correct_predictions
-
-        #total_instances += len(og_motion)
-
-
-
-        #print(loss)
-        #exit()
 
         log_loss_dict(
             {
                 'bce_w_logits': loss.item(),
-                #'bce_loss': loss.item(),
                 'acc_technique': acc_technique,
-                #'acc_skill_level': acc_skill_level
                 'mae_skill_level': mae_skill_level
             },
             split
         )
 
         return loss
-
-    '''def _anneal_lr(self):
-        print(not self.lr_anneal_steps)
-        if not self.lr_anneal_steps:
-            return
-        frac_done = (self.step + self.resume_step) / self.lr_anneal_steps
-        lr = self.lr * (1 - frac_done)
-        for param_group in self.opt.param_groups:
-            param_group["lr"] = lr'''
 
     def log_step(self):
         logger.logkv("step", self.step)
@@ -249,16 +144,12 @@ class SemanticRegressorTrainLoop:
         return f"model{self.step:09d}.pt"
 
     def save(self):
-        #def save_checkpoint(params):
         def save_checkpoint(state_dict):
-            #state_dict = self.mp_trainer.master_params_to_state_dict(params)
-            # if dist.get_rank() == 0:
             logger.log(f"saving model...")
             filename = self.ckpt_file_name()
             with bf.BlobFile(bf.join(self.save_dir, filename), "wb") as f:
                 torch.save(state_dict, f)
 
-        #save_checkpoint(self.mp_trainer.master_params)
         save_checkpoint(self.model.state_dict())
 
         with bf.BlobFile(

@@ -26,9 +26,8 @@ def parse_and_load_from_model(parser, model_type, model_path):
         print(f'Warning: model type {model_type} is unknown.')
 
     args, _ = parser.parse_known_args()
-    #args = parser.parse_args()
     args_to_overwrite = []
-    for group_name in group_names: #['dataset', 'diffusion', model_type]:
+    for group_name in group_names:
         args_to_overwrite += get_args_per_group_name(parser, args, group_name)
 
     # load args from model
@@ -44,16 +43,8 @@ def parse_and_load_from_model(parser, model_type, model_path):
     for a in args_to_overwrite:
         if a in model_args.keys():
             setattr(args, a, model_args[a])
-
-        #elif 'cond_mode' in model_args: # backward compitability
-        #    unconstrained = (model_args['cond_mode'] == 'no_cond')
-        #    setattr(args, 'unconstrained', unconstrained)
-
         else:
             print('Warning: was not able to load [{}], using default value [{}] instead.'.format(a, args.__dict__[a]))
-
-    #if args.cond_mask_prob == 0:
-    #    args.guidance_param = 1
     return args
 
 
@@ -70,7 +61,6 @@ def get_model_path_from_args(model_type):
         dummy_parser = ArgumentParser()
         dummy_parser.add_argument(f'--{model_type}_model_path')
         dummy_args, _ = dummy_parser.parse_known_args()
-        #return dummy_args.model_path
         model_path = getattr(dummy_args, f'{model_type}_model_path')
         if model_path is None:
             raise ValueError(f'{model_type}_model_path argument must be specified.')
@@ -108,8 +98,6 @@ def add_data_options(parser):
                        type=str, help="Pose representation (choose from list).")
     group.add_argument("--no_translation", action='store_true',
                        help="If set, no translation will be used.")
-    #group.add_argument("--data_dir", default="", type=str,
-    #                   help="If empty, will use defaults according to the specified dataset.")
 
 
 def add_modiffae_model_options(parser):
@@ -131,11 +119,9 @@ def add_modiffae_model_options(parser):
 
 def add_semantic_generator_model_options(parser):
     group = parser.add_argument_group('semantic_generator')
-    # TODO: in paper they used 10 layers
-    group.add_argument("--layers", default=10, type=int,  # previously 8
+    group.add_argument("--layers", default=10, type=int,
                        help="Number of layers.")
-    # TODO: try 1024 or like in paper 2048
-    group.add_argument("--semantic_generator_latent_dim", default=2048, type=int,  # previously 512
+    group.add_argument("--semantic_generator_latent_dim", default=2048, type=int,
                        help="Transformer width.")
     group.add_argument("--modiffae_latent_dim", default=512, type=int,
                        help="Transformer width.")
@@ -168,7 +154,6 @@ def add_modiffae_training_options(parser):
     group.add_argument("--lr", default=1e-4, type=float, help="General learning rate.")
     group.add_argument("--semantic_encoder_lr", default=1e-5, type=float, help="Learning rate of sematic encoder.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
-    #group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
     group.add_argument("--eval_batch_size", default=32, type=int,
                        help="Batch size during evaluation loop. Do not change this unless you know what you are doing. "
                             "T2m precision calculation is based on fixed batch size 32.")
@@ -184,11 +169,8 @@ def add_modiffae_training_options(parser):
                        help="Log losses each N steps")
     group.add_argument("--save_interval", default=50_000, type=int,
                        help="Save checkpoints and run evaluation each N steps")
-    # TODO: I think 1M steps might be justified. humanAct is 750k steps and 1.2k data, uestc is 2M steps and 5k data
     group.add_argument("--num_steps", default=1_000_000, type=int,
                        help="Training will stop after the specified number of steps.")
-    #group.add_argument("--num_steps", default=600_000, type=int,
-    #                   help="Training will stop after the specified number of steps.")
     group.add_argument("--resume_checkpoint", default="", type=str,
                        help="If not empty, will start from the specified checkpoint (path to model###.pt file).")
 
@@ -198,18 +180,10 @@ def add_semantic_generator_training_options(parser):
     group.add_argument("--model_type", default='modiffae',
                        choices=['modiffae', 'semantic_regressor', 'semantic_generator'], type=str,
                        help="Different components of the system.")
-    #group.add_argument("--modiffae_model_path", required=True, type=str,
-    #                   help="Path to model####.pt file to be sampled.")
-    #base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
-    #group.add_argument("--save_dir", default=os.path.join(base_dir, "semantic_generator"), type=str,
-    #                   help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    #group.add_argument("--lr", default=0.0001, type=float, help="Learning rate.")
-    #group.add_argument("--lr", default=1e-4, type=float, help="Learning rate.")
     group.add_argument("--lr", default=1e-4, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
-    #group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
     group.add_argument("--eval_batch_size", default=32, type=int,
                        help="Batch size during evaluation loop. Do not change this unless you know what you are doing. "
                             "T2m precision calculation is based on fixed batch size 32.")
@@ -221,12 +195,8 @@ def add_semantic_generator_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    #group.add_argument("--log_interval", default=1_000, type=int,
-    #                   help="Log losses each N steps")
     group.add_argument("--log_interval", default=100, type=int,
                        help="Log losses each N steps")
-    #group.add_argument("--save_interval", default=10_000, type=int,
-    #                   help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--save_interval", default=5_000, type=int,
                        help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--num_steps", default=100_000, type=int,
@@ -240,17 +210,10 @@ def add_semantic_regressor_training_options(parser):
     group.add_argument("--model_type", default='modiffae',
                        choices=['modiffae', 'semantic_regressor', 'semantic_generator'], type=str,
                        help="Different components of the system.")
-    #base_dir, _ = os.path.split(os.path.dirname(get_model_path_from_args("modiffae")))
-    #group.add_argument("--save_dir", default=os.path.join(base_dir, "semantic_regressor"), type=str,
-    #                   help="Path to save checkpoints and results.")
-    #group.add_argument("--save_dir", required=True, type=str,
-    #                   help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    #group.add_argument("--lr", default=0.005, type=float, help="Learning rate.")
     group.add_argument("--lr", default=0.001, type=float, help="Learning rate.")
     group.add_argument("--weight_decay", default=0.0, type=float, help="Optimizer weight decay.")
-    #group.add_argument("--lr_anneal_steps", default=0, type=int, help="Number of learning rate anneal steps.")
     group.add_argument("--eval_batch_size", default=32, type=int,
                        help="Batch size during evaluation loop. Do not change this unless you know what you are doing. "
                             "T2m precision calculation is based on fixed batch size 32.")
@@ -262,16 +225,10 @@ def add_semantic_regressor_training_options(parser):
                        help="Number of repetitions for evaluation loop during training.")
     group.add_argument("--eval_num_samples", default=1_000, type=int,
                        help="If -1, will use all samples in the specified split.")
-    #group.add_argument("--log_interval", default=1_000, type=int,
-    #                   help="Log losses each N steps")
     group.add_argument("--log_interval", default=100, type=int,
                        help="Log losses each N steps")
-    #group.add_argument("--save_interval", default=10_000, type=int,
-    #                   help="Save checkpoints and run evaluation each N steps")
     group.add_argument("--save_interval", default=5_000, type=int,
                        help="Save checkpoints and run evaluation each N steps")
-    #group.add_argument("--num_steps", default=600_000, type=int,
-    #                   help="Training will stop after the specified number of steps.")
     group.add_argument("--num_steps", default=500_000, type=int,
                        help="Training will stop after the specified number of steps.")
     group.add_argument("--resume_checkpoint", default="", type=str,
@@ -290,8 +247,6 @@ def add_sampling_options(parser):
                             "if loading dataset from file, this field will be ignored.")
     group.add_argument("--num_repetitions", default=3, type=int,
                        help="Number of repetitions, per sample (text prompt/action)")
-    #group.add_argument("--guidance_param", default=2.5, type=float,
-    #                   help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
 
 
 def add_model_path_option(parser, model_type):
@@ -305,63 +260,19 @@ def add_save_dir_path(parser):
     group.add_argument("--save_dir", required=True, type=str,
                        help="Path to save checkpoints and results.")
 
-"""def add_generate_options(parser):
-    group = parser.add_argument_group('generate')
-    group.add_argument("--motion_length", default=6.0, type=float,
-                       help="The length of the sampled motion [in seconds]. "
-                            "Maximum is 9.8 for HumanML3D (text-to-motion), and 2.0 for HumanAct12 (action-to-motion)")
-    group.add_argument("--input_text", default='', type=str,
-                       help="Path to a text file lists text prompts to be synthesized. If empty, will take text prompts from dataset.")
-    group.add_argument("--action_file", default='', type=str,
-                       help="Path to a text file that lists names of actions to be synthesized. Names must be a subset of dataset/uestc/info/action_classes.txt if sampling from uestc, "
-                            "or a subset of [warm_up,walk,run,jump,drink,lift_dumbbell,sit,eat,turn steering wheel,phone,boxing,throw] if sampling from humanact12. "
-                            "If no file is specified, will take action names from dataset.")
-    group.add_argument("--text_prompt", default='', type=str,
-                       help="A text prompt to be generated. If empty, will take text prompts from dataset.")
-    group.add_argument("--action_name", default='', type=str,
-                       help="An action name to be generated. If empty, will take text prompts from dataset.")"""
-
-
-"""def add_edit_options(parser):
-    group = parser.add_argument_group('edit')
-    group.add_argument("--edit_mode", default='in_between', choices=['in_between', 'upper_body'], type=str,
-                       help="Defines which parts of the input motion will be edited.\n"
-                            "(1) in_between - suffix and prefix motion taken from input motion, "
-                            "middle motion is generated.\n"
-                            "(2) upper_body - lower body joints taken from input motion, "
-                            "upper body is generated.")
-    group.add_argument("--text_condition", default='', type=str,
-                       help="Editing will be conditioned on this text prompt. "
-                            "If empty, will perform unconditioned editing.")
-    group.add_argument("--prefix_end", default=0.25, type=float,
-                       help="For in_between editing - Defines the end of input prefix (ratio from all frames).")
-    group.add_argument("--suffix_start", default=0.75, type=float,
-                       help="For in_between editing - Defines the start of input suffix (ratio from all frames).")"""
-
 
 def add_evaluation_options(parser):
     group = parser.add_argument_group('eval')
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will enable to use an already existing save_dir.")
-    '''group.add_argument("--model_path", required=True, type=str,
-                       help="Path to model####.pt file to be sampled.")
-    group.add_argument("--eval_mode", default='wo_mm', choices=['wo_mm', 'mm_short', 'debug', 'full'], type=str,
-                       help="wo_mm (t2m only) - 20 repetitions without multi-modality metric; "
-                            "mm_short (t2m only) - 5 repetitions with multi-modality metric; "
-                            "debug - short run, less accurate results."
-                            "full (a2m only) - 20 repetitions.")
-    group.add_argument("--guidance_param", default=2.5, type=float,
-                       help="For classifier-free sampling - specifies the s parameter, as defined in the paper.")
-'''
 
 
 def add_generate_options(parser):
     group = parser.add_argument_group('generate')
     group.add_argument("--ratio", default=0.33, type=float, help="Percentage of synthetic data to generate.")
-    #group.add_argument("--data_save_dir", default="./datasets/karate/",
-    #                   type=str, help="Path to save checkpoints and results.")
     group.add_argument("--overwrite", action='store_true',
                        help="If True, will overwrite existing generated data.")
+
 
 def modiffae_train_args():
     parser = ArgumentParser()
@@ -381,7 +292,6 @@ def semantic_generator_train_args():
     add_semantic_generator_model_options(parser)
     add_model_path_option(parser, model_type="modiffae")
     add_semantic_generator_training_options(parser)
-    #add_sampling_options(parser)
     return parser.parse_args()
 
 
@@ -389,22 +299,10 @@ def semantic_regressor_train_args():
     parser = ArgumentParser()
     add_base_options(parser)
     add_data_options(parser)
-    #add_diffusion_options(parser)
     add_semantic_regressor_model_options(parser)
     add_model_path_option(parser, model_type="modiffae")
-    #add_sampling_options(parser)
     add_semantic_regressor_training_options(parser)
-    #add_training_options(parser)
     return parser.parse_args()
-
-
-"""def generation_args():
-    parser = ArgumentParser()
-    # args specified by the user: (all other will be loaded from the model)
-    add_base_options(parser)
-    add_sampling_options(parser)
-    #add_generate_options(parser)
-    return parser.parse_args()  # parse_and_load_from_model(parser, model_type="")"""
 
 
 def generation_args():
@@ -414,41 +312,21 @@ def generation_args():
     add_model_path_option(parser, model_type="modiffae")
     add_model_path_option(parser, model_type="semantic_generator")
     add_model_path_option(parser, model_type="semantic_regressor")
-    return parser.parse_args()  # parse_and_load_from_model(parser, model_type="")
+    return parser.parse_args()
 
 
 def editing_args():
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
-    #add_sampling_options(parser)
-    #add_edit_options(parser)
-    return parser.parse_args()  #parse_and_load_from_model(parser)
+    return parser.parse_args()
 
 
 def model_parser(model_type, model_path=None):
     parser = ArgumentParser()
     # args specified by the user: (all other will be loaded from the model)
     add_base_options(parser)
-    #add_sampling_options(parser)
-    #add_generate_options(parser)
     return parse_and_load_from_model(parser, model_type, model_path)
-
-"""def modiffae_parser():
-    parser = ArgumentParser()
-    # args specified by the user: (all other will be loaded from the model)
-    add_base_options(parser)
-    #add_sampling_options(parser)
-    #add_generate_options(parser)
-    return parse_and_load_from_model(parser, model_type="modiffae")
-
-def semantic_regressor_parser():
-    parser = ArgumentParser()
-    # args specified by the user: (all other will be loaded from the model)
-    add_base_options(parser)
-    #add_sampling_options(parser)
-    #add_generate_options(parser)
-    return parse_and_load_from_model(parser, model_type="latentnet")"""
 
 
 # TODO: evaluation args for each of the three models
@@ -458,15 +336,15 @@ def evaluation_args():
     add_base_options(parser)
     add_evaluation_options(parser)
     add_model_path_option(parser, model_type="modiffae")
-    return parser.parse_args() #parse_and_load_from_model(parser)
+    return parser.parse_args()
 
 
 def generation_evaluation_args():
     parser = ArgumentParser()
     add_base_options(parser)
     add_model_path_option(parser, model_type="modiffae")
-    # TODO: add way and parameter to choose number of samples per combination and over multiple batches
     return parser.parse_args()
+
 
 def manipulation_qualitative_evaluation_args():
     parser = ArgumentParser()
@@ -489,7 +367,6 @@ def regression_evaluation_args():
     add_base_options(parser)
     add_save_dir_path(parser)
     add_model_path_option(parser, model_type="modiffae")
-    # TODO: add way and parameter to choose number of samples per combination and over multiple batches
     return parser.parse_args()
 
 
@@ -499,5 +376,4 @@ def modiffae_validation_args():
     add_base_options(parser)
     add_save_dir_path(parser)
     add_evaluation_options(parser)
-    #add_model_path_option(parser, model_type="modiffae")
-    return parser.parse_args()  # parse_and_load_from_model(parser)
+    return parser.parse_args()

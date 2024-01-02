@@ -124,45 +124,40 @@ def generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_late
         # Using the diffused data from the encoder in the form of noise
         generated_embeddings = generator_sample_fn(
             semantic_generator_model,
-            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
             (batch_size, modiffae_latent_dim),
             clip_denoised=False,
             model_kwargs=model_kwargs,
-            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            skip_timesteps=0,  # don't skip any step
             init_image=None,
             progress=True,
             dump_steps=None,
             noise=None,  # causes the model to sample xT from a normal distribution
-            # noise=None,
             const_noise=False,
         )
 
         model_kwargs['y']['semantic_emb'] = generated_embeddings
 
-        # sample_fn = diffusion.p_sample_loop
-        # Anthony: changed to use ddim sampling. Maybe use ddpm function instead
         modiffae_sample_fn = modiffae_diffusion.ddim_sample_loop
 
         # Using the diffused data from the encoder in the form of noise
         samples = modiffae_sample_fn(
             modiffae_model,
-            # (args.batch_size, model.num_joints, model.num_feats, n_frames),
             (batch_size, data.num_joints, data.num_feats, n_frames),
             clip_denoised=False,
             model_kwargs=model_kwargs,
-            skip_timesteps=0,  # 0 is the default value - i.e. don't skip any step
+            skip_timesteps=0,  # don't skip any step
             init_image=None,
             progress=True,
             dump_steps=None,
             noise=None,  # causes the model to sample xT from a normal distribution
-            # noise=None,
             const_noise=False,
         )
     return samples, model_kwargs
 
 
 def generate_samples_for_data_loader(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data):
-    generated_samples, model_kwargs = generate_samples(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data)
+    generated_samples, model_kwargs = generate_samples(models, n_frames, batch_size,
+                                                       one_hot_labels, modiffae_latent_dim, data)
     modiffae_model = models[0][0]
     rot2xyz_pose_rep = data.pose_rep
     rot2xyz_mask = model_kwargs['y']['mask'].reshape(batch_size, n_frames).bool()
@@ -267,22 +262,6 @@ def filter_accepted_idxs(predicted_attributes, target_label):
             accepted_idxs.append(i)
     return accepted_idxs
 
-    '''correct_label_idxs = []
-    for i in range(predicted_attributes.shape[0]):
-        if check_if_prediction_is_correct(predicted_attributes[i], target_label):
-            correct_label_idxs.append(i)
-
-    samples_with_correct_label = predicted_attributes[correct_label_idxs]
-
-    print(predicted_attributes)
-    print(target_label)
-    print(samples_with_correct_label.cpu().detach().numpy())'''
-    '''predicted_attributes_npy = predicted_attributes.cpu().detach().numpy()
-    target_label_npy = target_label.cpu().detach().numpy()
-    print("hi")
-    print(predicted_attributes_npy)
-    print(target_label_npy)'''
-
 
 def rejection_sampling(models, n_frames, batch_size, one_hot_labels, modiffae_latent_dim, data, joint_distances):
     generated_samples, model_kwargs = generate_samples(models, n_frames, batch_size,
@@ -295,42 +274,10 @@ def rejection_sampling(models, n_frames, batch_size, one_hot_labels, modiffae_la
 
     accepted_sample_idxs = filter_accepted_idxs(predicted_attributes, target_label)
 
-    #print(accepted_sample_idxs)
-    #exit()
-
-    #print(generated_samples.shape)
     accepted_samples = generated_samples[accepted_sample_idxs]
-
-    #accepted_attributes = predicted_attributes[accepted_sample_idxs]
-    #print(accepted_attributes)
-
-    #print(accepted_samples.shape)
-
-    #exit()
 
     accepted_samples_list = []
     for i in range(accepted_samples.shape[0]):
-
-        #if accepted_samples.shape[0] > 0:
-        #prediction_distances = torch.abs(predicted_attributes - target_label)
-        #prediction_distances = torch.abs(accepted_attributes - target_label)
-        # Weighing so that the influence of grade and technique is equal
-        #prediction_distances[:, 5] *= 5
-        #weighted_average_distance = torch.mean(prediction_distances, dim=1)
-        #idx_of_closest = torch.argmin(weighted_average_distance)
-        #closest_prediction = predicted_attributes[idx_of_closest]
-        #closest_prediction = accepted_attributes[idx_of_closest]
-
-
-
-        #print(closest_prediction)
-        #print(target_label)
-
-        #exit()
-
-        #exit()
-
-        #if check_if_prediction_is_correct(closest_prediction, target_label):
         modiffae_model = models[0][0]
         rot2xyz_pose_rep = data.pose_rep
         rot2xyz_mask = model_kwargs['y']['mask'].reshape(batch_size, n_frames).bool()
@@ -346,7 +293,6 @@ def rejection_sampling(models, n_frames, batch_size, one_hot_labels, modiffae_la
 
         accepted_samples_xyz = generated_samples_xyz[accepted_sample_idxs]
 
-        #accepted_sample_xyz = accepted_samples_xyz[idx_of_closest]
         accepted_sample_xyz = accepted_samples_xyz[i]
         accepted_sample_xyz = torch.transpose(accepted_sample_xyz, 0, 1)
         accepted_sample_xyz = torch.transpose(accepted_sample_xyz, 0, 2)
@@ -373,9 +319,6 @@ def rejection_sampling(models, n_frames, batch_size, one_hot_labels, modiffae_la
 
         accepted_samples_list.append(complete_sample)
 
-        #return complete_sample
-    #else:
-    #    return None
     return accepted_samples_list
 
 
@@ -418,13 +361,11 @@ def main():
         for grade, number_of_samples in number_of_samples_to_generate_per_grade.items():
             number_of_samples_per_technique = round(number_of_samples / 5)
 
-            #if number_of_samples > 100:
             for i in range(5):
                 one_hot_labels = create_attribute_labels(grade, i, args.batch_size)
 
                 samples_per_combination = []
 
-                #generation_count = 0
                 while len(samples_per_combination) < number_of_samples_per_technique:
                     samples = None
                     while samples is None:
@@ -432,13 +373,10 @@ def main():
                                                      modiffae_args.modiffae_latent_dim, data, joint_distances)
 
                     samples_per_combination.extend(samples)
-                    #accepted_samples.append(samples)
                     print(f'Accepted sample(s) for grade {grade} and technique {i}')
                     print(f'Progress: {len(accepted_samples) + len(samples_per_combination)}/'
                           f'{total_nr_of_samples_to_generate}')
-                    #generation_count += 1
 
-                #samples_per_combination = samples_per_combination[:number_of_samples_per_technique]
                 accepted_samples.extend(samples_per_combination[:number_of_samples_per_technique])
     except KeyboardInterrupt:
         data_path = os.path.join(data.data_path, f'leave_{modiffae_args.test_participant}_out',

@@ -15,30 +15,15 @@ SETUP_RETRY_COUNT = 3
 
 used_device = 0
 
+
 def setup_dist(device=0):
     """
-    Setup a distributed process group.
+    Set up a distributed process group.
     """
     global used_device
     used_device = device
     if dist.is_initialized():
         return
-    # os.environ["CUDA_VISIBLE_DEVICES"] = str(device) # f"{MPI.COMM_WORLD.Get_rank() % GPUS_PER_NODE}"
-
-    # comm = MPI.COMM_WORLD
-    # backend = "gloo" if not th.cuda.is_available() else "nccl"
-
-    # if backend == "gloo":
-    #     hostname = "localhost"
-    # else:
-    #     hostname = socket.gethostbyname(socket.getfqdn())
-    # os.environ["MASTER_ADDR"] = comm.bcast(hostname, root=0)
-    # os.environ["RANK"] = str(comm.rank)
-    # os.environ["WORLD_SIZE"] = str(comm.size)
-
-    # port = comm.bcast(_find_free_port(), root=used_device)
-    # os.environ["MASTER_PORT"] = str(port)
-    # dist.init_process_group(backend=backend, init_method="env://")
 
 
 def dev():

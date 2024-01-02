@@ -223,11 +223,8 @@ class GaussianDiffusion:
         loss = sum_flat(loss * mask.float())  # gives \sigma_euclidean over unmasked elements
         n_entries = a.shape[1] * a.shape[2]
         non_zero_elements = sum_flat(mask) * n_entries
-        # print('mask', mask.shape)
-        # print('non_zero_elements', non_zero_elements)
-        # print('loss', loss)
+
         mse_loss_val = loss / non_zero_elements
-        # print('mse_loss_val', mse_loss_val)
         return mse_loss_val
 
 
@@ -1022,12 +1019,6 @@ class GaussianDiffusion:
                 yield out
                 img = out["sample"]
 
-    # Anthony: added for reverse sampling (from diffae paper)
-    # Note that the 'never used?' note is not from me!
-    # So they also noticed it?
-    # Do they use it after training?
-    # Yes they use it in experiment.py in encode_stochastic. 
-    # So it should be fine. 
     def ddim_reverse_sample(
         self,
         model,
@@ -1064,8 +1055,7 @@ class GaussianDiffusion:
                      th.sqrt(1 - alpha_bar_next) * eps)
 
         return {"sample": mean_pred, "pred_xstart": out["pred_xstart"]}
-    
-    # Anthony: added for reverse sampling (from diffae paper)
+
     def ddim_reverse_sample_loop(
         self,
         model,
@@ -1347,26 +1337,10 @@ class GaussianDiffusion:
     def generator_training_loss(self, model, z_0, t, model_kwargs):
         noise = th.randn_like(z_0)
         z_t = self.q_sample(z_0, t, noise=noise)
-
-        # should already be on correct device
-        #t = t.type("torch.cuda.FloatTensor")
-
-        # check if needed
         t = t.type("torch.cuda.FloatTensor")
-
         t = self._scale_timesteps(t)
-
-        #print(x_start.dtype, x_start.shape, x_start.device)
-        #print(cond.dtype, cond.shape, cond.device)
-        #print(t.dtype, t.shape, t.device)
-        #print(model.device)
-        #print(next(model.parameters()).is_cuda)
-        #exit()
-        #out, z_0 = model(x_0=x_0, t=t, y=model_kwargs['y'])
         out = model(z_t=z_t, t=t, y=model_kwargs['y'])
         loss = self.l2(z_0, out)
-        #print(out)
-        #exit()
         return loss
 
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None, dataset=None):
@@ -1393,14 +1367,13 @@ class GaussianDiffusion:
         else:
             dist = None
 
-        #print(enc.pose_rep)
         get_xyz = lambda sample: enc.rot2xyz(sample, mask=None, pose_rep=enc.pose_rep, translation=enc.translation,
                                              #glob=enc.glob,
                                              # jointstype='vertices',  # 3.4 iter/sec # USED ALSO IN MotionCLIP
                                              #jointstype='smpl',  # 3.4 iter/sec
                                              data_name=data_name,  # for karate data
                                              #vertstrans=False,
-                                             distance=dist) # # For karate 
+                                             distance=dist)  # For karate
 
         if model_kwargs is None:
             model_kwargs = {}
@@ -1508,11 +1481,6 @@ class GaussianDiffusion:
                 terms["vel_mse"] = self.masked_l2(target_vel[:, :-1, :, :], # Remove last joint, is the root location!
                                                   model_output_vel[:, :-1, :, :],
                                                   mask[:, :, :, 1:])  # mean_flat((target_vel - model_output_vel) ** 2)
-
-            '''terms["loss"] = terms["rot_mse"] + terms.get('vb', 0.) +\
-                            (self.lambda_vel * terms.get('vel_mse', 0.)) +\
-                            (self.lambda_rcxyz * terms.get('rcxyz_mse', 0.)) + \
-                            (self.lambda_fc * terms.get('fc', 0.))'''
 
             terms["loss"] = terms.get("rot_mse", 0.) + terms.get('vb', 0.) + \
                             (self.lambda_vel * terms.get('vel_mse', 0.)) + \

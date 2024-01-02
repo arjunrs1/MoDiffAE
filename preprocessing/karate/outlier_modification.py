@@ -34,7 +34,7 @@ def add_duration_outliers():
         mean = np.mean(dur)
         std = np.std(dur)
         cls_name = data_info.technique_class_to_name[cl]
-        if cls_name == 'Spinning back kick': #'Ushiro-Mawashi-Geri': 
+        if cls_name == 'Spinning back kick':  # 'Ushiro-Mawashi-Geri':
             # Longest and most difficult technique gets stricter criterion
             # (Since one goal is to reduce the maximum duration).
             z = 1.5
@@ -46,7 +46,6 @@ def add_duration_outliers():
                              for i, v in cls_durations if v >= upper or v <= lower]
         print(f'Number of duration outliers for the {data_info.technique_class_to_name[cl]}: '
               f'{len(duration_outliers)} (borders: ({lower:.2f}, {upper:.2f}))')
-        #outliers.extend(duration_outliers)
         add_to_outliers(outliers, duration_outliers)
 
 
@@ -81,24 +80,14 @@ def add_dominant_side_outliers():
 
     velocities = [d['joint_positions'][1:, :, :] - d['joint_positions'][:-1, :, :] for d in data]
 
-    #left_finger_distances_from_center = [
-    #    np.squeeze(np.linalg.norm(d['joint_positions'][:, left_hand_indices, 1] - 
-    #                   np.zeros_like(d['joint_positions'][:, left_hand_indices, 1]), axis=-1)) for d in data]
-
-    #right_finger_distances_from_center = [
-    #    np.squeeze(np.linalg.norm(d['joint_positions'][:, right_hand_indices, 1] - 
-    #                   np.zeros_like(d['joint_positions'][:, right_hand_indices, 1]), axis=-1)) for d in data]
-
-    #dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
-    #                        d['technique_cls'] == 0 and np.argmax(left_finger_distances_from_center[i]) > np.argmax(right_finger_distances_from_center[i])]
-
     # In the reverse punch, the dominant hand moves later than the non-dominant
-    dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
-                            d['technique_cls'] == 0 and np.argmax(vel[:, left_hand_indices, :]) > np.argmax(vel[:, right_hand_indices, :])]
+    dominant_side_hand_outliers = [(i, durations[i], 'left hand dominant') for i, (d, vel) in
+                                   enumerate(zip(data, velocities)) if d['technique_cls'] == 0 and
+                                   np.argmax(vel[:, left_hand_indices, :]) > np.argmax(vel[:, right_hand_indices, :])]
 
-
-    dominant_side_foot_outliers = [(i, durations[i], 'left foot dominant') for i, (d, vel) in enumerate(zip(data, velocities)) if
-                            d['technique_cls'] != 0 and np.max(vel[:, left_foot_indices, :]) > np.max(vel[:, right_foot_indices, :])]
+    dominant_side_foot_outliers = [(i, durations[i], 'left foot dominant') for i, (d, vel) in
+                                   enumerate(zip(data, velocities)) if d['technique_cls'] != 0 and
+                                   np.max(vel[:, left_foot_indices, :]) > np.max(vel[:, right_foot_indices, :])]
 
     print(f'Number of dominant side outliers: {len(dominant_side_hand_outliers) + len(dominant_side_foot_outliers)}')
     add_to_outliers(outliers, dominant_side_hand_outliers)
@@ -194,7 +183,6 @@ def modify_data():
     delete_idxs = []
 
     try:
-        #for i, (idx, length, reason) in enumerate(outliers):
         for _, (idx, length, reason) in zip(tqdm(range(len(outliers)), desc='Processing motion data'), outliers):
             pre_mirror = False
             pre_switch = False
@@ -210,17 +198,14 @@ def modify_data():
             report_step = {}
             report_step_done = False
             while not done:
-                #print(original_rec[:, data_info.joint_to_index['STRN'], :])
-                
                 rec = copy.deepcopy(original_rec[start: end])
 
-                #print(start, end)
                 if ('mirror' in actions and str(idx) not in report.keys()) or pre_mirror:
                     rec[:, :, 1] *= -1
                     # Also need to switch sides because mirroring 
                     # would otherwise change the dominant hand. 
                     # No need to change left and right labels because
-                    # mirrowing and switching cancel eachother out 
+                    # mirroring and switching cancel each other out
                     # in that regard. 
                     rec[:, :, 0] *= -1
 
@@ -231,10 +216,9 @@ def modify_data():
 
                 # Re-centering and calculating new joint angles and distances
                 positions_df = pd.DataFrame(rec.reshape(-1, 39 * 3),
-                        columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(), time=False))
-                
-                #print(data[idx]['joint_positions'][:, data_info.joint_to_index['STRN'], :])
-                #print(i, idx, length, reason)
+                                            columns=data_prep.create_multi_index_cols(data_info.joint_to_index.keys(),
+                                                                                      time=False))
+
                 centered_positions_df = data_prep.center_initial_position(positions_df)
 
                 rec = centered_positions_df.to_numpy().reshape(-1, 39, 3)
@@ -278,7 +262,8 @@ def modify_data():
                         print(f'Length: {rec.shape[0] / frequency}')
                         print(f'Detection criteria: {reason}')
                         from_array(rec, mode='inspection')
-                        action = input('Choose an action (remove, mirror, trim, switch side) or type done for no further actions: ')
+                        action = input('Choose an action (remove, mirror, trim, switch side) '
+                                       'or type done for no further actions: ')
 
                 if action == 'remove':
                     if str(idx) in report.keys():
@@ -367,16 +352,12 @@ def modify_data():
                     rec_data['joint_distances'] = new_joint_distances
                     new_data[idx] = rec_data
                     done = True
-                    #print(f'Finished index {i} of the outliers (Total: {len(outliers)})')
                 else:
                     if action == 'none' and str(idx) in report.keys():
                         done = True
-                        #print(f'Finished index {i} of the outliers.')
-                        #print('------')
                     else:
                         print('Wrong Input. This recording will be repeated.')
     except KeyboardInterrupt:
-        #print(f'\nAugmentation was interrupted at index {i} of the outliers.')
         print(f'\nAugmentation was interrupted.')
     finally:
         removed_duplicates_file_path = os.path.join(args.report_dir, "removed_duplicates.json")
@@ -392,10 +373,6 @@ def modify_data():
         np.save(new_data_file_path, new_data)
         print(f'Saved new data at {new_data_file_path}.')
         print(f'It contains {len(new_data)} recordings.')
-
-        #print(f'Report:')
-        #for key, value in report.items():
-        #    print(f'{key}: {value}')
 
         with open(report_file_path, 'w') as outfile:
             json.dump(report, outfile)
@@ -435,7 +412,7 @@ if __name__ == '__main__':
             message += 'replaced by new data, run this script with the --replace argument. Exiting...'
             raise Exception(message)
 
-    data_file_path = os.path.join(args.data_dir, 'karate_motion_prepared.npy') #'karate_motion_unmodified.npy')
+    data_file_path = os.path.join(args.data_dir, 'karate_motion_prepared.npy')  # 'karate_motion_unmodified.npy')
     data = np.load(data_file_path, allow_pickle=True)
 
     duplicate_sample_indices = find_duplicate_sample_indices()
@@ -501,9 +478,6 @@ if __name__ == '__main__':
             report = {}
     else:
         report = {}
-
-    #print(len(report.keys()))
-    #exit()
     
     '''c = 0
     for (idx, length, reason) in outliers:
@@ -523,7 +497,7 @@ if __name__ == '__main__':
 
     # For removing already finished outliers from the 
     # report (to do them again). Make sure to 
-    # backup the report before doing this. 
+    # back up the report before doing this.
     '''number_of_removals = 0
     for (idx, length, reason) in outliers:
         if str(idx) in report.keys():

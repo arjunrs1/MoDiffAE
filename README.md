@@ -1,4 +1,4 @@
-# MoDiffAE - Motion Diffusion Autoencoder (Work in progress)
+# MoDiffAE - Motion Diffusion Autoencoder
 
 <p float="left">
   <img src="images/technique_mod/high_kick.gif" width="250" />

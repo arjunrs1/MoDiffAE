@@ -54,7 +54,7 @@ python -m training.train --model_type semantic_regressor --modiffae_model_path {
 python -m training.train --model_type semantic_generator --modiffae_model_path {path_to_modiffae_core_model}
 ```
 
-## Evaluation
+## Model Evaluation
 
 ### Core 
 ```bash
@@ -72,6 +72,17 @@ python -m evaluation.semantic_regressor_eval --modiffae_model_path {path_to_modi
 ### Generator (experimental)
 ```bash
 python -m evaluation.generation_fid --modiffae_model_path {path_to_modiffae_core_model}
+```
+
+## Manipulation Evaluation
+### Qualitative 
+```bash
+python -m evaluation.manipulation_qualitative_eval --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
+```
+
+### Quantitative
+```bash
+ python -m evaluation.manipulation_fid --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```
 
 ## Data generation (experimental)

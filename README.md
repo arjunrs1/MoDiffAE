@@ -103,7 +103,7 @@ To create visualizations for all of the resuling test manipulations, run
 ```
 
 ### Quantitative
-To quantify the manipulation performance, run
+To quantify the manipulation performance based on the previously created test manipulations, run
 ```bash
  python -m evaluation.manipulation_fid --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```

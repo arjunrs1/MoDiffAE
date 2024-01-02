@@ -99,7 +99,7 @@ python -m evaluation.manipulation_qualitative_eval --modiffae_model_path {path_t
 ```
 To create visualizations for all of the resuling test manipulations, run
 ```bash
-
+python -m evaluation.create_collages_for_test_manipulations
 ```
 
 ### Quantitative

@@ -20,7 +20,7 @@ This is the official repository of MoDiffAE, the first sequence-to-sequence mode
 ![image](images/modiffae_architecture_detailed.svg)
 
 ## Setutp
-Setup and activate conda environment:
+First, setup and activate a conda environment:
 ```bash
 conda env create -f environment.yml
 conda activate modiffae

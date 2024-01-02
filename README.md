@@ -44,7 +44,10 @@ For an explanation of all paratemerts of a specific script, run
 ```bash
 python -m {path_to_script} --help
 ```
-In the case of the training script, the model_type for which to receive information must also be specified.
+In the case of the training script, the model type for which to receive information must also be specified. This would look as follows
+```bash
+python -m training.train --model_type {model_type} --help
+```
 
 ## Training
 There are three models that can be trained. The MoDiffAE core, the semantic regressor and the semantic generator. 

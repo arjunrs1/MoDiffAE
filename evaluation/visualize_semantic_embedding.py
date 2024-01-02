@@ -79,8 +79,6 @@ def main():
     validation_semantic_embeddings = validation_semantic_embeddings.cpu().detach().numpy()
     semantic_embeddings = np.concatenate((semantic_embeddings, validation_semantic_embeddings), axis=0)
 
-
-    # reducer = umap.UMAP(n_neighbors=100, min_dist=0.5, n_components=2)
     reducer = umap.UMAP(n_neighbors=50, min_dist=0.3, n_components=2)
 
     embedding = reducer.fit_transform(semantic_embeddings)
@@ -130,9 +128,6 @@ def main():
         raise FileExistsError('File [{}] already exists.'.format(technique_plot_path))
     else:
         plt.savefig(technique_plot_path)
-    #plt.show()
-
-    ####
 
     plt.clf()
 
@@ -159,7 +154,6 @@ def main():
         raise FileExistsError('File [{}] already exists.'.format(grade_plot_path))
     else:
         plt.savefig(grade_plot_path)
-    # plt.show()
     plt.clf()
 
     plt.scatter(
@@ -176,7 +170,6 @@ def main():
         raise FileExistsError('File [{}] already exists.'.format(technique_plot_path))
     else:
         plt.savefig(technique_plot_path)
-    # plt.show()
 
 
 if __name__ == "__main__":

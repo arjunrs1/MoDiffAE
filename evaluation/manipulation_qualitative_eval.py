@@ -17,9 +17,8 @@ import colorcet as cc
 import pandas as pd
 import json
 import torch.nn.functional as F
-from evaluation.guided_manipulation import manipulate_single_sample
-
-from evaluation.guided_manipulation import load_modiffae, load_semantic_regressor_ckpt
+from sample.guided_manipulation import manipulate_single_sample
+from sample.guided_manipulation import load_modiffae, load_semantic_regressor_ckpt
 
 
 technique_class_to_name = {
@@ -29,10 +28,6 @@ technique_class_to_name = {
     3: 'high_roundhouse_kick',   # roundhouse kick at shoulder to (top) head height
     4: 'spinning_back_kick'   # spinning back kick
 }
-
-
-def manipulate():
-    pass
 
 
 def create_directories(test_participant):
@@ -101,16 +96,8 @@ def main():
                      cond['y'].items()}
 
         cond_labels = cond['y']['labels']
-        '''print(cond['y']['mask'].shape)
-        print(cond['y']['lengths'].shape)
-        print(cond['y']['original_motion'].shape)
-        print(cond['y']['distance'].shape)
-        print(cond['y']['labels'].shape)
-
-        print(cond['y'].keys())'''
 
         for i in range(motion.shape[0]):
-
             counter += 1
 
             single_model_kwargs = copy.deepcopy(cond)
@@ -120,31 +107,18 @@ def main():
             single_model_kwargs['y'].update({'distance': cond['y']['distance'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'labels': cond['y']['labels'][i].unsqueeze(dim=0)})
 
-            '''print(single_model_kwargs['y']['mask'].shape)
-            print(single_model_kwargs['y']['lengths'].shape)
-            print(single_model_kwargs['y']['original_motion'].shape)
-            print(single_model_kwargs['y']['distance'].shape)
-            print(single_model_kwargs['y']['labels'].shape)'''
-
             m = motion[i].unsqueeze(dim=0)
-            #print(m.shape)
 
             c = cond_labels[i]
             current_technique_idx = torch.argmax(c[:5]).cpu().detach().numpy()
-            #print(current_technique_idx)
             current_grade = c[5].cpu().detach().numpy()
             current_grade_nr = round(current_grade * 12)
-            #c = c.unsqueeze(dim=0)
-
-            #print(current_technique_idx)
-            #exit()
 
             samples_save_dir = os.path.join(base_dir, 'grade',
                                             f'{technique_class_to_name[current_technique_idx.item()]}')
             og_path = os.path.join(samples_save_dir, f'og_xyz_motion_{(i + 1) * (b + 1)}.npy')
             manipulated_path = os.path.join(samples_save_dir, f'manipulated_xyz_motion_{(i + 1) * (b + 1)}.npy')
             if not os.path.isfile(manipulated_path):
-            #if True:
                 if current_grade_nr == 9:
                     target_grade_nr = 1
                 elif current_grade_nr == 1:
@@ -153,7 +127,6 @@ def main():
                     raise ValueError(f'Unexpected garde number: {current_grade_nr}')
 
                 target_grade = (1 / 12) * target_grade_nr
-                #print(target_grade)
 
                 lower_grade = target_grade_nr == 1
                 og_xyz_motion, manipulated_xyz_motion = manipulate_single_sample(
@@ -162,11 +135,9 @@ def main():
                     manipulated_attribute_idx=5, is_negative=lower_grade, batch_size=args.batch_size
                 )
 
-                #np.save(og_path, og_xyz_motion)
-                #np.save(manipulated_path, manipulated_xyz_motion)
+                np.save(og_path, og_xyz_motion)
+                np.save(manipulated_path, manipulated_xyz_motion)
                 print(f'Saved files in {samples_save_dir}')
-
-    ###################
 
     # Technique manipulations
     for b, (motion, cond) in enumerate(test_data):
@@ -175,16 +146,8 @@ def main():
                      cond['y'].items()}
 
         cond_labels = cond['y']['labels']
-        '''print(cond['y']['mask'].shape)
-        print(cond['y']['lengths'].shape)
-        print(cond['y']['original_motion'].shape)
-        print(cond['y']['distance'].shape)
-        print(cond['y']['labels'].shape)
-
-        print(cond['y'].keys())'''
 
         for i in range(motion.shape[0]):
-
             single_model_kwargs = copy.deepcopy(cond)
             single_model_kwargs['y'].update({'mask': cond['y']['mask'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'lengths': cond['y']['lengths'][i].unsqueeze(dim=0)})
@@ -192,24 +155,11 @@ def main():
             single_model_kwargs['y'].update({'distance': cond['y']['distance'][i].unsqueeze(dim=0)})
             single_model_kwargs['y'].update({'labels': cond['y']['labels'][i].unsqueeze(dim=0)})
 
-            '''print(single_model_kwargs['y']['mask'].shape)
-            print(single_model_kwargs['y']['lengths'].shape)
-            print(single_model_kwargs['y']['original_motion'].shape)
-            print(single_model_kwargs['y']['distance'].shape)
-            print(single_model_kwargs['y']['labels'].shape)'''
-
             m = motion[i].unsqueeze(dim=0)
-            # print(m.shape)
 
             c = cond_labels[i]
             current_technique_idx = torch.argmax(c[:5]).cpu().detach().numpy()
-            # print(current_technique_idx)
             current_grade = c[5].cpu().detach().numpy()
-            #current_grade_nr = round(current_grade * 12)
-            # c = c.unsqueeze(dim=0)
-
-            # print(current_technique_idx)
-            # exit()
 
             for t in technique_class_to_name.keys():
                 if t != current_technique_idx:
@@ -223,57 +173,17 @@ def main():
                     manipulated_path = os.path.join(samples_save_dir,
                                                     f'manipulated_xyz_motion_{(i + 1) * (b + 1)}.npy')
                     if not os.path.isfile(manipulated_path):
-
-                        '''if current_grade_nr == 9:
-                            target_grade_nr = 1
-                        elif current_grade_nr == 1:
-                            target_grade_nr = 9
-                        else:
-                            raise ValueError(f'Unexpected garde number: {current_grade_nr}')'''
-
-                        #target_grade = (1 / 12) * target_grade_nr
-
-                        # print(target_grade)
-
                         print(current_technique_idx, t)
 
-                        #lower_grade = target_grade_nr == 1
                         og_xyz_motion, manipulated_xyz_motion = manipulate_single_sample(
                             m, single_model_kwargs, modiffae_model, modiffae_diffusion, semantic_regressor_model,
                             target_technique_idx=t, target_grade=current_grade.item(),
                             manipulated_attribute_idx=t, is_negative=False, batch_size=args.batch_size
                         )
 
-                        #np.save(og_path, og_xyz_motion)
-                        #np.save(manipulated_path, manipulated_xyz_motion)
+                        np.save(og_path, og_xyz_motion)
+                        np.save(manipulated_path, manipulated_xyz_motion)
                         print(f'Saved files in {samples_save_dir}')
-
-
-
-
-            #exit()
-
-            # TODO: manipulate for each of the target techniques
-            #target_technique_idxs = [i for i in range(5) if i != current_technique_idx]
-            #print(target_technique_idxs)
-
-            #print(current_grade, current_grade_nr)
-
-
-
-
-
-
-            #print(c)
-
-
-
-            #exit()
-
-
-
-        #with torch.no_grad():
-        #    og_motion = cond['y']['original_motion']
 
     print(counter)
 

@@ -118,7 +118,7 @@ python -m sample.rejection_generation --modiffae_model_path {path_to_modiffae_co
 ### Acknowledgements
 This code is based on a variety of other works. We want to thank the following contributors that our code is based on:
 
-[guided-diffusion](https://github.com/openai/guided-diffusion), [MDM](https://github.com/openai/guided-diffusion), [DiffAE](https://github.com/openai/guided-diffusion), [PyMoCapViewer](https://github.com/openai/guided-diffusion). 
+[guided-diffusion](https://github.com/openai/guided-diffusion), [MDM](https://github.com/GuyTevet/motion-diffusion-model/tree/main), [DiffAE](https://github.com/phizaz/diffae), [PyMoCapViewer](https://github.com/justamad/PyMoCapViewer). 
 
 ### License
 This code is distributed under an [MIT LICENSE](LICENSE).

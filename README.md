@@ -37,6 +37,14 @@ This will automatically perform all preprocessing steps and create splits for tr
 
 ![image](images/preprocessing_overview.png)
 
+## Prerequisites
+Training and evaluation is possible using a single RTX 2080 Ti.
+Moreover, all scripts provide a variety of further parameters that can be specified. 
+For an explanation of all paratemerts, run
+```bash
+python -m {path_to_script} --help
+```
+
 ## Training
 
 ### Core 

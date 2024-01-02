@@ -105,7 +105,7 @@ python -m evaluation.create_collages_for_test_manipulations
 ### Quantitative
 To quantify the manipulation performance based on the previously created test manipulations, run
 ```bash
- python -m evaluation.manipulation_fid --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
+python -m evaluation.manipulation_fid --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```
 The type of manipulation that should be evaluated has to be set in the according script.
 

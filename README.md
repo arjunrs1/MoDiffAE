@@ -114,3 +114,12 @@ Assuming a semantic generator was trained, the system can also be used to genera
 ```bash
 python -m sample.rejection_generation --modiffae_model_path {path_to_modiffae_core_model} --semantic_generator_model_path {path_to_generator_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```
+
+### Acknowledgements
+This code is based on a variety of other works. We want to thank the following contributors that our code is based on:
+
+[guided-diffusion](https://github.com/openai/guided-diffusion), [MDM](https://github.com/openai/guided-diffusion), [DiffAE](https://github.com/openai/guided-diffusion), [PyMoCapViewer](https://github.com/openai/guided-diffusion). 
+
+### License
+This code is distributed under an [MIT LICENSE](LICENSE).
+

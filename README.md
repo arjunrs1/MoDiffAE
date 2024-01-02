@@ -46,6 +46,9 @@ python -m {path_to_script} --help
 ```
 
 ## Training
+There are three models that can be trained. The MoDiffAE core, the semantic regressor and the semantic generator. 
+The core needs to be trained first as the other to models depend on it. 
+When training the regressor and generator, the core is frozen. 
 
 ### Core 
 ```bash
@@ -65,35 +68,49 @@ python -m training.train --model_type semantic_generator --modiffae_model_path {
 ## Model Evaluation
 
 ### Core 
+To evaluate the linear separability in the semantic embedding space for all model checkpoints, run
 ```bash
 python -m evaluation.semantic_embedding_knn_regression --save_dir {path_to_save_dir}
 ```
+To visualize the structure of the semantic embedding for a specific model checkpoint, run
 ```bash
 python -m evaluation.visualize_semantic_embedding --modiffae_model_path {path_to_modiffae_core_model}
 ```
 
 ### Regressor 
+To evaluate the performance of the semantic regressor for all model checkpoints, run
 ```bash
 python -m evaluation.semantic_regressor_eval --modiffae_model_path {path_to_modiffae_core_model} --save_dir {path_to_save_dir}
 ```
 
 ### Generator (experimental)
+To evaluate the performance of the semantic generator for all model checkpoints, run
 ```bash
 python -m evaluation.generation_fid --modiffae_model_path {path_to_modiffae_core_model}
 ```
 
 ## Manipulation Evaluation
+The evaluation of the manipulation consists of a qualitative evaluation, which needs to be done first, and a quantitative evaluation. 
 ### Qualitative 
+The qualitative evaluation executes all test manipulations and saves the results in numpy files. 
+This is done by running 
 ```bash
 python -m evaluation.manipulation_qualitative_eval --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```
+To create visualizations for all of the resuling test manipulations, run
+```bash
+
+```
 
 ### Quantitative
+To quantify the manipulation performance, run
 ```bash
  python -m evaluation.manipulation_fid --modiffae_model_path {path_to_modiffae_core_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```
+The type of manipulation that should be evaluated has to be set in the according script.
 
 ## Data generation (experimental)
+Assuming a semantic generator was trained, the system can also be used to generate new data. This can be done by running
 ```bash
 python -m sample.rejection_generation --modiffae_model_path {path_to_modiffae_core_model} --semantic_generator_model_path {path_to_generator_model} --semantic_regressor_model_path {path_to_regressor_model}
 ```

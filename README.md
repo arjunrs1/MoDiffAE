@@ -15,9 +15,9 @@
 This is the official repository of MoDiffAE, the first sequence-to-sequence model capable of modifying arbitrary human motion characteristics. Below you will find an overview of the MoDiffAE architecture. It is based on Diffusion Models and Transformers. Although its capabilities are demonstrated on human motion, the model could in theory be used for the modification of any type of sequence data. However, it has not been tested on other types of sequence data, yet.
 
 
-![image](images/overview.svg)
+![image](images/architecture_overview.svg)
 
-![image](images/modiffae_architecture.svg)
+![image](images/modiffae_architecture_detailed.svg)
 
 ## Preprocessing 
 
@@ -28,4 +28,4 @@ bash preprocessing/karate/preprocess.sh
 ```
 This will automatically perform all preprocessing steps and create splits for training, validation and testing.
 
-![image](images/preprocessing_pipeline.png)
+![image](images/preprocessing_overview.png)

@@ -124,6 +124,8 @@ This code is based on a variety of other works. We want to thank the following c
 
 [MDM](https://github.com/GuyTevet/motion-diffusion-model/tree/main), [guided-diffusion](https://github.com/openai/guided-diffusion), [PyMoCapViewer](https://github.com/justamad/PyMoCapViewer). 
 
+Special thanks to [Szczęsna et al.](https://www.nature.com/articles/s41597-021-00801-5) for providing the original version of the Kyokushin karate dataset.
+
 ### License
 This code is distributed under an [MIT LICENSE](LICENSE).
 

@@ -5,7 +5,7 @@ import utils.karate.data_info as data_info
 import torch
 
 class KaratePoses(Dataset):
-    def __init__(self, test_participant, data_path="datasets/karate", split="train",
+    def __init__(self, test_participant, data_path="/vision/vision_data_2/kyokushin_karate", split="train",
                  pose_rep="xyz", num_joints=39, root_joint_name='T10', data_array=None, **kwargs):
 
         root_joint_idx = data_info.joint_to_index[root_joint_name]

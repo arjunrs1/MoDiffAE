@@ -137,4 +137,3 @@ dependencies:
     - PyMocapViewer
     - blobfile
     - tensorboard
-prefix: /disk2/guytevet/anaconda3/envs/mdm-venv

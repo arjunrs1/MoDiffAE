@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 
 def lengths_to_mask(lengths, max_len):
@@ -46,6 +47,6 @@ def collate(batch):
 
     if 'labels' in not_none_batches[0]:
         labels_batch = [b['labels'] for b in not_none_batches]
-        cond['y'].update({'labels': torch.as_tensor(labels_batch, dtype=torch.float32).squeeze()}) #.unsqueeze(1)})  # remove unsqueeze?
+        cond['y'].update({'labels': torch.as_tensor(np.array(labels_batch), dtype=torch.float32).squeeze()})
 
     return motion, cond

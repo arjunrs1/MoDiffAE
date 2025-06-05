@@ -8,6 +8,7 @@ import matplotlib.animation as animation
 import os
 from mpl_toolkits.mplot3d import Axes3D
 import argparse
+from tqdm import tqdm
 
 def get_skeleton_connections():
     """Define connections between joints based on the provided joint ordering"""
@@ -137,16 +138,16 @@ def visualize_poses(og_path, manipulated_path, output_dir=None, fps=10):
     # For animation using frame-by-frame approach
     for frame in range(n_frames):
         print(f"Rendering frame {frame+1}/{n_frames}")
+                
+        # Instead, just remove previous plots
+        for ax in [ax1, ax2]:
+            # Remove previous artists without resetting axis properties
+            for artist in list(ax.collections) + list(ax.lines):
+                artist.remove()
         
         # Get data for current frame (only non-arm joints)
         og_frame_data = og_xyz_reshaped[frame][valid_joints]
         manip_frame_data = manipulated_xyz_reshaped[frame][valid_joints]
-        
-        # Clear previous frame
-        ax1.clear()
-        ax2.clear()
-        set_axes_properties(ax1, 'Original Pose')
-        set_axes_properties(ax2, 'Manipulated Pose')
         
         # Reset consistent view limits
         for ax in [ax1, ax2]:
@@ -304,15 +305,48 @@ def animate_poses(og_path, manipulated_path, output_dir=None, fps=10):
     temp_dir = tempfile.mkdtemp()
     print(f"Created temp directory: {temp_dir}")
     
-    # Set up figure once
-    for frame in range(n_frames):
-        print(f"Rendering frame {frame+1}/{n_frames}")
+    # Calculate global min and max values across ALL frames for consistent axes
+    filtered_og = og_xyz_reshaped[:, valid_joints, :]
+    filtered_manip = manipulated_xyz_reshaped[:, valid_joints, :]
+    
+    all_data = np.vstack([filtered_og.reshape(-1, 3), filtered_manip.reshape(-1, 3)])
+    min_vals = np.min(all_data, axis=0) - 0.1  # Add small margin
+    max_vals = np.max(all_data, axis=0) + 0.1
+    
+    # Create equal aspect ratio for axes
+    x_range = max_vals[0] - min_vals[0]
+    y_range = max_vals[1] - min_vals[1]
+    z_range = max_vals[2] - min_vals[2]
+    max_range = max(x_range, y_range, z_range) / 2
+    
+    mid_x = (max_vals[0] + min_vals[0]) / 2
+    mid_y = (max_vals[1] + min_vals[1]) / 2
+    mid_z = (max_vals[2] + min_vals[2]) / 2
+    
+    # Render each frame
+    for frame in tqdm(range(n_frames)):
         
         fig = plt.figure(figsize=(16, 8))
         ax1 = fig.add_subplot(121, projection='3d')
         ax2 = fig.add_subplot(122, projection='3d')
         
-        # Render the frame
+        # Set axes properties
+        for ax in [ax1, ax2]:
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
+            ax.grid(False)
+            ax.view_init(elev=20, azim=-60)
+            
+            # Set FIXED axes limits based on global min/max
+            ax.set_xlim(mid_x - max_range, mid_x + max_range)
+            ax.set_ylim(mid_y - max_range, mid_y + max_range)
+            ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        ax1.set_title('Novice')
+        ax2.set_title('Expert')
+        
+        # Render the frame (only non-arm joints)
         ax1.scatter(og_xyz_reshaped[frame, valid_joints, 0], 
                     og_xyz_reshaped[frame, valid_joints, 1], 
                     og_xyz_reshaped[frame, valid_joints, 2], c='b')
@@ -320,8 +354,12 @@ def animate_poses(og_path, manipulated_path, output_dir=None, fps=10):
                     manipulated_xyz_reshaped[frame, valid_joints, 1], 
                     manipulated_xyz_reshaped[frame, valid_joints, 2], c='b')
         
-        # Plot lines
+        # Plot lines (skip connections involving arm joints)
         for start, end in connections:
+            # Skip connections involving arm joints
+            if start in arm_joint_indices or end in arm_joint_indices:
+                continue
+                
             # Original
             ax1.plot([og_xyz_reshaped[frame, start, 0], og_xyz_reshaped[frame, end, 0]],
                      [og_xyz_reshaped[frame, start, 1], og_xyz_reshaped[frame, end, 1]],
@@ -332,8 +370,6 @@ def animate_poses(og_path, manipulated_path, output_dir=None, fps=10):
                      [manipulated_xyz_reshaped[frame, start, 1], manipulated_xyz_reshaped[frame, end, 1]],
                      [manipulated_xyz_reshaped[frame, start, 2], manipulated_xyz_reshaped[frame, end, 2]], 'r-')
         
-        ax1.set_title('Novice')
-        ax2.set_title('Expert')
         fig.suptitle(f'Frame {frame+1}/{n_frames}', fontsize=16)
         
         # Save individual frame
